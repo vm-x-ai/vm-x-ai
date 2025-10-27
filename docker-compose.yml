@@ -4,11 +4,47 @@ services:
     ports:
       - '5440:5432'
     environment:
-      POSTGRES_USER: 'vmxai-admin'
+      POSTGRES_USER: 'admin'
       POSTGRES_PASSWORD: password
       POSTGRES_DB: vmxai
+
+  # Only for development, use a real KMS to unseal the vault in production
+  vault-kms:
+    image: hashicorp/vault:latest
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    ports:
+      - "8201:8200"
     volumes:
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/vault-kms/config:/vault/config
+    command: /vault/config/init.sh
+    healthcheck:
+      test: ["CMD", "sh", "-c", "VAULT_TOKEN=root vault read -address=http://127.0.0.1:8200 transit/keys/autounseal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  vault:
+    image: hashicorp/vault:latest
+    ports:
+      - "8200:8200"
+    environment:
+      DB_HOST: postgres
+      DB_USER: admin
+      DB_NAME: vmxai
+      DB_PASSWORD: password
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./docker/vault/config:/vault/config
+    depends_on:
+      postgres:
+        condition: service_started
+      vault-kms:
+        condition: service_healthy
+    command: /vault/config/init.sh
 
   redis-node-1:
     image: redis:7

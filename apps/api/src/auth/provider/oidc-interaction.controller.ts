@@ -21,6 +21,8 @@ import { ConfigService } from '@nestjs/config';
 import { LoginDto } from './dto/login.dto';
 import { ConsentDto } from './dto/consent.dto';
 import { Public } from '../auth.guard';
+import { RESOURCE_INDICATOR } from './consts';
+import { ApiOkResponse } from '@nestjs/swagger';
 
 @Public()
 @Controller({ path: 'interaction', version: VERSION_NEUTRAL })
@@ -34,6 +36,9 @@ export class OidcInteractionController {
 
   // Step 1: render (or return data for) login/consent
   @Get(':uid')
+  @ApiOkResponse({
+    description: 'Show Login/Consent Interaction HTML page',
+  })
   async showInteraction(
     @Param('uid') uid: string,
     @Req() req: FastifyRequest,
@@ -44,9 +49,13 @@ export class OidcInteractionController {
       res.raw
     );
 
-    const federatedLoginUrl = this.federatedLoginService.enabled
+    const { url: federatedLoginUrl, codeVerifier } = this.federatedLoginService
+      .enabled
       ? await this.federatedLoginService.getAuthorizationUrl(uid)
-      : null;
+      : {};
+
+    details.params.federatedLoginCodeVerifier = codeVerifier;
+    details.persist();
 
     if (details.prompt.name === 'login') {
       // Show login form
@@ -92,6 +101,9 @@ export class OidcInteractionController {
 
   // Step 2: handle login submission
   @Post(':uid/login')
+  @ApiOkResponse({
+    description: 'Handle login submission',
+  })
   async login(
     @Param('uid') uid: string,
     @Body() body: LoginDto,
@@ -106,7 +118,6 @@ export class OidcInteractionController {
       body.username,
       body.password
     );
-    // Example: accept any credentials
     if (authUser) {
       const result: InteractionResults = {
         login: { accountId: authUser.id },
@@ -128,7 +139,7 @@ export class OidcInteractionController {
 
         grant.addOIDCScope(interactionDetails.params.scope as string);
         grant.addResourceScope(
-          'https://vm-x.ai',
+          RESOURCE_INDICATOR,
           interactionDetails.params.scope as string
         );
 
@@ -149,6 +160,9 @@ export class OidcInteractionController {
 
   // Add consent handler
   @Post(':uid/consent')
+  @ApiOkResponse({
+    description: 'Handle consent submission',
+  })
   async consent(
     @Param('uid') uid: string,
     @Body() body: ConsentDto,
@@ -221,6 +235,9 @@ export class OidcInteractionController {
   }
 
   @Get('federated/callback')
+  @ApiOkResponse({
+    description: 'Static federated callback that redirects to the UID interaction federated page',
+  })
   @Redirect()
   async federatedCallback(
     @Req() req: FastifyRequest,
@@ -235,12 +252,26 @@ export class OidcInteractionController {
   }
 
   @Get(':uid/federated')
+  @ApiOkResponse({
+    description: 'Continues with the federated login process',
+  })
   async federatedInteraction(
     @Param('uid') uid: string,
     @Req() req: FastifyRequest<{ Querystring: { state: string | undefined } }>,
     @Res() res: FastifyReply
   ) {
-    const user = await this.federatedLoginService.callback(req);
+    const details = await this.oidc.provider.interactionDetails(
+      req.raw,
+      res.raw
+    );
+    const codeVerifier = details.params.federatedLoginCodeVerifier;
+    if (!codeVerifier) {
+      throw new BadRequestException('Code verifier is required');
+    }
+    const user = await this.federatedLoginService.callback(
+      req,
+      codeVerifier as string
+    );
     const result = {
       login: { accountId: user.id },
     };

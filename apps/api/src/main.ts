@@ -1,7 +1,6 @@
 import { LoggerErrorInterceptor, Logger as PinoLogger } from 'nestjs-pino';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import {
   FastifyAdapter,
   NestFastifyApplication,
@@ -10,7 +9,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { GlobalExceptionFilter } from './error';
 import { OidcProviderService } from './auth/provider/oidc-provider.service';
 import fastifyExpress from '@fastify/express';
-import { join } from 'path';
+import { setupOpenAPIDocumentation } from './openapi';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -22,14 +21,8 @@ async function bootstrap() {
   const fastify = app.getHttpAdapter().getInstance();
   // Register the plugin to allow Express-style middleware
   if (typeof fastify.use !== 'function') {
-    console.log('Registering fastifyExpress');
     await fastify.register(fastifyExpress);
   }
-
-  const oidcProvider = app.get(OidcProviderService);
-
-  // Mount the OIDC provider
-  fastify.use('/oauth2', oidcProvider.provider.callback());
 
   const logger = app.get(PinoLogger);
   app.useLogger(logger);
@@ -48,31 +41,19 @@ async function bootstrap() {
     )
   );
 
-  app.useStaticAssets({
-    root: join(__dirname, 'public'),
-    prefix: '/public/',
-  });
-  app.setViewEngine({
-    engine: {
-      handlebars: require('handlebars'),
-    },
-    templates: join(__dirname, 'views'),
-  });
-
   // Configure API versioning using URI strategy
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: '1',
   });
 
-  const config = new DocumentBuilder()
-    .setTitle('VM-X AI API')
-    .setDescription('VM-X AI API')
-    .setVersion('1.0')
-    .build();
+  setupOpenAPIDocumentation(app);
 
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, documentFactory);
+  await app.init();
+
+  const oidcProvider = app.get(OidcProviderService);
+  // Mount the OIDC provider
+  fastify.use('/oauth2', oidcProvider.provider.callback());
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

@@ -7,7 +7,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PinoLogger } from 'nestjs-pino';
 import * as oidcClient from 'openid-client';
-import { DatabaseService } from '../../storage/database.service';
 import { FastifyRequest } from 'fastify';
 import { ErrorCode } from '../../types';
 import { throwServiceError } from '../../error';
@@ -17,25 +16,28 @@ import { UserEntity } from '../../users/user.entity';
 @Injectable()
 export class FederatedLoginService implements OnModuleInit {
   private issuer: oidcClient.Configuration | null = null;
+  private redirectUri: string;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly logger: PinoLogger,
-    private readonly db: DatabaseService,
     private readonly usersService: UsersService
-  ) {}
+  ) {
+    this.redirectUri = `${this.configService.getOrThrow<string>('BASE_URL')}/interaction/federated/callback`;
+  }
 
   async onModuleInit() {
     const issuerUrl = this.configService.get<string>('OIDC_FEDERATED_ISSUER');
     const clientId = this.configService.get<string>('OIDC_FEDERATED_CLIENT_ID');
-    const redirectUri = this.configService.get<string>('OIDC_FEDERATED_REDIRECT_URI');
-    if (!issuerUrl || !clientId || !redirectUri) {
+    if (!issuerUrl || !clientId) {
       this.logger.warn('OIDC is not configured, skipping OIDC authentication');
       return;
     }
 
     this.issuer = await oidcClient.discovery(new URL(issuerUrl), clientId, {
-      client_secret: this.configService.get<string>('OIDC_FEDERATED_CLIENT_SECRET'),
+      client_secret: this.configService.get<string>(
+        'OIDC_FEDERATED_CLIENT_SECRET'
+      ),
     });
   }
 
@@ -58,27 +60,24 @@ export class FederatedLoginService implements OnModuleInit {
 
     const state = interactionId;
     const parameters: Record<string, string> = {
-      redirect_uri: this.configService.getOrThrow<string>('OIDC_FEDERATED_REDIRECT_URI'),
+      redirect_uri: this.redirectUri,
       scope: this.configService.getOrThrow<string>('OIDC_FEDERATED_SCOPE'),
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
       state,
     };
 
-    await this.db.writer
-      .insertInto('authOidcState')
-      .values({
-        state,
-        codeVerifier: codeVerifier,
-        redirectUri: this.configService.getOrThrow<string>('OIDC_FEDERATED_REDIRECT_URI'),
-      })
-      .execute();
-
-    return oidcClient.buildAuthorizationUrl(this.issuer, parameters);
+    const url = oidcClient.buildAuthorizationUrl(this.issuer, parameters);
+    return { url, codeVerifier };
   }
 
   async callback(
-    request: FastifyRequest<{ Querystring: { state: string | undefined } }>
+    request: FastifyRequest<{
+      Querystring: {
+        state: string | undefined;
+      };
+    }>,
+    pkceCodeVerifier: string
   ): Promise<UserEntity> {
     if (!this.issuer) {
       throw new BadRequestException('OIDC is not configured');
@@ -89,17 +88,9 @@ export class FederatedLoginService implements OnModuleInit {
       throw new BadRequestException('State is required');
     }
 
-    const serverState = await this.db.reader
-      .selectFrom('authOidcState')
-      .select('codeVerifier')
-      .where('state', '=', state)
-      .executeTakeFirst();
-
-    const redirectUri =
-      this.configService.getOrThrow<string>('OIDC_FEDERATED_REDIRECT_URI');
     const query = new URLSearchParams(request.query as Record<string, string>);
 
-    const currentUrl = new URL(`${redirectUri}?${query.toString()}`);
+    const currentUrl = new URL(`${this.redirectUri}?${query.toString()}`);
 
     try {
       const tokens = await oidcClient.authorizationCodeGrant(
@@ -107,17 +98,11 @@ export class FederatedLoginService implements OnModuleInit {
         currentUrl,
         {
           expectedState: state,
-          pkceCodeVerifier: serverState?.codeVerifier,
+          pkceCodeVerifier,
         }
       );
 
       const claims = tokens.claims();
-
-      await this.db.writer
-        .deleteFrom('authOidcState')
-        .where('state', '=', state)
-        .execute();
-
       if (!claims) {
         throwServiceError(
           HttpStatus.BAD_REQUEST,

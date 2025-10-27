@@ -7,6 +7,7 @@ import { HealthcheckModule } from './healthcheck/healthcheck.module';
 import { UsersModule } from './users/users.module';
 import { AppLoggerModule } from './logger/logger.module';
 import { AuthModule } from './auth/auth.module';
+import { VaultModule } from './vault/vault.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AuthModule } from './auth/auth.module';
     HealthcheckModule,
     UsersModule,
     AuthModule,
+    VaultModule,
   ],
   controllers: [],
   providers: [],

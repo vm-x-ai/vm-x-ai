@@ -1,14 +1,15 @@
 import { randomBytes } from 'crypto';
 import * as jose from 'node-jose';
+import { JWKS } from 'oidc-provider';
 
-function generateCookieKeys(count = 3): string[] {
+export function generateCookieKeys(count = 3): string[] {
   return Array.from({ length: count }, () => {
     // Generate 32 bytes (256 bits) of random data
     return randomBytes(32).toString('base64');
   });
 }
 
-async function generateJWKS() {
+export async function generateJWKS(): Promise<JWKS> {
   const keystore = jose.JWK.createKeyStore();
 
   const kid = randomBytes(32).toString('base64');
@@ -20,7 +21,7 @@ async function generateJWKS() {
     kid,
   });
 
-  return keystore.toJSON(true); // true includes private keys
+  return keystore.toJSON(true) as JWKS;
 }
 
 // Usage

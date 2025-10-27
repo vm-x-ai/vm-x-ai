@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CamelCasePlugin,
@@ -13,9 +13,9 @@ import { Pool } from 'pg';
 import { SERVICE_NAME } from '../consts';
 import { Logger } from 'nestjs-pino';
 import { migration as migration01 } from './1-create-users';
-import { migration as migration02 } from './2-create-oidc-state';
-import { migration as migration03 } from './3-create-oidc-provider';
+import { migration as migration02 } from './2-create-oidc-provider';
 import { PasswordService } from '../auth/password.service';
+import { DB } from '../storage/entities.generated';
 
 class ListMigrationProvider implements MigrationProvider {
   constructor(private migrations: Record<string, Migration>) {}
@@ -26,8 +26,9 @@ class ListMigrationProvider implements MigrationProvider {
 }
 
 @Injectable()
-export class MigrationsService {
+export class MigrationsService implements OnModuleInit {
   private migrator: Migrator;
+  private readonly db: Kysely<DB>;
 
   constructor(
     private readonly configService: ConfigService,
@@ -42,19 +43,26 @@ export class MigrationsService {
         connectionTimeoutMillis: 10_000,
       }),
     });
-    const db = new Kysely({
+
+    this.db = new Kysely({
       dialect,
       plugins: [new CamelCasePlugin()],
-    }).withSchema(SERVICE_NAME.toLowerCase());
+    });
 
     this.migrator = new Migrator({
-      db,
+      db: this.db.withSchema(SERVICE_NAME.toLowerCase()),
+      migrationTableSchema: SERVICE_NAME.toLowerCase(),
       provider: new ListMigrationProvider({
         '01': migration01(this.passwordService),
         '02': migration02,
-        '03': migration03,
       }),
     });
+  }
+  async onModuleInit() {
+    await this.db.schema
+      .createSchema(SERVICE_NAME.toLowerCase())
+      .ifNotExists()
+      .execute();
   }
 
   async migrate() {
