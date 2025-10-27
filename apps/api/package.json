@@ -1,0 +1,141 @@
+{
+  "name": "api",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "outputs": [
+          "{projectRoot}/dist"
+        ],
+        "options": {
+          "command": "nest build",
+          "cwd": "{projectRoot}"
+        }
+      },
+      "prune-lockfile": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "executor": "@nx/js:prune-lockfile",
+        "outputs": [
+          "{workspaceRoot}/apps/api/dist/package.json",
+          "{workspaceRoot}/apps/api/dist/pnpm-lock.yaml"
+        ],
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "copy-workspace-modules": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "outputs": [
+          "{workspaceRoot}/apps/api/dist/workspace_modules"
+        ],
+        "executor": "@nx/js:copy-workspace-modules",
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "prune": {
+        "dependsOn": [
+          "prune-lockfile",
+          "copy-workspace-modules"
+        ],
+        "executor": "nx:noop"
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "nest start --watch",
+          "cwd": "{projectRoot}"
+        }
+      },
+      "docker:build": {
+        "dependsOn": [
+          "build",
+          "prune"
+        ]
+      },
+      "codegen": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "kysely-codegen --out-file src/storage/entities.generated.ts --camel-case --runtime-enums --default-schema=vmxai --singularize --exclude-pattern=public.*",
+          "cwd": "{projectRoot}"
+        }
+      },
+      "migrate": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "ts-node -P tsconfig.app.json src/migrate.ts",
+          "cwd": "{projectRoot}"
+        }
+      },
+      "migrate:reset": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "ts-node -P tsconfig.app.json src/migrate.ts --reset",
+          "cwd": "{projectRoot}"
+        }
+      },
+      "gen-jwks": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "ts-node -P tsconfig.app.json src/gen-jwks.ts",
+          "cwd": "{projectRoot}"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@fastify/express": "^4.0.2",
+    "@fastify/static": "^8.3.0",
+    "@keyv/redis": "^5.1.3",
+    "@nestjs/cache-manager": "^3.0.1",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.1",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-fastify": "^11.1.7",
+    "@nestjs/swagger": "^11.2.1",
+    "@types/node-jose": "1.1.13",
+    "argon2": "^0.44.0",
+    "cacheable": "^2.1.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "fastify": "^5.6.1",
+    "handlebars": "^4.7.8",
+    "ioredis": "^5.8.2",
+    "joi": "^18.0.1",
+    "jwks-rsa": "^3.2.0",
+    "kysely": "^0.28.8",
+    "lodash": "4.17.21",
+    "nestjs-pino": "^4.4.1",
+    "oidc-provider": "^9.5.2",
+    "openid-client": "^6.8.1",
+    "passport-jwt": "^4.0.1",
+    "passport-local": "^1.0.0",
+    "pg": "^8.16.3",
+    "pino": "^10.1.0",
+    "pino-http": "^11.0.0",
+    "pino-pretty": "^13.1.2",
+    "rxjs": "^7.8.2",
+    "ts-enum-util": "^4.1.0"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.0.0",
+    "@types/express": "^5.0.4",
+    "@types/node-jose": "^1.1.13",
+    "@types/oidc-provider": "^9.5.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "kysely-codegen": "^0.19.0"
+  }
+}

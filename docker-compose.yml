@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres
+    ports:
+      - '5440:5432'
+    environment:
+      POSTGRES_USER: 'vmxai-admin'
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: vmxai
+    volumes:
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  redis-node-1:
+    image: redis:7
+    container_name: redis-node-1
+    ports:
+      - '7001:7001'
+      - '17001:17001'
+    volumes:
+      - ./docker/redis-config/node1/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+    network_mode: host
+
+  redis-node-2:
+    image: redis:7
+    container_name: redis-node-2
+    ports:
+      - '7002:7002'
+      - '17002:17002'
+    volumes:
+      - ./docker/redis-config/node2/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+    network_mode: host
+
+  redis-node-3:
+    image: redis:7
+    container_name: redis-node-3
+    ports:
+      - '7003:7003'
+      - '17003:17003'
+    volumes:
+      - ./docker/redis-config/node3/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+    network_mode: host
+
+  redis-cluster-init:
+    image: redis:7
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+    entrypoint: >
+      sh -c "
+        sleep 5 &&
+        echo yes | redis-cli --cluster create 127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 --cluster-replicas 0"
+    network_mode: host
+
+networks:
+  redisnet:
+    driver: bridge
