@@ -86,7 +86,7 @@ export class MigrationsService implements OnModuleInit {
       throw error;
     }
 
-    this.logger.log('Migration completed successfully', { results });
+    this.logger.log({ results }, 'Migration completed successfully');
     return results;
   }
 
@@ -102,7 +102,7 @@ export class MigrationsService implements OnModuleInit {
       throw error;
     }
 
-    this.logger.log('Migration up completed successfully', { results });
+    this.logger.log({ results }, 'Migration up completed successfully');
     return results;
   }
 
@@ -132,7 +132,7 @@ export class MigrationsService implements OnModuleInit {
       throw error;
     }
 
-    this.logger.log('Migration down completed successfully', { results });
+    this.logger.log({ results }, 'Migration down completed successfully');
     return results;
   }
 

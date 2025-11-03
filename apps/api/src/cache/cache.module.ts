@@ -1,5 +1,5 @@
 import { CacheModule } from '@nestjs/cache-manager';
-import { Global, Logger, Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { RedisClient } from './redis-client';
 import Keyv from 'keyv';
 import KeyvRedis, { createCluster } from '@keyv/redis';
@@ -36,7 +36,7 @@ import { CacheableMemory } from 'cacheable';
       },
     }),
   ],
-  providers: [Logger, RedisClient],
+  providers: [RedisClient],
   exports: [RedisClient],
 })
 export class AppCacheModule {}

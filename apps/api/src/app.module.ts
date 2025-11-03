@@ -14,9 +14,20 @@ import { EnvironmentModule } from './environment/environment.module';
 import { AIConnectionModule } from './ai-connection/ai-connection.module';
 import { AIResourceModule } from './ai-resource/ai-resource.module';
 import { PoolDefinitionModule } from './pool-definition/pool-definition.module';
+import { AIProviderModule } from './ai-provider/ai-provider.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { CompletionModule } from './completion/completion.module';
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'assets'),
+      serveRoot: '/assets',
+      serveStaticOptions: {
+        fallthrough: false,
+      },
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: configSchema,
@@ -34,6 +45,8 @@ import { PoolDefinitionModule } from './pool-definition/pool-definition.module';
     AIConnectionModule,
     AIResourceModule,
     PoolDefinitionModule,
+    AIProviderModule,
+    CompletionModule,
   ],
   controllers: [],
   providers: [],

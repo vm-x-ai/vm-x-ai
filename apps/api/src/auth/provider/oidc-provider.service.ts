@@ -34,15 +34,15 @@ export class OidcProviderService implements OnModuleInit {
     this.provider = new Provider(this.issuerUrl, this.configuration);
 
     this.provider.on('server_error', (ctx, error) => {
-      this.logger.error('OIDC Provider Server Error:', error);
+      this.logger.error(error, 'OIDC Provider Server Error:');
     });
 
     this.provider.on('authorization.error', (ctx, error) => {
-      this.logger.error('OIDC Provider Authorization Error:', error);
+      this.logger.error(error, 'OIDC Provider Authorization Error:');
     });
 
     this.provider.on('userinfo.error', (ctx, error) => {
-      this.logger.error('OIDC Provider Userinfo Error:', error);
+      this.logger.error(error, 'OIDC Provider Userinfo Error:');
     });
   }
 

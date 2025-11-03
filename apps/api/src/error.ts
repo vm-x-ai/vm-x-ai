@@ -55,13 +55,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     this.logger.error(
+      {
+        cause: (exception as Error)?.stack ?? exception,
+      },
       $enum(ErrorCode).getKeyOrDefault(
         ErrorCode.INTERNAL_SERVER_ERROR,
         'Internal Server Error'
-      ),
-      {
-        cause: (exception as Error)?.stack ?? exception,
-      }
+      )
     );
 
     const responseBody = Object.assign(
@@ -83,11 +83,16 @@ export function throwServiceError(
   statusCode: HttpStatus,
   errorCode: ErrorCode,
   errorArgs: Record<string, unknown> = {},
-  error?: Error
+  details: Record<string, unknown> = {},
+  error?: Error,
 ): never {
   const errorMessage = _.template(ERROR_MESSAGES[errorCode])(errorArgs);
   throw new HttpException(
-    new ServiceError({ errorCode, errorMessage, details: { cause: error } }),
+    new ServiceError({
+      errorCode,
+      errorMessage,
+      details: { cause: error, ...details },
+    }),
     statusCode
   );
 }

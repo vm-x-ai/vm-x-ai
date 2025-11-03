@@ -15,7 +15,9 @@ import {
   DiscoveredCapacityEntity,
 } from '../../common/capacity.entity';
 
-export class AIConnectionEntity {
+export class AIConnectionEntity<
+  T extends Record<string, unknown> = Record<string, unknown>
+> {
   @ApiProperty({
     description: 'The unique identifier for the AI connection (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -97,7 +99,7 @@ export class AIConnectionEntity {
   })
   @IsObject()
   @IsOptional()
-  config?: Record<string, unknown> | null;
+  config?: T | null;
 
   @ApiProperty({
     description: 'The date and time the workspace was created',

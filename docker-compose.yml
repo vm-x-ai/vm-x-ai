@@ -15,6 +15,7 @@ services:
       - "8201:8200"
     volumes:
       - ./docker/vault-kms/config:/vault/config
+      - ./docker/vault-kms/file:/vault/file
     command: /vault/config/init.sh
     healthcheck:
       test: ["CMD", "sh", "-c", "VAULT_TOKEN=root vault read -address=http://127.0.0.1:8200 transit/keys/autounseal"]

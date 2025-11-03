@@ -20,6 +20,7 @@ export enum ErrorCode {
 
   // AI Connection errors
   AI_CONNECTION_NOT_FOUND = 'AI_CONNECTION_NOT_FOUND',
+  AI_CONNECTION_CONFIG_INVALID = 'AI_CONNECTION_CONFIG_INVALID',
 
   // AI Resource errors
   AI_RESOURCE_NOT_FOUND = 'AI_RESOURCE_NOT_FOUND',
@@ -27,6 +28,9 @@ export enum ErrorCode {
 
   // Pool Definition errors
   POOL_DEFINITION_NOT_FOUND = 'POOL_DEFINITION_NOT_FOUND',
+
+  // AI Provider
+  AI_PROVIDER_NOT_FOUND = 'AI_PROVIDER_NOT_FOUND',
 }
 
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -54,6 +58,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
 
   // AI Connection errors
   [ErrorCode.AI_CONNECTION_NOT_FOUND]: 'AI Connection ${connectionId} not found',
+  [ErrorCode.AI_CONNECTION_CONFIG_INVALID]: 'AI Connection config is invalid: ${error}',
 
   // AI Resource errors
   [ErrorCode.AI_RESOURCE_NOT_FOUND]: 'AI Resource ${resource} not found',
@@ -61,4 +66,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
 
   // Pool Definition errors
   [ErrorCode.POOL_DEFINITION_NOT_FOUND]: 'Pool Definition for workspace ${workspaceId} and environment ${environmentId} not found',
+
+  // AI Provider errors
+  [ErrorCode.AI_PROVIDER_NOT_FOUND]: 'AI Provider ${id} not found',
+
 };

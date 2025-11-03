@@ -9,29 +9,89 @@ import { CreateAIConnectionDto } from './dto/create-ai-connection.dto';
 import { UserEntity } from '../users/entities/user.entity';
 import { UpdateAIConnectionDto } from './dto/update-ai-connection.dto';
 import { sql } from 'kysely';
+import { AIProviderService } from '../ai-provider/ai-provider.service';
+import { AIProviderDto } from '../ai-provider/dto/ai-provider.dto';
+import { aiProviderConfigSchemaValidator } from '../ai-provider/ai-provider-config.schema';
+import { EncryptionService } from '../vault/encryption.service';
+import { JSONSchema7 } from 'json-schema';
+import { v4 as uuidv4 } from 'uuid';
+import { PinoLogger } from 'nestjs-pino';
+
+const MASKED_VALUE = '********';
 
 @Injectable()
 export class AIConnectionService {
+  private preloadedConnections: Record<
+    string,
+    { entity: AIConnectionEntity; fetchedAt: number }
+  > = {};
+
   constructor(
+    private readonly logger: PinoLogger,
     private readonly db: DatabaseService,
     private readonly workspaceService: WorkspaceService,
+    private readonly aiProviderService: AIProviderService,
+    private readonly encryptionService: EncryptionService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache
-  ) {}
+  ) {
+    this.preload();
+  }
 
-  public async getAll(includesUsers = false): Promise<AIConnectionEntity[]> {
-    return await this.db.reader
+  private async preload() {
+    this.logger.info('Preloading AI connections');
+    const connections = await this.getAll(false, true);
+    for (const connection of connections) {
+      this.preloadedConnections[connection.connectionId] = {
+        entity: connection,
+        fetchedAt: Date.now(),
+      };
+    }
+    this.logger.info(
+      {
+        count: connections.length,
+      },
+      'Preloaded AI connections'
+    );
+  }
+
+  public async getAll(
+    includesUsers = false,
+    decrypt = false
+  ): Promise<AIConnectionEntity[]> {
+    const connections = await this.db.reader
       .selectFrom('aiConnections')
       .selectAll('aiConnections')
       .$if(includesUsers, this.db.includeEntityControlUsers('aiConnections'))
       .orderBy('createdAt', 'desc')
       .execute();
+
+    if (decrypt) {
+      return await Promise.all(
+        connections.map(async (connection) => {
+          const provider = this.aiProviderService.get(connection.provider);
+          if (!provider) {
+            return connection;
+          }
+          await this.decryptSecretFields(
+            provider.provider,
+            connection.connectionId,
+            connection.config
+          );
+
+          return connection;
+        })
+      );
+    }
+
+    return this.hideSecretValuesFromConnections(connections);
   }
 
   public async getById(
     workspaceId: string,
     environmentId: string,
     connectionId: string,
-    includesUser: boolean
+    includesUser: boolean,
+    decrypt: boolean
   ): Promise<AIConnectionEntity>;
 
   public async getById<T extends false>(
@@ -39,6 +99,7 @@ export class AIConnectionService {
     environmentId: string,
     connectionId: string,
     includesUser: boolean,
+    decrypt: boolean,
     throwOnNotFound: T
   ): Promise<AIConnectionEntity | undefined>;
 
@@ -47,6 +108,7 @@ export class AIConnectionService {
     environmentId: string,
     connectionId: string,
     includesUser: boolean,
+    decrypt: boolean,
     throwOnNotFound: T
   ): Promise<AIConnectionEntity>;
 
@@ -55,25 +117,27 @@ export class AIConnectionService {
     environmentId: string,
     connectionId: string,
     includesUser = false,
+    decrypt = false,
     throwOnNotFound = true
   ): Promise<AIConnectionEntity | undefined> {
-    const aiConnection = await this.cache.wrap(
-      this.getAIConnectionCacheKey(
-        workspaceId,
-        environmentId,
-        connectionId,
-        includesUser
-      ),
-      () =>
-        this.db.reader
-          .selectFrom('aiConnections')
-          .selectAll('aiConnections')
-          .$if(includesUser, this.db.includeEntityControlUsers('aiConnections'))
-          .where('workspaceId', '=', workspaceId)
-          .where('environmentId', '=', environmentId)
-          .where('connectionId', '=', connectionId)
-          .executeTakeFirst()
+    const shouldRevalidate = await this.shouldRevalidate(
+      workspaceId,
+      environmentId,
+      connectionId,
+      includesUser
     );
+    if (decrypt && !shouldRevalidate) {
+      return this.preloadedConnections[connectionId]?.entity;
+    }
+
+    const aiConnection = await this.db.reader
+      .selectFrom('aiConnections')
+      .selectAll('aiConnections')
+      .$if(includesUser, this.db.includeEntityControlUsers('aiConnections'))
+      .where('workspaceId', '=', workspaceId)
+      .where('environmentId', '=', environmentId)
+      .where('connectionId', '=', connectionId)
+      .executeTakeFirst();
 
     if (throwOnNotFound && !aiConnection) {
       throwServiceError(
@@ -85,6 +149,30 @@ export class AIConnectionService {
       );
     }
 
+    if (decrypt && aiConnection && aiConnection.config) {
+      const provider = this.aiProviderService.get(aiConnection.provider);
+      if (!provider) {
+        throwServiceError(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.AI_PROVIDER_NOT_FOUND,
+          {
+            id: aiConnection.provider,
+          }
+        );
+      }
+
+      await this.decryptSecretFields(
+        provider.provider,
+        connectionId,
+        aiConnection.config
+      );
+
+      this.preloadedConnections[connectionId] = {
+        entity: aiConnection,
+        fetchedAt: Date.now(),
+      };
+    }
+
     return aiConnection;
   }
 
@@ -94,7 +182,7 @@ export class AIConnectionService {
     userId: string,
     includesUser = false
   ): Promise<AIConnectionEntity[]> {
-    return await this.db.reader
+    const connections = await this.db.reader
       .selectFrom('aiConnections')
       .selectAll('aiConnections')
       .$if(includesUser, this.db.includeEntityControlUsers('aiConnections'))
@@ -107,6 +195,8 @@ export class AIConnectionService {
       .where('aiConnections.environmentId', '=', environmentId)
       .where('workspaceUsers.userId', '=', userId)
       .execute();
+
+    return this.hideSecretValuesFromConnections(connections);
   }
 
   public async getByMemberUserId(
@@ -168,7 +258,20 @@ export class AIConnectionService {
       );
     }
 
-    return aiConnection;
+    if (!aiConnection) return aiConnection;
+
+    const provider = this.aiProviderService.get(aiConnection.provider);
+    if (!provider) {
+      throwServiceError(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.AI_PROVIDER_NOT_FOUND,
+        {
+          id: aiConnection.provider,
+        }
+      );
+    }
+
+    return this.hideSecretFields(provider.provider, aiConnection);
   }
 
   public async create(
@@ -178,12 +281,32 @@ export class AIConnectionService {
     user: UserEntity
   ): Promise<AIConnectionEntity> {
     await this.workspaceService.throwIfNotWorkspaceMember(workspaceId, user.id);
+    const provider = this.aiProviderService.get(payload.provider);
+    if (!provider) {
+      throwServiceError(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.AI_PROVIDER_NOT_FOUND,
+        {
+          id: payload.provider,
+        }
+      );
+    }
 
-    // TODO: Validate config/encrypt secrets based on provider
-    return await this.db.writer
+    await this.validateProviderConfig(provider.provider, payload);
+    const connectionId = uuidv4();
+    await this.encryptSecretFields(
+      workspaceId,
+      environmentId,
+      connectionId,
+      provider.provider,
+      payload.config
+    );
+
+    const connection = await this.db.writer
       .insertInto('aiConnections')
       .values({
         ...payload,
+        connectionId,
         workspaceId,
         environmentId,
         config: payload.config ? JSON.stringify(payload.config) : null,
@@ -196,6 +319,8 @@ export class AIConnectionService {
       })
       .returningAll()
       .executeTakeFirstOrThrow();
+
+    return this.hideSecretFields(provider.provider, connection);
   }
 
   public async update(
@@ -206,6 +331,37 @@ export class AIConnectionService {
     user: UserEntity
   ): Promise<AIConnectionEntity> {
     await this.workspaceService.throwIfNotWorkspaceMember(workspaceId, user.id);
+    const existingConnection = await this.getById(
+      workspaceId,
+      environmentId,
+      connectionId,
+      false,
+      false
+    );
+    const provider = this.aiProviderService.get(existingConnection.provider);
+    if (!provider) {
+      throwServiceError(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.AI_PROVIDER_NOT_FOUND,
+        {
+          id: existingConnection.provider,
+        }
+      );
+    }
+
+    if (payload.config) {
+      await this.validateProviderConfig(provider.provider, {
+        provider: existingConnection.provider,
+        config: payload.config,
+      });
+      await this.encryptSecretFields(
+        workspaceId,
+        environmentId,
+        connectionId,
+        provider.provider,
+        payload.config
+      );
+    }
 
     const aiConnection = await this.db.writer
       .updateTable('aiConnections')
@@ -227,22 +383,28 @@ export class AIConnectionService {
       .returningAll()
       .executeTakeFirstOrThrow();
 
-    await this.cache.mdel([
-      this.getAIConnectionCacheKey(
-        workspaceId,
-        environmentId,
-        connectionId,
-        true
-      ),
-      this.getAIConnectionCacheKey(
-        workspaceId,
-        environmentId,
-        connectionId,
-        false
-      ),
+    await this.cache.mset([
+      {
+        key: this.getAIConnectionCacheKey(
+          workspaceId,
+          environmentId,
+          connectionId,
+          true
+        ),
+        value: Date.now(),
+      },
+      {
+        key: this.getAIConnectionCacheKey(
+          workspaceId,
+          environmentId,
+          connectionId,
+          false
+        ),
+        value: Date.now(),
+      },
     ]);
 
-    return aiConnection;
+    return this.hideSecretFields(provider.provider, aiConnection);
   }
 
   public async delete(
@@ -284,20 +446,175 @@ export class AIConnectionService {
         .execute();
     });
 
-    await this.cache.mdel([
-      this.getAIConnectionCacheKey(
-        workspaceId,
-        environmentId,
-        connectionId,
-        true
-      ),
-      this.getAIConnectionCacheKey(
-        workspaceId,
-        environmentId,
-        connectionId,
-        false
-      ),
+    await this.cache.mset([
+      {
+        key: this.getAIConnectionCacheKey(
+          workspaceId,
+          environmentId,
+          connectionId,
+          true
+        ),
+        value: Date.now(),
+      },
+      {
+        key: this.getAIConnectionCacheKey(
+          workspaceId,
+          environmentId,
+          connectionId,
+          false
+        ),
+        value: Date.now(),
+      },
     ]);
+  }
+
+  private async validateProviderConfig(
+    providerConfig: AIProviderDto,
+    payload: Pick<AIConnectionEntity, 'provider' | 'config'>
+  ) {
+    const validator = aiProviderConfigSchemaValidator.compile(
+      providerConfig.config.connection.form
+    );
+    const valid = validator(payload.config ?? {});
+    if (!valid) {
+      throwServiceError(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.AI_CONNECTION_CONFIG_INVALID,
+        {
+          error: validator.errors
+            ?.map((error) => error.message || error.keyword)
+            .join(', '),
+        },
+        {
+          validationErrors: validator.errors,
+        }
+      );
+    }
+  }
+
+  private async encryptSecretFields(
+    workspaceId: string,
+    environmentId: string,
+    connectionId: string,
+    providerConfig: AIProviderDto,
+    config?: AIConnectionEntity['config']
+  ) {
+    const existingConnection = await this.getById(
+      workspaceId,
+      environmentId,
+      connectionId,
+      false,
+      false,
+      false
+    );
+
+    for (const [key, def] of Object.entries(
+      providerConfig.config.connection.form.properties ?? {}
+    )) {
+      if ((def as JSONSchema7).format === 'secret') {
+        if (
+          config &&
+          key in config &&
+          typeof config[key] === 'string' &&
+          !config[key].startsWith('****')
+        ) {
+          config[key] = await this.encryptionService.encrypt(
+            config[key],
+            connectionId
+          );
+        } else if (
+          config &&
+          existingConnection?.config &&
+          key in existingConnection.config
+        ) {
+          config[key] = existingConnection.config[key];
+        }
+      }
+    }
+  }
+
+  private hideSecretFields(
+    providerConfig: AIProviderDto,
+    connection: AIConnectionEntity
+  ) {
+    for (const [key, def] of Object.entries(
+      providerConfig.config.connection.form.properties ?? {}
+    )) {
+      if ((def as JSONSchema7).format === 'secret') {
+        if (
+          connection.config &&
+          key in connection.config &&
+          typeof connection.config[key] === 'string'
+        ) {
+          connection.config[key] = MASKED_VALUE;
+        }
+      }
+    }
+
+    return connection;
+  }
+
+  private hideSecretValuesFromConnections(
+    connections: AIConnectionEntity[]
+  ): AIConnectionEntity[] {
+    return connections.map((connection) => {
+      const provider = this.aiProviderService.get(connection.provider);
+      if (!provider) {
+        return connection;
+      }
+
+      return this.hideSecretFields(provider.provider, connection);
+    });
+  }
+
+  private async decryptSecretFields(
+    providerConfig: AIProviderDto,
+    connectionId: string,
+    config?: AIConnectionEntity['config']
+  ) {
+    for (const [key, def] of Object.entries(
+      providerConfig.config.connection.form.properties ?? {}
+    )) {
+      if ((def as JSONSchema7).format === 'secret') {
+        if (config && key in config && typeof config[key] === 'string') {
+          config[key] = await this.encryptionService.decrypt(
+            config[key],
+            connectionId
+          );
+        }
+      }
+    }
+  }
+
+  private async shouldRevalidate(
+    workspaceId: string,
+    environmentId: string,
+    connectionId: string,
+    includesUser: boolean
+  ) {
+    const cacheKey = this.getAIConnectionCacheKey(
+      workspaceId,
+      environmentId,
+      connectionId,
+      includesUser
+    );
+    const revalidateAt = await this.cache.get<number>(cacheKey);
+    if (
+      revalidateAt &&
+      this.preloadedConnections[connectionId] &&
+      revalidateAt > this.preloadedConnections[connectionId]?.fetchedAt
+    ) {
+      this.logger.info(
+        {
+          revalidateAt,
+          fetchedAt: this.preloadedConnections[connectionId]?.fetchedAt,
+        },
+        `AI Connection ${connectionId} changed`
+      );
+      return true;
+    }
+
+    return false;
   }
 
   private getAIConnectionCacheKey(
@@ -308,6 +625,6 @@ export class AIConnectionService {
   ) {
     return `ai-connection:${workspaceId}:${environmentId}:${connectionId}${
       includesUser ? ':includesUser' : ''
-    }`;
+    }:revalidate`;
   }
 }

@@ -153,12 +153,24 @@ importers:
       '@nestjs/platform-fastify':
         specifier: ^11.1.7
         version: 11.1.7(@fastify/static@8.3.0)(@fastify/view@11.1.1)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@11.1.7)
+      '@nestjs/serve-static':
+        specifier: ^5.0.4
+        version: 5.0.4(@fastify/static@8.3.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@11.1.7)(express@5.1.0)(fastify@5.6.1)
       '@nestjs/swagger':
         specifier: ^11.2.1
         version: 11.2.1(@fastify/static@8.3.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@11.1.7)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)
+      ajv:
+        specifier: ^8.17.1
+        version: 8.17.1
+      ajv-errors:
+        specifier: ^3.0.0
+        version: 3.0.0(ajv@8.17.1)
       argon2:
         specifier: ^0.44.0
         version: 0.44.0
+      cache-manager:
+        specifier: ^7.2.4
+        version: 7.2.4
       cacheable:
         specifier: ^2.1.1
         version: 2.1.1
@@ -177,6 +189,9 @@ importers:
       joi:
         specifier: ^18.0.1
         version: 18.0.1
+      json-schema:
+        specifier: ^0.4.0
+        version: 0.4.0
       keyv:
         specifier: ^5.5.3
         version: 5.5.3
@@ -201,6 +216,9 @@ importers:
       oidc-provider:
         specifier: ^9.5.2
         version: 9.5.2
+      openai:
+        specifier: ^6.7.0
+        version: 6.7.0(ws@8.18.3)(zod@4.1.12)
       openid-client:
         specifier: ^6.8.1
         version: 6.8.1
@@ -225,6 +243,9 @@ importers:
       ts-enum-util:
         specifier: ^4.1.0
         version: 4.1.0
+      uuid:
+        specifier: ^13.0.0
+        version: 13.0.0
     devDependencies:
       '@nestjs/testing':
         specifier: ^11.0.0
@@ -232,6 +253,9 @@ importers:
       '@types/express':
         specifier: ^5.0.4
         version: 5.0.4
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       '@types/node-jose':
         specifier: ^1.1.13
         version: 1.1.13
@@ -1769,6 +1793,22 @@ packages:
     peerDependencies:
       typescript: '>=4.8.2'
 
+  '@nestjs/serve-static@5.0.4':
+    resolution: {integrity: sha512-3kO1M9D3vsPyWPFardxIjUYeuolS58PnhCoBTkS7t3BrdZFZCKHnBZ15js+UOzOR2Q6HmD7ssGjLd0DVYVdvOw==}
+    peerDependencies:
+      '@fastify/static': ^8.0.4
+      '@nestjs/common': ^11.0.2
+      '@nestjs/core': ^11.0.2
+      express: ^5.0.1
+      fastify: ^5.2.1
+    peerDependenciesMeta:
+      '@fastify/static':
+        optional: true
+      express:
+        optional: true
+      fastify:
+        optional: true
+
   '@nestjs/swagger@11.2.1':
     resolution: {integrity: sha512-1MS7xf0pzc1mofG53xrrtrurnziafPUHkqzRm4YUVPA/egeiMaSerQBD/feiAeQ2BnX0WiLsTX4HQFO0icvOjQ==}
     peerDependencies:
@@ -2847,6 +2887,11 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
+
+  ajv-errors@3.0.0:
+    resolution: {integrity: sha512-V3wD15YHfHz6y0KdhYFjyy9vWtEVALT9UrxfN3zqlI6dMioHnJrqOYfyPKol3oqrnCM9uwkcdCwkJ0WUcbLMTQ==}
+    peerDependencies:
+      ajv: ^8.0.1
 
   ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
@@ -5401,6 +5446,18 @@ packages:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
 
+  openai@6.7.0:
+    resolution: {integrity: sha512-mgSQXa3O/UXTbA8qFzoa7aydbXBJR5dbLQXCRapAOtoNT+v69sLdKMZzgiakpqhclRnhPggPAXoniVGn2kMY2A==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   opener@1.5.2:
     resolution: {integrity: sha512-ur5UIdyw5Y7yEj9wLzhqXiy6GZ3Mwx0yGI+5sMn2r0N0v3cKJvUmFH5yPP+WXh9e0xfyzyJX95D8l088DNFj7A==}
     hasBin: true
@@ -6923,6 +6980,10 @@ packages:
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
+
+  uuid@13.0.0:
+    resolution: {integrity: sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w==}
+    hasBin: true
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
@@ -9009,6 +9070,16 @@ snapshots:
     transitivePeerDependencies:
       - chokidar
 
+  '@nestjs/serve-static@5.0.4(@fastify/static@8.3.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@11.1.7)(express@5.1.0)(fastify@5.6.1)':
+    dependencies:
+      '@nestjs/common': 11.1.7(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.7(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@11.1.7)(reflect-metadata@0.1.14)(rxjs@7.8.2)
+      path-to-regexp: 8.3.0
+    optionalDependencies:
+      '@fastify/static': 8.3.0
+      express: 5.1.0
+      fastify: 5.6.1
+
   '@nestjs/swagger@11.2.1(@fastify/static@8.3.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@11.1.7)(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)':
     dependencies:
       '@microsoft/tsdoc': 0.15.1
@@ -10386,6 +10457,10 @@ snapshots:
   address@1.2.2: {}
 
   agent-base@7.1.4: {}
+
+  ajv-errors@3.0.0(ajv@8.17.1):
+    dependencies:
+      ajv: 8.17.1
 
   ajv-formats@2.1.1(ajv@8.17.1):
     optionalDependencies:
@@ -13244,6 +13319,11 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
+  openai@6.7.0(ws@8.18.3)(zod@4.1.12):
+    optionalDependencies:
+      ws: 8.18.3
+      zod: 4.1.12
+
   opener@1.5.2: {}
 
   openid-client@6.8.1:
@@ -14839,6 +14919,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   utils-merge@1.0.1: {}
+
+  uuid@13.0.0: {}
 
   uuid@8.3.2: {}
 

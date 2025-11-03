@@ -3,9 +3,10 @@ import { VaultModule } from '../vault/vault.module';
 import { WorkspaceModule } from '../workspace/workspace.module';
 import { AIConnectionService } from './ai-connection.service';
 import { AIConnectionController } from './ai-connection.controller';
+import { AIProviderModule } from '../ai-provider/ai-provider.module';
 
 @Module({
-  imports: [VaultModule, WorkspaceModule],
+  imports: [VaultModule, WorkspaceModule, AIProviderModule],
   controllers: [AIConnectionController],
   providers: [AIConnectionService],
   exports: [AIConnectionService],

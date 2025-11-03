@@ -16,7 +16,7 @@ if vault status | grep -q "Initialized.*false"; then
   echo "Initializing Vault..."
   # Initialize with a single unseal key
   INIT_OUTPUT=$(vault operator init -key-shares=1 -key-threshold=1 -format=json)
-  echo "$INIT_OUTPUT"
+  echo "$INIT_OUTPUT" > /vault/config/vault-init.out
   UNSEAL_KEY=$(echo "$INIT_OUTPUT" | jq -r '.unseal_keys_b64[0]')
   ROOT_TOKEN=$(echo "$INIT_OUTPUT" | jq -r '.root_token')
   
@@ -35,8 +35,10 @@ if vault status | grep -q "Initialized.*false"; then
 else
   # Vault is already initialized, check if it's sealed
   if vault status | grep -q "Sealed.*true"; then
-    echo "Vault is sealed. Please unseal manually or check unseal keys."
-    exit 1
+    echo "Vault is sealed. Unsealing..."
+    INIT_OUTPUT=$(cat /vault/config/vault-init.out)
+    UNSEAL_KEY=$(echo "$INIT_OUTPUT" | jq -r '.unseal_keys_b64[0]')
+    vault operator unseal "$UNSEAL_KEY"
   fi
   
   # Try to login with root token
