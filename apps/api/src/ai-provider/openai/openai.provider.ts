@@ -2,18 +2,22 @@ import { ChatCompletionCreateParams } from 'openai/resources/index.js';
 import { Subject } from 'rxjs';
 import { AIConnectionEntity } from '../../ai-connection/entities/ai-connection.entity';
 import { AIResourceModelConfigEntity } from '../../ai-resource/common/model.entity';
-import { CompletionProvider } from '../ai-provider.types';
+import {
+  CompletionObservableData,
+  CompletionProvider,
+} from '../ai-provider.types';
 import {
   AIProviderRateLimitDto,
   AIProviderRateLimitPeriod,
 } from '../dto/rate-limit.dto';
-import OpenAI from 'openai';
+import OpenAI, { APIError, RateLimitError } from 'openai';
 import { throwServiceError } from '../../error';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ErrorCode } from '../../error-code';
 import { PinoLogger } from 'nestjs-pino';
 import { Stream } from 'openai/core/streaming.js';
 import { AIProviderDto } from '../dto/ai-provider.dto';
+import { CompletionError } from '../../completion/completion.types';
 
 export type OpenAIConnectionConfig = {
   apiKey: string;
@@ -151,31 +155,151 @@ export class OpenAIProvider implements CompletionProvider {
     request: ChatCompletionCreateParams,
     connection: AIConnectionEntity<OpenAIConnectionConfig>,
     model: AIResourceModelConfigEntity,
-    observable: Subject<
-      | OpenAI.Chat.Completions.ChatCompletion
-      | OpenAI.Chat.Completions.ChatCompletionChunk
-    >
+    observable: Subject<CompletionObservableData>
   ) {
     const client = await this.createClient(connection);
     const startTime = Date.now();
     let timeToFirstToken: number | null = null;
-    const response = await client.chat.completions
-      .create({
-        ...request,
-        model: model.model,
-      })
-      .withResponse();
+    try {
+      const response = await client.chat.completions
+        .create({
+          ...request,
+          model: model.model,
+        })
+        .withResponse();
 
-    if (response.data instanceof Stream) {
-      for await (const chunk of response.data) {
-        if (timeToFirstToken === null) {
-          timeToFirstToken = Date.now() - startTime;
+      if (response.data instanceof Stream) {
+        for await (const chunk of response.data) {
+          if (timeToFirstToken === null) {
+            timeToFirstToken = Date.now() - startTime;
+          }
+          observable.next({
+            data: chunk,
+            headers: Object.fromEntries(response.response.headers.entries()),
+          });
         }
-        observable.next(chunk);
+      } else {
+        observable.next({
+          data: response.data,
+          headers: Object.fromEntries(response.response.headers.entries()),
+        });
       }
-    } else {
-      observable.next(response.data);
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to complete the request');
+
+      if (error instanceof RateLimitError) {
+        const resetTime = this.extractRateLimitResetTime(error.headers);
+        throw new CompletionError(
+          {
+            rate: true,
+            headers: Object.fromEntries(error.headers.entries()),
+            message: error.message,
+            statusCode: error.status,
+            retryable: true,
+            retryDelay: Math.max(
+              resetTime.resetRequests,
+              resetTime.resetTokens
+            ),
+            failureReason: 'Rate limit exceeded',
+            openAICompatibleError: {
+              code: error.code,
+              type: error.type,
+              param: error.param,
+            },
+          },
+          error
+        );
+      }
+
+      if (error instanceof APIError) {
+        const retryableStatus = [500, 502, 503, 504];
+        const statusCode = error.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
+
+        throw new CompletionError(
+          {
+            rate: false,
+            headers: Object.fromEntries(error.headers.entries()),
+            message: error.message,
+            statusCode: statusCode,
+            retryable: retryableStatus.includes(statusCode),
+            failureReason: 'External API error',
+            openAICompatibleError: {
+              code: error.code,
+              type: error.type,
+              param: error.param,
+            },
+          },
+          error
+        );
+      }
+
+      throw new CompletionError(
+        {
+          rate: false,
+          message: (error as Error).message,
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          retryable: false,
+          failureReason: 'External API error',
+          openAICompatibleError: {
+            code: 'unknown_error',
+          },
+        },
+        error
+      );
     }
+  }
+
+  private extractRateLimitResetTime(headers?: Headers) {
+    if (!headers) {
+      return {
+        resetRequests: 0,
+        resetTokens: 0,
+      };
+    }
+
+    const resetRequests = headers.get('x-ratelimit-reset-requests');
+    const resetTokens = headers.get('x-ratelimit-reset-tokens');
+
+    return {
+      resetRequests: resetRequests ? this.parseDuration(resetRequests) : 0,
+      resetTokens: resetTokens ? this.parseDuration(resetTokens) : 0,
+    };
+  }
+
+  private parseDuration(durationStr: string | undefined): number {
+    if (durationStr === undefined) {
+      return 0;
+    }
+
+    let totalMillis = 0;
+    const timeUnits = {
+      h: 3600000,
+      m: 60000,
+      ms: 1,
+      s: 1000,
+    };
+
+    const orderedUnits = ['h', 'm', 'ms', 's'];
+
+    for (const unit of orderedUnits) {
+      const match = new RegExp(`(\\d+(?:\\.\\d+)?)${unit}(?!\\w)`).exec(
+        durationStr
+      );
+      if (match) {
+        const value = parseFloat(match[1]);
+        if (unit === 'h') {
+          totalMillis += value * timeUnits['h'];
+        } else if (unit === 'm') {
+          totalMillis += value * timeUnits['m'];
+        } else if (unit === 's') {
+          totalMillis += value * timeUnits['s'];
+        } else if (unit === 'ms') {
+          totalMillis += value;
+        }
+      }
+    }
+
+    return totalMillis;
   }
 
   protected async createClient(

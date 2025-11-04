@@ -13,7 +13,7 @@ import { Type } from 'class-transformer';
 import {
   CapacityEntity,
   DiscoveredCapacityEntity,
-} from '../../common/capacity.entity';
+} from '../../capacity/capacity.entity';
 
 export class AIConnectionEntity<
   T extends Record<string, unknown> = Record<string, unknown>
@@ -102,7 +102,7 @@ export class AIConnectionEntity<
   config?: T | null;
 
   @ApiProperty({
-    description: 'The date and time the workspace was created',
+    description: 'The date and time the AI connection was created',
     example: '2021-01-01T00:00:00.000Z',
   })
   @IsDateString()
@@ -110,7 +110,7 @@ export class AIConnectionEntity<
   createdAt: Date;
 
   @ApiProperty({
-    description: 'The date and time the workspace was last updated',
+    description: 'The date and time the AI connection was last updated',
     example: '2021-01-01T00:00:00.000Z',
   })
   @IsDateString()
@@ -118,26 +118,26 @@ export class AIConnectionEntity<
   updatedAt: Date;
 
   @ApiProperty({
-    description: 'The user who created the workspace',
+    description: 'The user who created the AI connection',
   })
   @IsNotEmpty()
   createdBy: string;
 
   @ApiProperty({
-    description: 'The user who created the workspace',
+    description: 'The user who created the AI connection',
   })
   @IsOptional()
   @Type(() => UserRelationDto)
   createdByUser?: UserRelationDto;
 
   @ApiProperty({
-    description: 'The user who last updated the workspace',
+    description: 'The user who last updated the AI connection',
   })
   @IsNotEmpty()
   updatedBy: string;
 
   @ApiProperty({
-    description: 'The user who last updated the workspace',
+    description: 'The user who last updated the AI connection',
   })
   @IsOptional()
   @Type(() => UserRelationDto)

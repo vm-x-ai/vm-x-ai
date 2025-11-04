@@ -31,6 +31,9 @@ export enum ErrorCode {
 
   // AI Provider
   AI_PROVIDER_NOT_FOUND = 'AI_PROVIDER_NOT_FOUND',
+
+  // API Key errors
+  API_KEY_NOT_FOUND = 'API_KEY_NOT_FOUND',
 }
 
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -69,5 +72,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
 
   // AI Provider errors
   [ErrorCode.AI_PROVIDER_NOT_FOUND]: 'AI Provider ${id} not found',
+
+  // API Key errors
+  [ErrorCode.API_KEY_NOT_FOUND]: 'API Key ${apiKeyId} not found',
 
 };

@@ -20,6 +20,7 @@ import { migration as migration05 } from './5-environment-table';
 import { migration as migration06 } from './6-ai-connection-table';
 import { migration as migration07 } from './7-ai-resource-table';
 import { migration as migration08 } from './8-pool-definition-table';
+import { migration as migration09 } from './9-api-key-table';
 import { PasswordService } from '../auth/password.service';
 import { DB } from '../storage/entities.generated';
 
@@ -67,6 +68,7 @@ export class MigrationsService implements OnModuleInit {
         '06': migration06,
         '07': migration07,
         '08': migration08,
+        '09': migration09,
       }),
     });
   }

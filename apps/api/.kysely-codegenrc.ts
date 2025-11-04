@@ -29,6 +29,11 @@ export default {
 
       // Pool Definitions
       'pool_definitions.definition': 'ColumnType<any[], string, string | null>',
+
+      // API Keys
+      'api_keys.resources': 'ColumnType<any[], string, string | null>',
+      'api_keys.labels': 'ColumnType<any[] | null, string | null, string | null>',
+      'api_keys.capacity': 'ColumnType<any[] | null, string | null, string | null>',
     },
   },
 } satisfies Config;

@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { DatabaseService } from '../storage/database.service';
 import { WorkspaceService } from '../workspace/workspace.service';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -20,7 +20,7 @@ import { PinoLogger } from 'nestjs-pino';
 const MASKED_VALUE = '********';
 
 @Injectable()
-export class AIConnectionService {
+export class AIConnectionService implements OnModuleInit {
   private preloadedConnections: Record<
     string,
     { entity: AIConnectionEntity; fetchedAt: number }
@@ -34,10 +34,9 @@ export class AIConnectionService {
     private readonly encryptionService: EncryptionService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache
   ) {
-    this.preload();
   }
-
-  private async preload() {
+  
+  async onModuleInit() {
     this.logger.info('Preloading AI connections');
     const connections = await this.getAll(false, true);
     for (const connection of connections) {

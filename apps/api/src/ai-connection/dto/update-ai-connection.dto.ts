@@ -5,7 +5,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { CapacityEntity } from '../../common/capacity.entity';
+import { CapacityEntity } from '../../capacity/capacity.entity';
 import { Type } from 'class-transformer';
 
 /**

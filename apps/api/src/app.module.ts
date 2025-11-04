@@ -18,6 +18,7 @@ import { AIProviderModule } from './ai-provider/ai-provider.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CompletionModule } from './completion/completion.module';
+import { ApiKeyModule } from './api-key/api-key.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { CompletionModule } from './completion/completion.module';
     AIResourceModule,
     PoolDefinitionModule,
     AIProviderModule,
+    ApiKeyModule,
     CompletionModule,
   ],
   controllers: [],

@@ -8,7 +8,7 @@ import { throwServiceError } from '../error';
 import { ErrorCode } from '../error-code';
 import { defer, Observable, Subject } from 'rxjs';
 import { ChatCompletionCreateParams } from 'openai/resources/index.js';
-import OpenAI from 'openai';
+import { CompletionObservableData } from '../ai-provider/ai-provider.types';
 
 @Injectable()
 export class CompletionService {
@@ -25,15 +25,10 @@ export class CompletionService {
     resource: string,
     user: UserEntity,
     request: ChatCompletionCreateParams
-  ): Observable<
-    | OpenAI.Chat.Completions.ChatCompletion
-    | OpenAI.Chat.Completions.ChatCompletionChunk
-  > {
-    const subject = new Subject<
-      | OpenAI.Chat.Completions.ChatCompletion
-      | OpenAI.Chat.Completions.ChatCompletionChunk
-    >();
+  ): Observable<CompletionObservableData> {
+    const subject = new Subject<CompletionObservableData>();
     const observable = subject.asObservable();
+
     defer(async () => {
       await this.workspaceService.throwIfNotWorkspaceMember(
         workspaceId,

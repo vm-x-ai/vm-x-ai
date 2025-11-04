@@ -68,6 +68,26 @@ export interface AiResource {
   workspaceId: string;
 }
 
+export interface ApiKey {
+  apiKeyId: Generated<string>;
+  capacity: ColumnType<any[] | null, string | null, string | null>;
+  createdAt: Generated<Timestamp>;
+  createdBy: string;
+  description: string | null;
+  enabled: Generated<boolean>;
+  enforceCapacity: Generated<boolean>;
+  environmentId: string;
+  hash: string;
+  labels: ColumnType<any[] | null, string | null, string | null>;
+  lastUsedAt: Timestamp | null;
+  maskedKey: string;
+  name: string;
+  resources: ColumnType<any[], string, string | null>;
+  updatedAt: Generated<Timestamp>;
+  updatedBy: string;
+  workspaceId: string;
+}
+
 export interface Environment {
   createdAt: Generated<Timestamp>;
   createdBy: string;
@@ -137,6 +157,7 @@ export interface WorkspaceUser {
 export interface DB {
   aiConnections: AiConnection;
   aiResources: AiResource;
+  apiKeys: ApiKey;
   environments: Environment;
   oidcProvider: OidcProvider;
   poolDefinitions: PoolDefinition;

@@ -1,4 +1,11 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpException,
+  HttpStatus,
+  Post,
+  Res,
+} from '@nestjs/common';
 import { CompletionService } from './completion.service';
 import {
   ApiEnvironmentIdParam,
@@ -16,6 +23,9 @@ import type { FastifyReply } from 'fastify';
 import { firstValueFrom } from 'rxjs';
 import { ApiOperation } from '@nestjs/swagger';
 import * as resources from 'openai/resources/index.js';
+import { CompletionError } from './completion.types';
+import { ServiceError } from '../types';
+import { CompletionHeaders } from '../ai-provider/ai-provider.types';
 
 @Controller('completions')
 export class CompletionController {
@@ -74,12 +84,13 @@ export class CompletionController {
     let sseStarted = false;
     if (payload.stream) {
       observable.subscribe({
-        next: (chunk) => {
+        next: ({ data: chunk, headers }) => {
           if (index === 0) {
             res.raw.writeHead(200, {
               'Content-Type': 'text/event-stream',
               'Cache-Control': 'no-cache',
               Connection: 'keep-alive',
+              ...headers,
             });
             sseStarted = true;
           }
@@ -98,27 +109,69 @@ export class CompletionController {
     } else {
       try {
         const result = await firstValueFrom(observable);
-        console.log('result', result);
-        res.status(200).send(result);
+        res.status(200).headers(result.headers).send(result.data);
       } catch (err) {
         this.handleError(err, sseStarted, res);
       }
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private handleError(err: any, sseStarted: boolean, res: FastifyReply) {
-    const errorResponse = {
-      error: {
-        message: err.details,
-      },
-    };
+  private handleError(err: unknown, sseStarted: boolean, res: FastifyReply) {
+    let errorResponse: Record<string, unknown> = {};
+    let statusCode: HttpStatus = 500;
+    let headers: CompletionHeaders = {};
+
+    if (err instanceof CompletionError) {
+      statusCode = err.data.statusCode;
+      errorResponse = {
+        error: {
+          message: err.message,
+          ...err.data.openAICompatibleError,
+        },
+      };
+      headers = err.data.headers ?? {};
+    } else if (err instanceof HttpException) {
+      statusCode = err.getStatus();
+      const errorData = err.getResponse();
+
+      if (errorData instanceof ServiceError) {
+        errorResponse = {
+          error: {
+            message: errorData.errorMessage,
+            code: errorData.errorCode,
+          },
+        };
+      } else {
+        errorResponse = {
+          error: {
+            message: err.message,
+          },
+        };
+      }
+    } else if (err instanceof Error) {
+      statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+      errorResponse = {
+        error: {
+          message: err.message,
+          code: 'unknown_error',
+        },
+      };
+    } else {
+      statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+      errorResponse = {
+        error: {
+          message: 'Unknown error',
+          code: 'unknown_error',
+        },
+      };
+    }
+
     if (sseStarted) {
       res.raw.write(`data: ${JSON.stringify(errorResponse)}\n\n`);
       res.raw.write('data: [ERROR]\n\n');
       res.raw.end();
     } else {
-      res.status(500).send(errorResponse);
+      res.status(statusCode).headers(headers).send(errorResponse);
     }
   }
 }

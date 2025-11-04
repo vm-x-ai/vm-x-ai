@@ -57,7 +57,7 @@ export class AIResourceService {
     includesUser = false,
     throwOnNotFound = true
   ): Promise<AIResourceEntity | undefined> {
-    const environment = await this.cache.wrap(
+    const aiResource = await this.cache.wrap(
       this.getAIResourceCacheKey(
         workspaceId,
         environmentId,
@@ -75,13 +75,13 @@ export class AIResourceService {
           .executeTakeFirst()
     );
 
-    if (throwOnNotFound && !environment) {
+    if (throwOnNotFound && !aiResource) {
       throwServiceError(HttpStatus.NOT_FOUND, ErrorCode.AI_RESOURCE_NOT_FOUND, {
         resource,
       });
     }
 
-    return environment;
+    return aiResource;
   }
 
   public async getAllByMemberUserId(

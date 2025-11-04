@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsBoolean, IsDate, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
-import { CapacityEntity } from '../../common/capacity.entity';
+import { CapacityEntity } from '../../capacity/capacity.entity';
 import { UserRelationDto } from '../../users/dto/user.dto';
 import { AIResourceModelConfigEntity } from '../common/model.entity';
 import { AIResourceModelRoutingEntity } from '../common/routing.entity';
