@@ -58,7 +58,6 @@ export class MigrationsService implements OnModuleInit {
 
     this.migrator = new Migrator({
       db: this.db.withSchema(SERVICE_NAME.toLowerCase()),
-      migrationTableSchema: SERVICE_NAME.toLowerCase(),
       provider: new ListMigrationProvider({
         '01': migration01(this.passwordService),
         '02': migration02,

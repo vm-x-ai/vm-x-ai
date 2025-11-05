@@ -23,17 +23,19 @@ export class CompletionService {
     workspaceId: string,
     environmentId: string,
     resource: string,
-    user: UserEntity,
-    request: ChatCompletionCreateParams
+    request: ChatCompletionCreateParams,
+    user?: UserEntity
   ): Observable<CompletionObservableData> {
     const subject = new Subject<CompletionObservableData>();
     const observable = subject.asObservable();
 
     defer(async () => {
-      await this.workspaceService.throwIfNotWorkspaceMember(
-        workspaceId,
-        user.id
-      );
+      if (user) {
+        await this.workspaceService.throwIfNotWorkspaceMember(
+          workspaceId,
+          user.id
+        );
+      }
       const aiResource = await this.aiResourceService.getById(
         workspaceId,
         environmentId,

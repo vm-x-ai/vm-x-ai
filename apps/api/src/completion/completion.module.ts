@@ -5,6 +5,7 @@ import { AIProviderModule } from '../ai-provider/ai-provider.module';
 import { AIResourceModule } from '../ai-resource/ai-resource.module';
 import { AIConnectionModule } from '../ai-connection/ai-connection.module';
 import { CompletionController } from './completion.controller';
+import { ApiKeyModule } from '../api-key/api-key.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { CompletionController } from './completion.controller';
     AIProviderModule,
     AIConnectionModule,
     AIResourceModule,
+    ApiKeyModule,
   ],
   controllers: [CompletionController],
   providers: [CompletionService],

@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Post,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { CompletionService } from './completion.service';
 import {
@@ -13,7 +14,11 @@ import {
   EnvironmentIdParam,
   WorkspaceIdParam,
 } from '../common/api.decorators';
-import { AuthenticatedUser } from '../auth/auth.guard';
+import {
+  AppGuard,
+  AuthenticatedUser,
+  IgnoreGlobalGuard,
+} from '../auth/auth.guard';
 import { UserEntity } from '../users/entities/user.entity';
 import {
   AIResourceIdParam,
@@ -26,8 +31,16 @@ import * as resources from 'openai/resources/index.js';
 import { CompletionError } from './completion.types';
 import { ServiceError } from '../types';
 import { CompletionHeaders } from '../ai-provider/ai-provider.types';
+import { ApiKeyGuard } from '../api-key/api-key.guard';
+import { OrGuard } from '@nest-lab/or-guard';
 
 @Controller('completions')
+@IgnoreGlobalGuard()
+@UseGuards(
+  OrGuard([AppGuard, ApiKeyGuard], {
+    throwLastError: true,
+  })
+)
 export class CompletionController {
   constructor(private readonly completionService: CompletionService) {}
 
@@ -68,16 +81,16 @@ export class CompletionController {
     @WorkspaceIdParam() workspaceId: string,
     @EnvironmentIdParam() environmentId: string,
     @AIResourceIdParam() resource: string,
-    @AuthenticatedUser() user: UserEntity,
     @Body() payload: resources.ChatCompletionCreateParams,
-    @Res() res: FastifyReply
+    @Res() res: FastifyReply,
+    @AuthenticatedUser() user?: UserEntity
   ) {
     const observable = this.completionService.completion(
       workspaceId,
       environmentId,
       resource,
-      user,
-      payload
+      payload,
+      user
     );
 
     let index = 0;

@@ -168,6 +168,8 @@ export class OpenAIProvider implements CompletionProvider {
         })
         .withResponse();
 
+      const headers = this.filterRelevantHeaders(response.response.headers);
+
       if (response.data instanceof Stream) {
         for await (const chunk of response.data) {
           if (timeToFirstToken === null) {
@@ -175,13 +177,13 @@ export class OpenAIProvider implements CompletionProvider {
           }
           observable.next({
             data: chunk,
-            headers: Object.fromEntries(response.response.headers.entries()),
+            headers,
           });
         }
       } else {
         observable.next({
           data: response.data,
-          headers: Object.fromEntries(response.response.headers.entries()),
+          headers,
         });
       }
     } catch (error) {
@@ -192,7 +194,7 @@ export class OpenAIProvider implements CompletionProvider {
         throw new CompletionError(
           {
             rate: true,
-            headers: Object.fromEntries(error.headers.entries()),
+            headers: this.filterRelevantHeaders(error.headers),
             message: error.message,
             statusCode: error.status,
             retryable: true,
@@ -218,7 +220,7 @@ export class OpenAIProvider implements CompletionProvider {
         throw new CompletionError(
           {
             rate: false,
-            headers: Object.fromEntries(error.headers.entries()),
+            headers: this.filterRelevantHeaders(error.headers),
             message: error.message,
             statusCode: statusCode,
             retryable: retryableStatus.includes(statusCode),
@@ -247,6 +249,16 @@ export class OpenAIProvider implements CompletionProvider {
         error
       );
     }
+  }
+
+  private filterRelevantHeaders(headers?: Headers) {
+    if (!headers) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Array.from(headers.entries()).filter(([key]) => key.startsWith('x-'))
+    );
   }
 
   private extractRateLimitResetTime(headers?: Headers) {

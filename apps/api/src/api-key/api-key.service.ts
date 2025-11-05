@@ -7,10 +7,10 @@ import { throwServiceError } from '../error';
 import { ErrorCode } from '../error-code';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UserEntity } from '../users/entities/user.entity';
-import argon2 from 'argon2';
 import { nanoid } from 'nanoid';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
 import { CreatedApiKeyDto } from './dto/created-api-key.dto';
+import { createHash } from 'crypto';
 
 @Injectable()
 export class ApiKeyService {
@@ -260,16 +260,32 @@ export class ApiKeyService {
     ]);
   }
 
-  public async verify(apiKey: string): Promise<ApiKeyEntity | undefined> {
-    const verifyHash = await this.computeHash(apiKey);
-
+  public async verify(
+    apiKey: string,
+    workspaceId: string,
+    environmentId: string,
+    resource: string
+  ): Promise<ApiKeyEntity | undefined> {
     const entity = await this.db.reader
       .selectFrom('apiKeys')
       .selectAll('apiKeys')
-      .where('hash', '=', verifyHash)
+      .where('hash', '=', await this.computeHash(apiKey))
+      .where('workspaceId', '=', workspaceId)
+      .where('environmentId', '=', environmentId)
+      .where('enabled', '=', true)
       .executeTakeFirst();
 
     if (!entity) return undefined;
+
+    if (!entity.resources.includes(resource)) {
+      throwServiceError(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.API_KEY_RESOURCE_NOT_AUTHORIZED,
+        {
+          resource,
+        }
+      );
+    }
 
     await this.db.writer
       .updateTable('apiKeys')
@@ -286,7 +302,7 @@ export class ApiKeyService {
   }
 
   private async computeHash(apiKey: string): Promise<string> {
-    return argon2.hash(apiKey);
+    return createHash('sha256').update(apiKey).digest('base64');
   }
 
   private maskKey(generatedKey: string): string {

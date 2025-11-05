@@ -7,7 +7,7 @@ import { FederatedLoginService } from './federated-login/federated-login.service
 import { OidcProviderService } from './provider/oidc-provider.service';
 import { OidcInteractionController } from './provider/oidc-interaction.controller';
 import { APP_GUARD } from '@nestjs/core';
-import { AppGuard } from './auth.guard';
+import { AppGuard, GlobalGuard } from './auth.guard';
 import { VaultModule } from '../vault/vault.module';
 
 @Module({
@@ -22,9 +22,10 @@ import { VaultModule } from '../vault/vault.module';
     FederatedLoginService,
     OidcStrategy,
     OidcProviderService,
+    AppGuard,
     {
       provide: APP_GUARD,
-      useClass: AppGuard,
+      useClass: GlobalGuard,
     },
   ],
   exports: [AuthService, PasswordService, OidcProviderService],
