@@ -61,7 +61,7 @@ export class CompletionBatchQueueConsumer extends CompletionBatchQueueBaseConsum
       {
         ...item.payload.request,
         stream: false,
-        extra: { correlationId: item.payload.batchId },
+        vmx: { correlationId: item.payload.batchId },
       },
       item.context.apiKey,
       undefined,

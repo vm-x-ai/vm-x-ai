@@ -121,27 +121,27 @@ export class CompletionService {
         workspaceId,
         environmentId,
         resource,
-        payload.extra?.resourceConfigOverrides
+        payload.vmx?.resourceConfigOverrides
       );
 
       const usePrimaryModel =
-        payload.extra?.secondaryModelIndex == undefined ||
-        payload.extra?.secondaryModelIndex === null;
+        payload.vmx?.secondaryModelIndex == undefined ||
+        payload.vmx?.secondaryModelIndex === null;
       const useSecondaryModel =
-        payload.extra?.secondaryModelIndex !== undefined ||
-        payload.extra?.secondaryModelIndex !== null;
+        payload.vmx?.secondaryModelIndex !== undefined ||
+        payload.vmx?.secondaryModelIndex !== null;
 
       modelConfig = usePrimaryModel
         ? aiResource.model
         : useSecondaryModel &&
-          payload.extra?.secondaryModelIndex &&
-          aiResource.secondaryModels?.[payload.extra?.secondaryModelIndex]
-        ? aiResource.secondaryModels?.[payload.extra?.secondaryModelIndex]
+          payload.vmx?.secondaryModelIndex &&
+          aiResource.secondaryModels?.[payload.vmx?.secondaryModelIndex]
+        ? aiResource.secondaryModels?.[payload.vmx?.secondaryModelIndex]
         : throwServiceError(
             HttpStatus.BAD_REQUEST,
             ErrorCode.COMPLETION_SECONDARY_MODEL_NOT_FOUND,
             {
-              secondaryModelIndex: payload.extra?.secondaryModelIndex,
+              secondaryModelIndex: payload.vmx?.secondaryModelIndex,
             }
           );
 
@@ -194,7 +194,7 @@ export class CompletionService {
           requestId,
           sourceIp,
           apiKeyId: apiKey?.apiKeyId,
-          correlationId: payload.extra?.correlationId,
+          correlationId: payload.vmx?.correlationId,
           connectionId: modelConfig.connectionId,
         };
 
@@ -242,7 +242,7 @@ export class CompletionService {
             gateDuration = Date.now() - gateStartAt;
           }
 
-          const { extra, ...rawPayload } = payload;
+          const { vmx, ...rawPayload } = payload;
           providerStartAt = Date.now();
           let completionUsage: CompletionUsage | undefined = undefined;
           const providerResponse = await provider.completion(
@@ -261,7 +261,6 @@ export class CompletionService {
               modelConfig: AIResourceModelConfigEntity
             ) {
               for await (const chunk of data) {
-                yield chunk;
                 auditData.response.push(chunk);
                 messageId = chunk.id;
 
@@ -272,6 +271,19 @@ export class CompletionService {
                 if (chunk.usage && !completionUsage) {
                   completionUsage = chunk.usage;
                 }
+
+                yield {
+                  ...chunk,
+                  vmx: {
+                    events: auditEvents,
+                    metrics: {
+                      gateDurationMs: gateDuration ?? null,
+                      routingDurationMs: routingDuration ?? null,
+                      timeToFirstTokenMs: timeToFirstToken ?? null,
+                      tokensPerSecond: tokensPerSecond ?? null,
+                    },
+                  },
+                };
               }
 
               await this.postCompletion(
@@ -299,7 +311,14 @@ export class CompletionService {
                 providerStartAt,
                 modelConfig
               ),
-              headers: providerResponse.headers,
+              headers: this.appendVmxHeaders(
+                providerResponse,
+                requestId,
+                payload,
+                gateDuration,
+                routingDuration,
+                auditEvents
+              ),
             };
           } else {
             completionUsage = providerResponse.data.usage;
@@ -325,7 +344,28 @@ export class CompletionService {
             );
           }
 
-          return providerResponse;
+          return {
+            data: {
+              ...providerResponse.data,
+              vmx: {
+                events: auditEvents,
+                metrics: {
+                  gateDurationMs: gateDuration ?? null,
+                  routingDurationMs: routingDuration ?? null,
+                  timeToFirstTokenMs: timeToFirstToken ?? null,
+                  tokensPerSecond: tokensPerSecond ?? null,
+                },
+              },
+            },
+            headers: this.appendVmxHeaders(
+              providerResponse,
+              requestId,
+              payload,
+              gateDuration,
+              routingDuration,
+              auditEvents
+            ),
+          };
         } catch (error) {
           this.logger.error(
             `Error execution completion for provider ${modelConfig.provider}`,
@@ -344,7 +384,7 @@ export class CompletionService {
             timestamp: new Date(),
             type: CompletionAuditEventType.FALLBACK,
             data: {
-              ...modelConfig,
+              model: modelConfig,
               failureReason,
               statusCode,
               errorMessage,
@@ -383,7 +423,7 @@ export class CompletionService {
         requestId,
         sourceIp,
         apiKeyId: apiKey?.apiKeyId,
-        correlationId: payload.extra?.correlationId,
+        correlationId: payload.vmx?.correlationId,
         connectionId: modelConfig?.connectionId,
       };
       const requestDuration = Date.now() - requestAt.getTime();
@@ -435,6 +475,54 @@ export class CompletionService {
       retryable: false,
       failureReason: 'No completion response',
     });
+  }
+
+  private appendVmxHeaders(
+    providerResponse: CompletionResponse,
+    requestId: string,
+    payload: CompletionRequestDto,
+    gateDuration: number,
+    routingDuration: number | null,
+    auditEvents: CompletionAuditEventEntity[]
+  ): CompletionHeaders {
+    const vmxHeaders: Record<string, string> = {
+      'x-vmx-request-id': requestId,
+      'x-vmx-gate-duration-ms': gateDuration.toString(),
+    };
+    if (payload.vmx?.correlationId) {
+      vmxHeaders['x-vmx-correlation-id'] = payload.vmx.correlationId;
+    }
+    if (routingDuration) {
+      vmxHeaders['x-vmx-routing-duration-ms'] = routingDuration.toString();
+    }
+    if (auditEvents.length > 0) {
+      for (let i = 0; i < auditEvents.length; i++) {
+        const event = auditEvents[i];
+        vmxHeaders[`x-vmx-event-${i}-type`] = event.type;
+        vmxHeaders[`x-vmx-event-${i}-timestamp`] =
+          event.timestamp.toISOString();
+
+        switch (event.type) {
+          case CompletionAuditEventType.FALLBACK:
+            vmxHeaders[`x-vmx-event-${i}-failed-model`] =
+              event.data.model.model;
+            vmxHeaders[`x-vmx-event-${i}-failure-reason`] =
+              event.data.errorMessage;
+            break;
+          case CompletionAuditEventType.ROUTING:
+            vmxHeaders[`x-vmx-event-${i}-original-model`] =
+              event.data.originalModel.model;
+            vmxHeaders[`x-vmx-event-${i}-routed-model`] =
+              event.data.routedModel.model;
+            break;
+        }
+      }
+    }
+
+    return {
+      ...providerResponse.headers,
+      ...vmxHeaders,
+    };
   }
 
   private async postCompletion(

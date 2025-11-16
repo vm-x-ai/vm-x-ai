@@ -18,8 +18,12 @@ export const WorkspaceMemberGuard = (
     async canActivate(context: ExecutionContext): Promise<boolean> {
       const request = context.switchToHttp().getRequest();
       const user = request.user as PassportResult;
-      if (!user) {
+      const apiKey = request.apiKey;
+      if (!user && !apiKey) {
         return false;
+      }
+      if (apiKey) {
+        return true;
       }
 
       await this.workspaceService.throwIfNotWorkspaceMember(

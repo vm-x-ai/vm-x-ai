@@ -5,6 +5,7 @@ import { AIProviderController } from './ai-provider.controller';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { GroqProvider } from './providers/groq.provider';
 import { GeminiProvider } from './providers/gemini.provider';
+import { AWSBedrockProvider } from './providers/aws-bedrock.provider';
 
 @Module({
   imports: [],
@@ -14,6 +15,7 @@ import { GeminiProvider } from './providers/gemini.provider';
     AnthropicProvider,
     GroqProvider,
     GeminiProvider,
+    AWSBedrockProvider,
     AIProviderService,
   ],
   exports: [AIProviderService],

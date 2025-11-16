@@ -1,0 +1,28 @@
+[project]
+name = "langchain-vm-x-ai-example"
+version = "1.0.0"
+description = "LangChain Example"
+requires-python = ">=3.11,<4"
+readme = "README.md"
+dependencies = [ "langchain[openai]>=0.3.27" ]
+
+[tool.hatch.build.targets.wheel]
+packages = [ "langchain_vmx_example" ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.ruff]
+exclude = [ ".ruff_cache", ".svn", ".tox", ".venv", "dist" ]
+line-length = 88
+indent-width = 4
+
+  [tool.ruff.lint]
+  select = [ "E", "F", "UP", "B", "SIM", "I" ]
+  ignore = [ ]
+  fixable = [ "ALL" ]
+  unfixable = [ ]
+
+[build-system]
+requires = [ "hatchling" ]
+build-backend = "hatchling.build"

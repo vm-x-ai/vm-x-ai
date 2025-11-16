@@ -81,7 +81,7 @@ export class CompletionRequestPayloadDto {
   @ValidateNested()
   @Type(() => ExtraCompletionRequestDto)
   @IsOptional()
-  extra?: ExtraCompletionRequestDto | null;
+  vmx?: ExtraCompletionRequestDto | null;
 }
 
 export type CompletionRequestDto = ChatCompletionCreateParams &

@@ -47,3 +47,8 @@ vite.config.*.timestamp*
 vitest.config.*.timestamp*
 
 .env.local
+
+# Python
+__pycache__
+.venv
+.ruff_cache

@@ -1,7 +1,16 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CompletionAuditService } from './audit.service';
-import { CompletionAuditEntity } from './entities/audit.entity';
+import {
+  CompletionAuditEntity,
+  CompletionAuditFallbackEventEntity,
+  CompletionAuditRoutingEventEntity,
+} from './entities/audit.entity';
 import {
   ApiEnvironmentIdParam,
   ApiWorkspaceIdParam,
@@ -16,6 +25,10 @@ import { WorkspaceMemberGuard } from '../../workspace/workspace.guard';
 @Controller('completion-audit')
 @UseGuards(WorkspaceMemberGuard())
 @ApiTags('Completion Audit')
+@ApiExtraModels(
+  CompletionAuditFallbackEventEntity,
+  CompletionAuditRoutingEventEntity
+)
 export class CompletionAuditController {
   constructor(
     private readonly completionAuditService: CompletionAuditService

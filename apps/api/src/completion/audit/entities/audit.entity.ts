@@ -1,14 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import {
   IsArray,
   IsDateString,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PublicCompletionAuditType } from '../../../storage/entities.generated';
@@ -17,6 +19,7 @@ import type {
   CompletionHeaders,
   CompletionResponseData,
 } from '../../../ai-provider/ai-provider.types';
+import { AIResourceModelConfigEntity } from '../../../ai-resource/common/model.entity';
 
 export const completionAuditTypes = $enum(PublicCompletionAuditType).getKeys();
 
@@ -29,17 +32,7 @@ export const completionAuditEventTypes = $enum(
   CompletionAuditEventType
 ).getKeys();
 
-export class CompletionAuditEventEntity {
-  @ApiProperty({
-    enumName: 'CompletionAuditEventType',
-    enum: completionAuditEventTypes,
-    description: 'The event type of the Audit event',
-    example: 'fallback',
-  })
-  @IsEnum(CompletionAuditEventType)
-  @IsNotEmpty()
-  type: CompletionAuditEventType;
-
+export class CompletionAuditBaseEventEntity {
   @ApiProperty({
     description: 'The timestamp of the Audit event',
     example: '2021-01-01T00:00:00.000Z',
@@ -47,6 +40,53 @@ export class CompletionAuditEventEntity {
   @IsDateString()
   @IsNotEmpty()
   timestamp: Date;
+}
+
+export class CompletionAuditFallbackEventData {
+  @ApiProperty({
+    description: 'The model of the Audit event',
+    type: AIResourceModelConfigEntity,
+  })
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => AIResourceModelConfigEntity)
+  model: AIResourceModelConfigEntity;
+
+  @ApiProperty({
+    description: 'The failure reason of the Audit event',
+    example: 'INVALID_REQUEST',
+  })
+  @IsString()
+  @IsNotEmpty()
+  failureReason: string;
+
+  @ApiProperty({
+    description: 'The status code of the Audit event',
+    example: 400,
+  })
+  @IsNumber()
+  @IsNotEmpty()
+  statusCode: number;
+
+  @ApiProperty({
+    description: 'The error message of the Audit event',
+    example: 'Rate limit exceeded',
+  })
+  @IsString()
+  @IsNotEmpty()
+  errorMessage: string;
+}
+
+export class CompletionAuditFallbackEventEntity extends CompletionAuditBaseEventEntity {
+  @ApiProperty({
+    enum: [CompletionAuditEventType.FALLBACK],
+    description: 'The event type of the Audit event',
+    example: 'fallback',
+  })
+  @IsIn([CompletionAuditEventType.FALLBACK])
+  @IsString()
+  @IsNotEmpty()
+  type: CompletionAuditEventType.FALLBACK;
 
   @ApiProperty({
     description: 'The data of the Audit event',
@@ -55,8 +95,54 @@ export class CompletionAuditEventEntity {
   })
   @IsNotEmpty()
   @IsObject()
-  data: unknown;
+  data: CompletionAuditFallbackEventData;
 }
+
+export class CompletionAuditRoutingEventData {
+  @ApiProperty({
+    description: 'The original model of the Audit event',
+    type: AIResourceModelConfigEntity,
+  })
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => AIResourceModelConfigEntity)
+  originalModel: AIResourceModelConfigEntity;
+
+  @ApiProperty({
+    description: 'The routed model of the Audit event',
+    type: AIResourceModelConfigEntity,
+  })
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => AIResourceModelConfigEntity)
+  routedModel: AIResourceModelConfigEntity;
+}
+
+export class CompletionAuditRoutingEventEntity extends CompletionAuditBaseEventEntity {
+  @ApiProperty({
+    enumName: 'CompletionAuditEventType',
+    enum: completionAuditEventTypes,
+    description: 'The event type of the Audit event',
+    example: 'routing',
+  })
+  @IsIn([CompletionAuditEventType.ROUTING])
+  @IsString()
+  @IsNotEmpty()
+  type: CompletionAuditEventType.ROUTING;
+
+  @ApiProperty({
+    description: 'The data of the Audit event',
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsNotEmpty()
+  @IsObject()
+  data: CompletionAuditRoutingEventData;
+}
+
+export type CompletionAuditEventEntity =
+  | CompletionAuditFallbackEventEntity
+  | CompletionAuditRoutingEventEntity;
 
 export class CompletionAuditDataEntity {
   @ApiProperty({
@@ -163,14 +249,30 @@ export class CompletionAuditEntity {
 
   @ApiProperty({
     description: 'The events of the completion audit event (JSON array)',
-    type: [CompletionAuditEventEntity],
+    type: [Object],
+    items: {
+      oneOf: [
+        { $ref: getSchemaPath(CompletionAuditFallbackEventEntity) },
+        { $ref: getSchemaPath(CompletionAuditRoutingEventEntity) },
+      ],
+    },
     nullable: true,
     required: false,
   })
   @IsArray()
-  @Type(() => CompletionAuditEventEntity)
+  @Type(() => Object, {
+    discriminator: {
+      property: 'type',
+      subTypes: [
+        { value: CompletionAuditFallbackEventEntity, name: 'fallback' },
+        { value: CompletionAuditRoutingEventEntity, name: 'routing' },
+      ],
+    },
+  })
   @IsOptional()
-  events?: CompletionAuditEventEntity[] | null;
+  events?: Array<
+    CompletionAuditFallbackEventEntity | CompletionAuditRoutingEventEntity
+  > | null;
 
   @ApiProperty({
     description: 'The batch ID of the completion audit event (if applicable)',

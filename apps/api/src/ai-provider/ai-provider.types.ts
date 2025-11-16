@@ -7,6 +7,7 @@ import {
   ChatCompletionCreateParamsStreaming,
 } from 'openai/resources/index.js';
 import OpenAI from 'openai';
+import { CompletionAuditEventEntity } from '../completion/audit/entities/audit.entity';
 
 export type CompletionHeaders = {
   'x-request-id'?: string;
@@ -33,10 +34,22 @@ export type CompletionResponseData =
   | OpenAI.Chat.Completions.ChatCompletion
   | OpenAI.Chat.Completions.ChatCompletionChunk;
 
+export type CompletionResponseInternalData = {
+  vmx?: {
+    events?: CompletionAuditEventEntity[];
+    metrics?: {
+      gateDurationMs: number | null;
+      routingDurationMs: number | null;
+      timeToFirstTokenMs: number | null;
+      tokensPerSecond: number | null;
+    };
+  };
+};
+
 export type CompletionResponse = {
   data:
-    | CompletionStreamingResponse['data']
-    | CompletionNonStreamingResponse['data'];
+    | CompletionStreamingResponse['data'] & CompletionResponseInternalData
+    | CompletionNonStreamingResponse['data'] & CompletionResponseInternalData;
   headers: CompletionHeaders;
 };
 

@@ -20,10 +20,8 @@ import {
 } from '../common/api.decorators';
 import {
   AppGuard,
-  AuthenticatedUser,
   IgnoreGlobalGuard,
 } from '../auth/auth.guard';
-import { UserEntity } from '../users/entities/user.entity';
 import {
   AIResourceIdParam,
   ApiAIResourceIdParam,
@@ -91,7 +89,7 @@ export class CompletionController {
   @ApiWorkspaceIdParam()
   @ApiEnvironmentIdParam()
   @ApiAIResourceIdParam()
-  @Post(':workspaceId/:environmentId/:resource')
+  @Post(':workspaceId/:environmentId/:resource/chat/completions')
   public async completion(
     @WorkspaceIdParam() workspaceId: string,
     @EnvironmentIdParam() environmentId: string,
@@ -110,7 +108,6 @@ export class CompletionController {
     payload: CompletionRequestDto,
     @Req() request: FastifyRequest,
     @Res() res: FastifyReply,
-    @AuthenticatedUser() user?: UserEntity,
     @ApiKey() apiKey?: ApiKeyEntity
   ) {
     let sseStarted = false;

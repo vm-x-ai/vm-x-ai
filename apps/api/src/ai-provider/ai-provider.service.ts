@@ -7,6 +7,7 @@ import { AIProviderDto } from './dto/ai-provider.dto';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { GroqProvider } from './providers/groq.provider';
 import { GeminiProvider } from './providers/gemini.provider';
+import { AWSBedrockProvider } from './providers/aws-bedrock.provider';
 @Injectable()
 export class AIProviderService {
   private readonly providers: Record<string, CompletionProvider> = {};
@@ -15,12 +16,14 @@ export class AIProviderService {
     private readonly openaiProvider: OpenAIProvider,
     private readonly anthropicProvider: AnthropicProvider,
     private readonly groqProvider: GroqProvider,
-    private readonly geminiProvider: GeminiProvider
+    private readonly geminiProvider: GeminiProvider,
+    private readonly awsBedrockProvider: AWSBedrockProvider
   ) {
     this.providers[openaiProvider.provider.id] = this.openaiProvider;
     this.providers[anthropicProvider.provider.id] = this.anthropicProvider;
     this.providers[groqProvider.provider.id] = this.groqProvider;
     this.providers[geminiProvider.provider.id] = this.geminiProvider;
+    this.providers[awsBedrockProvider.provider.id] = this.awsBedrockProvider;
   }
 
   public getAll(): AIProviderDto[] {
