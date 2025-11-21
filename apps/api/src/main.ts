@@ -10,6 +10,8 @@ import { GlobalExceptionFilter } from './error';
 import { OidcProviderService } from './auth/provider/oidc-provider.service';
 import fastifyExpress from '@fastify/express';
 import { setupOpenAPIDocumentation } from './openapi';
+import { join } from 'path';
+import '@fastify/view';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -54,6 +56,19 @@ async function bootstrap() {
   const oidcProvider = app.get(OidcProviderService);
   // Mount the OIDC provider
   fastify.use('/oauth2', oidcProvider.provider.callback());
+
+  app.useStaticAssets({
+    root: join(__dirname, '..', 'assets'),
+    prefix: '/assets/',
+  });
+  
+  app.setViewEngine({
+    engine: {
+      ejs: require('ejs'),
+    },
+    templates: join(__dirname, '..', 'views'),
+    layout: '_layout.ejs',
+  });
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

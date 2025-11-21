@@ -5,15 +5,17 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  ValidateNested,
 } from 'class-validator';
 import { UserRelationDto } from '../../users/dto/user.dto';
 import { Type } from 'class-transformer';
+import { EnvironmentRelationDto } from '../../environment/dto/environment.dto';
 
 export class WorkspaceEntity {
   @ApiProperty({
     description: 'The unique identifier for the workspace (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -83,4 +85,16 @@ export class WorkspaceEntity {
   @IsOptional()
   @Type(() => UserRelationDto)
   updatedByUser?: UserRelationDto;
+
+  @ApiProperty({
+    nullable: true,
+    description: 'The environments in the workspace',
+    required: false,
+    isArray: true,
+    type: EnvironmentRelationDto,
+  })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => EnvironmentRelationDto)
+  environments?: EnvironmentRelationDto[];
 }

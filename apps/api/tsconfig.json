@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../../packages/libs/shared/ai-provider"
+    },
+    {
       "path": "./tsconfig.app.json"
     },
     {

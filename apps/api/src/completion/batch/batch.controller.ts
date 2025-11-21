@@ -24,6 +24,7 @@ import { WorkspaceMemberGuard } from '../../workspace/workspace.guard';
 import { CompletionBatchService } from './batch-service';
 import {
   ApiExtraModels,
+  ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -52,6 +53,7 @@ import type { FastifyReply } from 'fastify';
 import { CompletionBatchItemEntity } from './entity/batch-item.entity';
 import { CompletionBatchItemService } from './batch-item-service';
 import { CapacityPeriod } from '../../capacity/capacity.entity';
+import { ServiceError } from '../../types';
 
 export function ApiBatchIdParam() {
   return applyDecorators(
@@ -78,6 +80,10 @@ export function BatchIdParam() {
   }),
   WorkspaceMemberGuard()
 )
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class CompletionBatchController {
   constructor(
     private readonly completionBatchService: CompletionBatchService,

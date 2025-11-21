@@ -14,6 +14,7 @@ import { SecretService } from '../../vault/secrets.service';
 import { PinoLogger } from 'nestjs-pino';
 import { generateCookieKeys, generateJWKS } from '../../gen-jwks';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import dedent from 'string-dedent';
 
 @Injectable()
 export class OidcProviderService implements OnModuleInit {
@@ -62,6 +63,8 @@ export class OidcProviderService implements OnModuleInit {
       keys: generateCookieKeys(),
     }));
 
+    const uiBaseUrl = this.configService.getOrThrow<string>('UI_BASE_URL');
+
     return {
       adapter: this.createAdapterFactory(),
       findAccount: async (ctx, id) => {
@@ -94,14 +97,15 @@ export class OidcProviderService implements OnModuleInit {
       clients: [
         {
           client_id: 'ui',
-          client_name: 'ui',
+          client_name: 'VM-X Console UI',
+          client_secret: 'ui',
           response_types: ['code'],
-          token_endpoint_auth_method: 'none',
+          token_endpoint_auth_method: 'client_secret_basic',
           application_type: 'web',
-          // TODO: Replace with the actual redirect URI
-          redirect_uris: ['http://localhost:3000/callback'],
+          redirect_uris: [`${uiBaseUrl}/api/auth/callback/vm-x-ai`],
           grant_types: ['refresh_token', 'authorization_code'],
           scope: 'openid profile email offline_access',
+          post_logout_redirect_uris: [uiBaseUrl],
         },
         {
           client_id: 'swagger',
@@ -164,6 +168,39 @@ export class OidcProviderService implements OnModuleInit {
               },
             },
           }),
+        },
+        rpInitiatedLogout: {
+          enabled: true,
+          logoutSource: async (ctx, form) => {
+            // `form` is a string of HTML for the default logout form
+            ctx.type = 'html';
+            ctx.body = dedent`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="utf-8" />
+                <title>Logout</title>
+              </head>
+              <body>
+                ${form}
+                <script>
+                  // grab the auto-generated form
+                  var form = document.forms[0];
+            
+                  // tell oidc-provider "yes, log me out"
+                  var input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = 'logout';
+                  input.value = 'yes';
+                  form.appendChild(input);
+            
+                  // auto-submit on load
+                  form.submit();
+                </script>
+              </body>
+            </html>
+            `;
+          },
         },
       },
       interactions: {

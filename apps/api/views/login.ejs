@@ -1,0 +1,267 @@
+<div
+  class="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10"
+>
+  <div class="w-full max-w-sm md:max-w-4xl">
+    <div class="flex flex-col gap-6">
+      <div
+        class="bg-card text-card-foreground overflow-hidden rounded-lg border shadow-sm p-0"
+      >
+        <div class="grid p-0 md:grid-cols-2">
+          <!-- Left side: Login Form -->
+          <form
+            id="loginForm"
+            method="post"
+            action="/interaction/<%= uid %>/login"
+            class="p-6 md:border-r md:p-8"
+            novalidate
+          >
+            <div class="flex flex-col gap-6">
+              <!-- Header -->
+              <div class="flex flex-col items-center gap-2 text-center">
+                <h1 class="text-2xl font-bold">Welcome to VM-X AI</h1>
+                <p class="text-muted-foreground text-balance">
+                  Login to your account
+                </p>
+              </div>
+
+              <!-- Error message container -->
+              <div
+                id="errorMessage"
+                class="bg-destructive/10 text-destructive border-destructive/20 rounded-md border p-3 text-sm hidden"
+              >
+                <p id="errorText"></p>
+              </div>
+
+              <!-- Username/Email Field -->
+              <div class="flex flex-col gap-2">
+                <label
+                  for="username"
+                  class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Username or Email
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  autocomplete="username"
+                  class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Enter your username or email"
+                />
+                <p
+                  id="usernameError"
+                  class="text-destructive text-xs hidden"
+                ></p>
+              </div>
+
+              <!-- Password Field -->
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center">
+                  <label
+                    for="password"
+                    class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Password
+                  </label>
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  autocomplete="current-password"
+                  class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Enter your password"
+                />
+                <p
+                  id="passwordError"
+                  class="text-destructive text-xs hidden"
+                ></p>
+              </div>
+
+              <!-- Submit Button -->
+              <div>
+                <button
+                  type="submit"
+                  class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full"
+                >
+                  Login
+                </button>
+              </div>
+
+              <% if (typeof federatedLoginUrl !== 'undefined' &&
+              federatedLoginUrl) { %>
+              <!-- Separator -->
+              <div class="relative my-4">
+                <div class="absolute inset-0 flex items-center">
+                  <span class="w-full border-t border-border"></span>
+                </div>
+                <div class="relative flex justify-center text-xs uppercase">
+                  <span class="bg-card text-muted-foreground px-3"
+                    >Or continue with</span
+                  >
+                </div>
+              </div>
+
+              <!-- SSO Login Button -->
+              <div>
+                <a
+                  href="<%= federatedLoginUrl %>"
+                  class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
+                >
+                  SSO Login
+                </a>
+              </div>
+              <% } %>
+            </div>
+          </form>
+
+          <!-- Right side: Logo/Image -->
+          <div class="relative hidden md:block">
+            <div
+              class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-12"
+            >
+              <img
+                src="/assets/logos/vm-x-login.png"
+                alt="VM-X AI"
+                class="h-32 w-auto"
+              />
+              <p class="text-muted-foreground text-center text-sm max-w-xs">
+                Level up to Enterprise Grade AI
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 text-center">
+        <p class="text-muted-foreground text-sm">
+          By continuing, you agree to our
+          <a
+            href="https://vm-x.ai/terms-of-service"
+            class="underline-offset-2 underline"
+            >Terms of Service</a
+          >
+          and
+          <a href="https://vm-x.ai/privacy" class="underline-offset-2 underline"
+            >Privacy Policy</a
+          >.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const form = document.getElementById('loginForm');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const usernameError = document.getElementById('usernameError');
+    const passwordError = document.getElementById('passwordError');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+
+    function showError(field, message) {
+      const errorElement = field === 'username' ? usernameError : passwordError;
+      const inputElement = field === 'username' ? usernameInput : passwordInput;
+
+      errorElement.textContent = message;
+      errorElement.classList.remove('hidden');
+      inputElement.classList.add('border-destructive');
+      inputElement.classList.remove('border-input');
+    }
+
+    function clearError(field) {
+      const errorElement = field === 'username' ? usernameError : passwordError;
+      const inputElement = field === 'username' ? usernameInput : passwordInput;
+
+      errorElement.classList.add('hidden');
+      inputElement.classList.remove('border-destructive');
+      inputElement.classList.add('border-input');
+    }
+
+    function showGlobalError(message) {
+      errorText.textContent = message;
+      errorMessage.classList.remove('hidden');
+    }
+
+    function clearGlobalError() {
+      errorMessage.classList.add('hidden');
+    }
+
+    // Real-time validation
+    usernameInput.addEventListener('blur', function () {
+      if (!this.value.trim()) {
+        showError('username', 'Username or email is required');
+      } else {
+        clearError('username');
+      }
+    });
+
+    passwordInput.addEventListener('blur', function () {
+      if (!this.value) {
+        showError('password', 'Password is required');
+      } else {
+        clearError('password');
+      }
+    });
+
+    // Clear errors on input
+    usernameInput.addEventListener('input', function () {
+      if (this.value.trim()) {
+        clearError('username');
+        clearGlobalError();
+      }
+    });
+
+    passwordInput.addEventListener('input', function () {
+      if (this.value) {
+        clearError('password');
+        clearGlobalError();
+      }
+    });
+
+    // Form submission validation
+    form.addEventListener('submit', function (e) {
+      let isValid = true;
+      clearGlobalError();
+
+      // Validate username
+      if (!usernameInput.value.trim()) {
+        showError('username', 'Username or email is required');
+        isValid = false;
+      } else {
+        clearError('username');
+      }
+
+      // Validate password
+      if (!passwordInput.value) {
+        showError('password', 'Password is required');
+        isValid = false;
+      } else {
+        clearError('password');
+      }
+
+      if (!isValid) {
+        e.preventDefault();
+        showGlobalError('Please fill in all required fields');
+        return false;
+      }
+
+      // Disable submit button to prevent double submission
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Signing in...';
+    });
+
+    // Check for URL error parameters (e.g., from failed login)
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error) {
+      showGlobalError('Invalid credentials. Please try again.');
+    }
+  })();
+</script>

@@ -1,0 +1,29 @@
+{
+  "name": "@vm-x-ai/shared-ai-provider",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@open-vm-x-ai/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "nx": {
+    "name": "shared-ai-provider",
+    "tags": [
+      "shared"
+    ]
+  },
+  "dependencies": {
+    "tslib": "^2.3.0",
+    "ajv": "8.17.1",
+    "ajv-errors": "3.0.0"
+  }
+}

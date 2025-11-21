@@ -52,3 +52,7 @@ vitest.config.*.timestamp*
 __pycache__
 .venv
 .ruff_cache
+
+# Next.js
+.next
+out

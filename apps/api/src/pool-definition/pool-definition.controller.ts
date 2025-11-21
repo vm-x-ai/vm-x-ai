@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Post, UseGuards } from '@nestjs/common';
 import { PoolDefinitionService } from './pool-definition.service';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PoolDefinitionEntity } from './entities/pool-definition.entity';
 import { UpsertPoolDefinitionDto } from './dto/upsert-pool-definition.dto';
 import { AuthenticatedUser } from '../auth/auth.guard';
@@ -14,10 +14,15 @@ import {
   WorkspaceIdParam,
 } from '../common/api.decorators';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
+import { ServiceError } from '../types';
 
 @UseGuards(WorkspaceMemberGuard())
 @Controller('pool-definition')
 @ApiTags('Pool Definition')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class PoolDefinitionController {
   constructor(private readonly poolDefinitionService: PoolDefinitionService) {}
 

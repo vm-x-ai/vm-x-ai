@@ -1,8 +1,8 @@
 packages:
-  - apps/*
-
+  - 'apps/*'
+  - 'packages/libs/shared/*'
 autoInstallPeers: true
-
 onlyBuiltDependencies:
   - '@nestjs/core'
-  - esbuild
+  - 'esbuild'
+  - 'sharp'

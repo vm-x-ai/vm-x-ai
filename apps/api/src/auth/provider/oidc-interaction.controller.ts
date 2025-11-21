@@ -56,45 +56,26 @@ export class OidcInteractionController {
       : {};
 
     details.params.federatedLoginCodeVerifier = codeVerifier;
-    details.persist();
+    await details.persist();
+    const client = await this.oidc.provider.Client.find(
+      details.params.client_id as string
+    );
 
     if (details.prompt.name === 'login') {
       // Show login form
-      res.header('Content-Type', 'text/html').send(
-        `
-      <html>
-        <body>
-          <h2>Login required for ${details.params.client_id}</h2>
-          <form method="post" action="/interaction/${uid}/login">
-            <input name="username" placeholder="user" />
-            <input name="password" placeholder="password" type="password" />
-            <button type="submit">Login</button>
-            ${
-              federatedLoginUrl
-                ? `<a href="${federatedLoginUrl}">SSO Login</a>`
-                : ''
-            }
-          </form>
-        </body>
-      </html>
-    `
-      );
+      return res.view('login.ejs', {
+        uid,
+        clientId: details.params.client_id,
+        federatedLoginUrl,
+      });
     } else if (details.prompt.name === 'consent') {
       // Show consent form
-      res.header('Content-Type', 'text/html').send(
-        `
-      <html>
-        <body>
-          <h2>Consent required for ${details.params.client_id}</h2>
-          <p>Do you want to grant access to this application?</p>
-          <form method="post" action="/interaction/${uid}/consent">
-            <button type="submit" name="consent" value="yes">Allow</button>
-            <button type="submit" name="consent" value="no">Deny</button>
-          </form>
-        </body>
-      </html>
-    `
-      );
+      return res.view('consent.ejs', {
+        uid,
+        clientId: details.params.client_id,
+        clientName: client?.clientName ?? details.params.client_id,
+        scopes: details.prompt.details?.missingOIDCScope || [],
+      });
     } else {
       res.status(400).send(`Unknown prompt: ${details.prompt.name}`);
     }
@@ -156,7 +137,10 @@ export class OidcInteractionController {
       return;
     }
 
-    res.status(400).send('Invalid credentials');
+    res.redirect(
+      `/interaction/${uid}?error=invalid_credentials`,
+      HttpStatus.FOUND
+    );
   }
 
   // Add consent handler
@@ -237,7 +221,8 @@ export class OidcInteractionController {
 
   @Get('federated/callback')
   @ApiOkResponse({
-    description: 'Static federated callback that redirects to the UID interaction federated page',
+    description:
+      'Static federated callback that redirects to the UID interaction federated page',
   })
   @Redirect()
   async federatedCallback(
@@ -273,9 +258,31 @@ export class OidcInteractionController {
       req,
       codeVerifier as string
     );
-    const result = {
+    const result: InteractionResults = {
       login: { accountId: user.id },
     };
+
+    const autoConsentClientIds = this.configService
+      .getOrThrow<string>('OIDC_PROVIDER_AUTO_CONSENT_CLIENT_IDS')
+      .split(',');
+
+    if (autoConsentClientIds.includes(details.params.client_id as string)) {
+      const grant = new this.oidc.provider.Grant({
+        accountId: user.id,
+        clientId: details.params.client_id as string,
+      });
+
+      grant.addOIDCScope(details.params.scope as string);
+      grant.addResourceScope(
+        RESOURCE_INDICATOR,
+        details.params.scope as string
+      );
+
+      const grantId = await grant.save();
+      result.consent = {
+        grantId,
+      };
+    }
 
     await this.oidc.provider.interactionFinished(req.raw, res.raw, result, {
       mergeWithLastSubmission: false,

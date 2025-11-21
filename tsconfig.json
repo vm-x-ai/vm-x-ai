@@ -5,6 +5,12 @@
   "references": [
     {
       "path": "./apps/api"
+    },
+    {
+      "path": "./apps/ui"
+    },
+    {
+      "path": "./packages/libs/shared/ai-provider"
     }
   ]
 }

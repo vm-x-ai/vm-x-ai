@@ -7,14 +7,17 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AIResourceService } from './ai-resource.service';
 import {
   ApiExtraModels,
+  ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { AIResourceEntity } from './entities/ai-resource.entity';
@@ -32,6 +35,8 @@ import {
 } from '../common/api.decorators';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { AIResourceRoutingCondition } from './common/routing.entity';
+import { DiscoveredCapacityEntry } from '../capacity/capacity.entity';
+import { ServiceError } from '../types';
 
 export function ApiAIResourceIdParam() {
   return applyDecorators(
@@ -49,9 +54,13 @@ export function AIResourceIdParam() {
 }
 
 @UseGuards(WorkspaceMemberGuard())
-@ApiExtraModels(AIResourceRoutingCondition)
+@ApiExtraModels(AIResourceRoutingCondition, DiscoveredCapacityEntry)
 @Controller('ai-resource')
 @ApiTags('AI Resource')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class AIResourceController {
   constructor(private readonly aiResourceService: AIResourceService) {}
 
@@ -64,6 +73,13 @@ export class AIResourceController {
   @ApiWorkspaceIdParam()
   @ApiEnvironmentIdParam()
   @ApiIncludesUsersQuery()
+  @ApiQuery({
+    name: 'connectionId',
+    type: String,
+    format: 'uuid',
+    required: false,
+    description: 'The connection ID to list AI resources for',
+  })
   @ApiOperation({
     operationId: 'getAIResources',
     summary: 'List all AI resources associated with an environment',
@@ -75,11 +91,13 @@ export class AIResourceController {
     @EnvironmentIdParam() environmentId: string,
     @IncludesUsersQuery()
     includesUsers: boolean,
+    @Query('connectionId') connectionId?: string
   ): Promise<AIResourceEntity[]> {
     return this.aiResourceService.getAll({
       workspaceId,
       environmentId,
       includesUsers,
+      connectionId,
     });
   }
 
@@ -103,7 +121,7 @@ export class AIResourceController {
     @EnvironmentIdParam() environmentId: string,
     @AIResourceIdParam() resource: string,
     @IncludesUsersQuery()
-    includesUsers: boolean,
+    includesUsers: boolean
   ): Promise<AIResourceEntity> {
     return this.aiResourceService.getById({
       workspaceId,

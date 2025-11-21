@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiExtraModels, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiExtraModels, ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AIProviderService } from './ai-provider.service';
 import {
   AIProviderConnectionAccordionComponentDto,
@@ -8,6 +8,7 @@ import {
   AIProviderConnectionTypographyComponentDto,
   AIProviderDto,
 } from './dto/ai-provider.dto';
+import { ServiceError } from '../types';
 
 @ApiExtraModels(
   AIProviderConnectionAccordionComponentDto,
@@ -17,6 +18,10 @@ import {
 )
 @Controller('ai-provider')
 @ApiTags('AI Provider')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class AIProviderController {
   constructor(private readonly aiProviderService: AIProviderService) {}
 

@@ -1,0 +1,157 @@
+<div class="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+  <div class="w-full max-w-sm md:max-w-2xl">
+    <div class="bg-card text-card-foreground rounded-lg border shadow-sm">
+      <div class="flex flex-col gap-6 p-6 md:p-12">
+        <!-- Logo and Header -->
+        <div class="flex flex-col items-center gap-4">
+          <img src="/assets/logos/vm-x.png" alt="VM-X AI" class="h-16 w-auto" />
+          <div class="flex flex-col gap-2 text-center">
+            <h1 class="text-2xl font-bold">Authorization Request</h1>
+            <p class="text-muted-foreground text-sm">
+              <strong><%= clientName %></strong> is requesting access to your account
+            </p>
+          </div>
+        </div>
+        
+        <!-- Scopes/Permissions -->
+        <% if (scopes && scopes.length > 0) { %>
+        <div class="flex flex-col gap-3">
+          <h2 class="text-sm font-semibold">This application will be able to:</h2>
+          <ul class="flex flex-col gap-2">
+            <% 
+              const scopeDescriptions = {
+                'openid': 'Verify your identity',
+                'profile': 'Access your profile information (name, username)',
+                'email': 'Access your email address',
+                'offline_access': 'Keep your session active'
+              };
+              
+              scopes.forEach(function(scope) {
+                const description = scopeDescriptions[scope] || `Access ${scope} information`;
+            %>
+            <li class="flex items-start gap-3 rounded-md border p-3">
+              <svg class="mt-0.5 h-5 w-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <div class="flex flex-col gap-1">
+                <span class="text-sm font-medium"><%= scope %></span>
+                <span class="text-muted-foreground text-xs"><%= description %></span>
+              </div>
+            </li>
+            <% }); %>
+          </ul>
+        </div>
+        <% } %>
+        
+        <!-- Consent Form -->
+        <form 
+          id="consentForm" 
+          method="post" 
+          action="/interaction/<%= uid %>/consent"
+          class="flex flex-col gap-4"
+          novalidate
+        >
+          <!-- Error message container -->
+          <div id="errorMessage" class="bg-destructive/10 text-destructive border-destructive/20 rounded-md border p-3 text-sm hidden">
+            <p id="errorText"></p>
+          </div>
+          
+          <!-- Hidden consent field for validation -->
+          <input type="hidden" id="consent" name="consent" value="" required />
+          
+          <!-- Buttons -->
+          <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              id="denyButton"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input h-10 px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deny
+            </button>
+            <button
+              type="button"
+              id="allowButton"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+            >
+              Allow
+            </button>
+          </div>
+        </form>
+        
+        <!-- Footer note -->
+        <p class="text-muted-foreground text-center text-xs">
+          By clicking "Allow", you grant <strong><%= clientName %></strong> access to the requested information.
+          You can revoke this access at any time from your account settings.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const form = document.getElementById('consentForm');
+    const consentInput = document.getElementById('consent');
+    const allowButton = document.getElementById('allowButton');
+    const denyButton = document.getElementById('denyButton');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    
+    function showError(message) {
+      errorText.textContent = message;
+      errorMessage.classList.remove('hidden');
+    }
+    
+    function clearError() {
+      errorMessage.classList.add('hidden');
+    }
+    
+    function submitConsent(value) {
+      if (!value || (value !== 'yes' && value !== 'no')) {
+        showError('Please select either Allow or Deny');
+        return;
+      }
+      
+      consentInput.value = value;
+      clearError();
+      
+      // Disable buttons to prevent double submission
+      allowButton.disabled = true;
+      denyButton.disabled = true;
+      
+      if (value === 'yes') {
+        allowButton.textContent = 'Processing...';
+      } else {
+        denyButton.textContent = 'Processing...';
+      }
+      
+      form.submit();
+    }
+    
+    allowButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      submitConsent('yes');
+    });
+    
+    denyButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      submitConsent('no');
+    });
+    
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+      if (!consentInput.value || (consentInput.value !== 'yes' && consentInput.value !== 'no')) {
+        e.preventDefault();
+        showError('Please select either Allow or Deny');
+        return false;
+      }
+    });
+    
+    // Check for URL error parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error) {
+      showError('An error occurred. Please try again.');
+    }
+  })();
+</script>

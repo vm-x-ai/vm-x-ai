@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { EnvironmentService } from './environment.service';
-import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
+import { ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import { EnvironmentEntity } from './entities/environment.entity';
 import { CreateEnvironmentDto } from './dto/create-environment.dto';
 import { AuthenticatedUser } from '../auth/auth.guard';
@@ -15,9 +15,14 @@ import {
   WorkspaceIdParam,
 } from '../common/api.decorators';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
+import { ServiceError } from '../types';
 
 @UseGuards(WorkspaceMemberGuard())
 @Controller('environment')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class EnvironmentController {
   constructor(private readonly environmentService: EnvironmentService) {}
 

@@ -52,4 +52,7 @@ export const configSchema = Joi.object({
 
   // Batch Queue
   BATCH_QUEUE_VISIBILITY_TIMEOUT: Joi.number().default(1000 * 120), // 2 minutes
+
+  // UI
+  UI_BASE_URL: Joi.string().uri().required(),
 });

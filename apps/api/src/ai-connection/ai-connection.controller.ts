@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { AIConnectionService } from './ai-connection.service';
 import {
+  ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -31,6 +32,7 @@ import {
   WorkspaceIdParam,
 } from '../common/api.decorators';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
+import { ServiceError } from '../types';
 
 export function ApiAIConnectionIdParam() {
   return applyDecorators(
@@ -50,6 +52,10 @@ export function AIConnectionIdParam() {
 @UseGuards(WorkspaceMemberGuard())
 @Controller('ai-connection')
 @ApiTags('AI Connection')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class AIConnectionController {
   constructor(private readonly aiConnectionService: AIConnectionService) {}
 

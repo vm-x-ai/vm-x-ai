@@ -10,6 +10,7 @@ import { UpdateAIResourceDto } from './dto/update-ai-resource.dto';
 import { DatabaseError } from 'pg';
 import { ListAIResourceDto } from './dto/list-ai-resource.dto';
 import { GetAIResourceDto } from './dto/get-ai-resource.dto';
+import { sql } from 'kysely';
 
 @Injectable()
 export class AIResourceService {
@@ -22,6 +23,7 @@ export class AIResourceService {
     workspaceId,
     environmentId,
     includesUsers = false,
+    connectionId,
   }: ListAIResourceDto): Promise<AIResourceEntity[]> {
     return await this.db.reader
       .selectFrom('aiResources')
@@ -32,6 +34,16 @@ export class AIResourceService {
       )
       .$if(!!environmentId, (qb) =>
         qb.where('aiResources.environmentId', '=', environmentId as string)
+      )
+      .$if(!!connectionId, (qb) =>
+        qb.where((eb) =>
+          eb.or([
+            eb(sql`COALESCE(model::text, '')`, 'like', connectionId),
+            eb(sql`COALESCE(fallback_models::text, '')`, 'like', connectionId),
+            eb(sql`COALESCE(secondary_models::text, '')`, 'like', connectionId),
+            eb(sql`COALESCE(routing::text, '')`, 'like', connectionId),
+          ])
+        )
       )
       .orderBy('createdAt', 'desc')
       .execute();

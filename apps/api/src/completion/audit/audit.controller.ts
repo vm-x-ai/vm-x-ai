@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
   ApiExtraModels,
+  ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -21,6 +22,7 @@ import { UserEntity } from '../../users/entities/user.entity';
 import { AuthenticatedUser } from '../../auth/auth.guard';
 import { ListAuditQueryDto } from './dto/list-audit.dto';
 import { WorkspaceMemberGuard } from '../../workspace/workspace.guard';
+import { ServiceError } from '../../types';
 
 @Controller('completion-audit')
 @UseGuards(WorkspaceMemberGuard())
@@ -29,6 +31,10 @@ import { WorkspaceMemberGuard } from '../../workspace/workspace.guard';
   CompletionAuditFallbackEventEntity,
   CompletionAuditRoutingEventEntity
 )
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class CompletionAuditController {
   constructor(
     private readonly completionAuditService: CompletionAuditService

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 /**
  * Create a new workspace.
@@ -8,9 +8,13 @@ export class CreateWorkspaceDto {
   @ApiProperty({
     description: 'The name of the workspace',
     example: 'My Workspace',
+    minLength: 1,
   })
   @IsString()
   @IsNotEmpty()
+  @MinLength(1, {
+    message: 'Name is required.',
+  })
   name: string;
 
   @ApiProperty({

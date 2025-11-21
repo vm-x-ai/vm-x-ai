@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiKeyService } from './api-key.service';
-import { ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiInternalServerErrorResponse, ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ApiEnvironmentIdParam,
   ApiWorkspaceIdParam,
@@ -28,6 +28,7 @@ import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
 import { CreatedApiKeyDto } from './dto/created-api-key.dto';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
+import { ServiceError } from '../types';
 
 export function ApiApiKeyIdParam() {
   return applyDecorators(
@@ -47,6 +48,10 @@ export function ApiKeyIdParam() {
 @UseGuards(WorkspaceMemberGuard())
 @Controller('api-key')
 @ApiTags('API Key')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class ApiKeyController {
   constructor(private readonly apiKeyService: ApiKeyService) {}
 

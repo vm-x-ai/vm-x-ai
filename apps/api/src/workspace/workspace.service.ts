@@ -9,6 +9,8 @@ import { throwServiceError } from '../error';
 import { ErrorCode } from '../error-code';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ListWorkspaceDto } from './dto/list-workspace.dto';
+import { Expression } from 'kysely';
+import { jsonArrayFrom } from 'kysely/helpers/postgres';
 
 @Injectable()
 export class WorkspaceService {
@@ -48,6 +50,7 @@ export class WorkspaceService {
   public async getAll({
     userId,
     includesUsers,
+    includesEnvironments,
   }: ListWorkspaceDto): Promise<WorkspaceEntity[]> {
     return await this.db.reader
       .selectFrom('workspaces')
@@ -61,6 +64,13 @@ export class WorkspaceService {
             'workspaceUsers.workspaceId'
           )
           .where('workspaceUsers.userId', '=', userId as string)
+      )
+      .$if(!!includesEnvironments, (qb) =>
+        qb.select((eb) => [
+          this.withEnvironments(eb.ref('workspaces.workspaceId')).as(
+            'environments'
+          ),
+        ])
       )
       .orderBy('createdAt', 'desc')
       .execute();
@@ -175,5 +185,15 @@ export class WorkspaceService {
 
   private getWorkspaceMemberCacheKey(workspaceId: string, userId: string) {
     return `workspace-member:${workspaceId}:${userId}`;
+  }
+
+  private withEnvironments(workspaceId: Expression<string>) {
+    return jsonArrayFrom(
+      this.db.reader
+        .selectFrom('environments')
+        .selectAll('environments')
+        .where('workspaceId', '=', workspaceId)
+        .orderBy('name')
+    );
   }
 }

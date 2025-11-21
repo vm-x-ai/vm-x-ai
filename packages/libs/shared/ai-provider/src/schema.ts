@@ -1,5 +1,5 @@
-import Ajv from 'ajv';
-import AvjErrors from 'ajv-errors';
+import { Ajv } from 'ajv';
+import ajvErrors from 'ajv-errors';
 
 export const aiProviderConfigSchemaValidator = new Ajv({
   allErrors: true,
@@ -23,7 +23,7 @@ aiProviderConfigSchemaValidator.addKeyword({
   },
 });
 
-AvjErrors(aiProviderConfigSchemaValidator);
+ajvErrors.default(aiProviderConfigSchemaValidator);
 
 aiProviderConfigSchemaValidator.addFormat('aws-region', {
   type: 'string',

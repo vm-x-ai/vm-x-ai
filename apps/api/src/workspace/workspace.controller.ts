@@ -1,14 +1,22 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
+  ParseBoolPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceService } from './workspace.service';
-import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { WorkspaceEntity } from './entities/workspace.entity';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { AuthenticatedUser } from '../auth/auth.guard';
@@ -22,8 +30,13 @@ import {
 } from '../common/api.decorators';
 import { WorkspaceMemberGuard } from './workspace.guard';
 import { PublicWorkspaceUserRole } from '../storage/entities.generated';
+import { ServiceError } from '../types';
 
 @Controller('workspace')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class WorkspaceController {
   constructor(private readonly workspaceService: WorkspaceService) {}
 
@@ -34,6 +47,12 @@ export class WorkspaceController {
     description: 'List all workspaces that the user is a member of',
   })
   @ApiIncludesUsersQuery()
+  @ApiQuery({
+    name: 'includesEnvironments',
+    type: Boolean,
+    required: false,
+    description: 'Whether to include environments in the response',
+  })
   @ApiOperation({
     operationId: 'getWorkspaces',
     summary: 'List all user workspaces',
@@ -43,9 +62,19 @@ export class WorkspaceController {
   public async getAll(
     @IncludesUsersQuery()
     includesUsers: boolean,
+    @Query(
+      'includesEnvironments',
+      new DefaultValuePipe(false),
+      new ParseBoolPipe({ optional: true })
+    )
+    includesEnvironments: boolean,
     @AuthenticatedUser() user: UserEntity
   ): Promise<WorkspaceEntity[]> {
-    return this.workspaceService.getAll({ userId: user.id, includesUsers });
+    return this.workspaceService.getAll({
+      userId: user.id,
+      includesUsers,
+      includesEnvironments,
+    });
   }
 
   @Get(':workspaceId')
@@ -65,7 +94,7 @@ export class WorkspaceController {
   public async getById(
     @WorkspaceIdParam() workspaceId: string,
     @IncludesUsersQuery()
-    includesUsers: boolean,
+    includesUsers: boolean
   ): Promise<WorkspaceEntity> {
     return this.workspaceService.getById(workspaceId, includesUsers);
   }

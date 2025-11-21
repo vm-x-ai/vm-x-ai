@@ -1,6 +1,6 @@
 import { Controller, Get, ParseIntPipe, Query } from '@nestjs/common';
 import { CompletionMetricsService } from './metrics.service';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiEnvironmentIdParam,
   ApiWorkspaceIdParam,
@@ -12,9 +12,14 @@ import {
   ApiAIResourceIdParam,
 } from '../../ai-resource/ai-resource.controller';
 import { MetricDto } from './dto/metric.dto';
+import { ServiceError } from '../../types';
 
 @Controller('completion-metric')
 @ApiTags('Completion Metric')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class CompletionMetricsController {
   constructor(
     private readonly completionMetricsService: CompletionMetricsService

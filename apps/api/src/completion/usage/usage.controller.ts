@@ -1,6 +1,7 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import {
   ApiExtraModels,
+  ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -18,11 +19,16 @@ import {
 } from './dto/completion-query.dto';
 import { WorkspaceMemberGuard } from '../../workspace/workspace.guard';
 import { CompletionUsageQueryResultDto } from './dto/completion-query-result.dto';
+import { ServiceError } from '../../types';
 
 @Controller('completion-usage')
 @UseGuards(WorkspaceMemberGuard())
 @ApiExtraModels(CompletionUsageDimensionFilterDto)
 @ApiTags('Completion Usage')
+@ApiInternalServerErrorResponse({
+  type: ServiceError,
+  description: 'Server Error',
+})
 export class CompletionUsageController {
   constructor(
     private readonly completionUsageService: CompletionUsageService

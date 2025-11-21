@@ -61,7 +61,13 @@ export default [
       '@nx/dependency-checks': [
         'error',
         {
-          ignoredFiles: ['**/vite.config.ts'],
+          ignoredFiles: [
+            '**/vite.config.ts',
+            '**/next.config.js',
+            '**/eslint.config.mjs',
+            '**/openapi-ts.*.config.ts',
+            '**/postcss.config.mjs',
+          ],
           ignoredDependencies: [
             'class-transformer',
             'pino-pretty',

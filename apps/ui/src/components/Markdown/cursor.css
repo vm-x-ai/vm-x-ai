@@ -1,0 +1,21 @@
+.markdown-blinking-cursor p:last-child::after {
+  content: '';
+  width: 5px;
+  height: 15px;
+  background: var(--mui-palette-primary-main);
+  display: inline-block;
+  animation: blink 0.8s infinite;
+  margin-left: 0.2rem;
+  top: 1px;
+  position: relative;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: var(--mui-palette-primary-main);
+  }
+}
