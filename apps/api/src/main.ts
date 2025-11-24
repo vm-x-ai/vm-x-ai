@@ -30,7 +30,9 @@ async function bootstrap() {
   app.useLogger(logger);
   app.useGlobalInterceptors(new LoggerErrorInterceptor());
 
-  app.enableCors();
+  app.enableCors({
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -61,7 +63,7 @@ async function bootstrap() {
     root: join(__dirname, '..', 'assets'),
     prefix: '/assets/',
   });
-  
+
   app.setViewEngine({
     engine: {
       ejs: require('ejs'),

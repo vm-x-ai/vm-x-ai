@@ -1,4 +1,11 @@
-import { AiConnectionEntity, AiProviderDto, AiResourceEntity } from '@/clients/api';
+import {
+  AiConnectionEntity,
+  AiProviderDto,
+  AiResourceEntity,
+} from '@/clients/api';
+import { ApiResponse } from '@/clients/types';
+import Chat from '@/components/Chat/Chat';
+import SDKDetails from '@/components/SDK/SDKDetails';
 import TabContext from '@mui/lab/TabContext';
 import TabList from '@mui/lab/TabList';
 import TabPanel from '@mui/lab/TabPanel';
@@ -27,7 +34,7 @@ import { useMemo, useState } from 'react';
 export type BatchCreateResultDialogProps = {
   workspaceId: string;
   environmentId: string;
-  domain: string;
+  baseUrl: string;
   providersMap: Record<string, AiProviderDto>;
   data: {
     connections: {
@@ -45,14 +52,13 @@ export type BatchCreateResultDialogProps = {
 export default function BatchCreateResultDialog({
   workspaceId,
   environmentId,
-  domain,
+  baseUrl,
   providersMap,
   data: rawData,
   onClose,
 }: BatchCreateResultDialogProps) {
   const [selectedTab, setSelectedTab] = useState('1');
 
-  console.log('selectedTab', selectedTab);
   const [open, setOpen] = useState(true);
   const data = useMemo(() => {
     return rawData.connections.map((connection, index) => {
@@ -60,19 +66,19 @@ export default function BatchCreateResultDialog({
 
       return {
         provider: connection.request.provider,
-        connection: connection.response.success
+        connection: connection.response.data
           ? connection.response.data
           : { name: connection.request.name },
         resource: resource
-          ? resource.response.success
+          ? resource.response.data
             ? resource.response.data
             : { name: resource.request.name }
           : undefined,
-        error: !connection.response.success
-          ? connection.response.data.message
+        error: !connection.response.data
+          ? connection.response.error.errorMessage
           : resource
-          ? !resource.response.success
-            ? resource.response.data.message
+          ? !resource.response.data
+            ? resource.response.error.errorMessage
             : undefined
           : undefined,
       };
@@ -235,7 +241,7 @@ export default function BatchCreateResultDialog({
                           <SDKDetails
                             workspaceId={workspaceId}
                             environmentId={environmentId}
-                            domain={domain}
+                            baseUrl={baseUrl}
                             showEnvironmentDetails={false}
                             resource={item.resource.resource}
                           />
@@ -253,13 +259,9 @@ export default function BatchCreateResultDialog({
                           >
                             <Chat
                               resource={item.resource}
-                              connections={[]}
                               providersMap={providersMap}
-                              showPreset={false}
-                              showSettings={false}
                               workspaceId={workspaceId}
                               environmentId={environmentId}
-                              oauth={true}
                               height="33.4rem"
                               stream={true}
                               padding={0}

@@ -1,15 +1,15 @@
-import type { FormActionUpdateState } from '@vm-x-ai/console-ui/types';
+import type { FormActionUpdateState } from '@/types';
 import { z } from 'zod';
 
 export const schema = z.object({
   name: z
     .string({
-      required_error: 'Connection name is required.',
+      error: 'Connection name is required.',
     })
     .min(3)
     .trim(),
   description: z.string({
-    required_error: 'Description is required.',
+    error: 'Description is required.',
   }),
 });
 

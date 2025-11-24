@@ -334,17 +334,26 @@ export type UpdateEnvironmentDtoZodType = z.infer<typeof zUpdateEnvironmentDto>;
  * The period of the capacity
  */
 export const zCapacityPeriod = z.enum([
-    'MINUTE',
-    'HOUR',
-    'DAY',
-    'WEEK',
-    'MONTH',
-    'LIFETIME'
+    'minute',
+    'hour',
+    'day',
+    'week',
+    'month',
+    'lifetime'
 ]).register(z.globalRegistry, {
     description: 'The period of the capacity'
 });
 
 export type CapacityPeriodZodType = z.infer<typeof zCapacityPeriod>;
+
+/**
+ * The dimension of the capacity
+ */
+export const zCapacityDimension = z.enum(['source-ip']).register(z.globalRegistry, {
+    description: 'The dimension of the capacity'
+});
+
+export type CapacityDimensionZodType = z.infer<typeof zCapacityDimension>;
 
 export const zCapacityEntity = z.object({
     period: zCapacityPeriod,
@@ -360,9 +369,10 @@ export const zCapacityEntity = z.object({
         z.boolean(),
         z.null()
     ])),
-    dimension: z.optional(z.enum(['SOURCE_IP']).register(z.globalRegistry, {
-        description: 'The dimension of the capacity'
-    }))
+    dimension: z.optional(z.union([
+        zCapacityDimension,
+        z.null()
+    ]))
 });
 
 export type CapacityEntityZodType = z.infer<typeof zCapacityEntity>;
@@ -556,7 +566,10 @@ export const zAiProviderDto = z.object({
         z.string(),
         z.null()
     ])),
-    config: zAiProviderConfigDto
+    config: zAiProviderConfigDto,
+    defaultModel: z.string().register(z.globalRegistry, {
+        description: 'Default model for the provider'
+    })
 });
 
 export type AiProviderDtoZodType = z.infer<typeof zAiProviderDto>;
@@ -895,7 +908,11 @@ export const zCreateAiResourceDto = z.object({
     ])),
     enforceCapacity: z.boolean().register(z.globalRegistry, {
         description: 'Whether capacity is enforced for requests to this resource'
-    })
+    }),
+    assignApiKeys: z.optional(z.union([
+        z.array(z.string()),
+        z.null()
+    ]))
 });
 
 export type CreateAiResourceDtoZodType = z.infer<typeof zCreateAiResourceDto>;
@@ -930,7 +947,11 @@ export const zUpdateAiResourceDto = z.object({
     ])),
     enforceCapacity: z.optional(z.boolean().register(z.globalRegistry, {
         description: 'Whether capacity is enforced for requests to this resource'
-    }))
+    })),
+    assignApiKeys: z.optional(z.union([
+        z.array(z.string()),
+        z.null()
+    ]))
 });
 
 export type UpdateAiResourceDtoZodType = z.infer<typeof zUpdateAiResourceDto>;

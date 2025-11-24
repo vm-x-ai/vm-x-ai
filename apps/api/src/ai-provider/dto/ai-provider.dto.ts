@@ -361,4 +361,12 @@ export class AIProviderDto {
   @ValidateNested()
   @Type(() => AIProviderConfigDto)
   config: AIProviderConfigDto;
+
+  @ApiProperty({
+    description: 'Default model for the provider',
+    example: 'gpt-4.1',
+  })
+  @IsString()
+  @IsNotEmpty()
+  defaultModel: string;
 }

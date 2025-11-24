@@ -4,15 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid2';
+import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
-import SubmitButton from '@vm-x-ai/console-ui/components/Form/SubmitButton';
-import { DIMENSIONS } from '@vm-x-ai/console-ui/consts/layoutConstants';
-import type { AIConnection } from '@vm-x-ai/shared-ai-connection/dto';
-import type { AIProviderConfig } from '@vm-x-ai/shared-ai-provider/dto';
-import type { GetEnvironmentResponse } from '@vm-x-ai/shared-environment/dto';
-import { useEffect, useRef } from 'react';
-import { useFormState } from 'react-dom';
+import SubmitButton from '@/components/Form/SubmitButton';
+import { startTransition, useActionState, useEffect, useRef } from 'react';
 import type { Control } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
@@ -20,15 +15,21 @@ import ProviderFieldset from '../../Common/ProviderFieldset';
 import type { ProviderFieldsetFormSchema } from '../../Common/schema';
 import { schema } from './schema';
 import type { FormAction, FormSchema } from './schema';
-
-const formMaxWidth = DIMENSIONS.form.maxWidth;
+import {
+  AiConnectionEntity,
+  AiProviderDto,
+  EnvironmentEntity,
+} from '@/clients/api';
 
 export type AIConnectionProviderEditFormProps = {
   workspaceId: string;
-  environment: GetEnvironmentResponse;
-  providersMap: Record<string, AIProviderConfig>;
-  data: AIConnection;
-  submitAction: (prevState: FormAction, data: FormSchema) => Promise<FormAction>;
+  environment: EnvironmentEntity;
+  providersMap: Record<string, AiProviderDto>;
+  data: AiConnectionEntity;
+  submitAction: (
+    prevState: FormAction,
+    data: FormSchema
+  ) => Promise<FormAction>;
 };
 
 export default function AIConnectionProviderEditForm({
@@ -39,7 +40,7 @@ export default function AIConnectionProviderEditForm({
   providersMap,
 }: AIConnectionProviderEditFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, formAction] = useFormState(submitAction, {
+  const [state, formAction] = useActionState(submitAction, {
     message: '',
     success: undefined,
     pathParams: {
@@ -61,9 +62,8 @@ export default function AIConnectionProviderEditForm({
     formState: { errors, isDirty },
     watch,
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
-      environmentManagedBy: environment.physicalEnvironment ? 'vmx' : 'user',
       provider: data?.provider ?? 'openai',
       allowedModels: data?.allowedModels ?? [],
       config: data?.config ?? {},
@@ -79,17 +79,19 @@ export default function AIConnectionProviderEditForm({
         </Grid>
       )}
       <Grid size={12}>
-        <Box sx={{ maxWidth: formMaxWidth, width: '100%' }}>
-          <Typography variant="h6">AI Connection Provider - {data.name}</Typography>
+        <Box sx={{ width: '50%' }}>
+          <Typography variant="h6">
+            AI Connection Provider - {data.name}
+          </Typography>
           <Divider />
         </Box>
       </Grid>
       <Grid size={12}>
-        <Box sx={{ maxWidth: formMaxWidth, width: '100%' }}>
+        <Box sx={{ width: '50%' }}>
           <form
-            action={async () => {
-              await handleSubmit(async (values) => {
-                await formAction(values);
+            action={() => {
+              handleSubmit((values) => {
+                startTransition(() => formAction(values));
               })({
                 target: formRef.current,
               } as unknown as React.FormEvent<HTMLFormElement>);
@@ -97,7 +99,9 @@ export default function AIConnectionProviderEditForm({
             noValidate
           >
             <ProviderFieldset
-              control={control as unknown as Control<ProviderFieldsetFormSchema>}
+              control={
+                control as unknown as Control<ProviderFieldsetFormSchema>
+              }
               environment={environment}
               errors={errors}
               provider={watch('provider')}
@@ -106,7 +110,11 @@ export default function AIConnectionProviderEditForm({
             />
             <Grid size={12} marginTop="1rem">
               <Box display="flex" justifyContent="flex-end">
-                <SubmitButton label="Save" submittingLabel="Saving..." isDirty={isDirty} />
+                <SubmitButton
+                  label="Save"
+                  submittingLabel="Saving..."
+                  isDirty={isDirty}
+                />
               </Box>
             </Grid>
           </form>

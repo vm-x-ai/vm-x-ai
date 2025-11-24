@@ -22,13 +22,13 @@ export enum CapacityPeriod {
   LIFETIME = 'lifetime',
 }
 
-export const capacityPeriod = $enum(CapacityPeriod).getKeys();
+export const capacityPeriod = $enum(CapacityPeriod).getValues();
 
 export enum CapacityDimension {
   SOURCE_IP = 'source-ip',
 }
 
-export const capacityDimension = $enum(CapacityDimension).getKeys();
+export const capacityDimension = $enum(CapacityDimension).getValues();
 
 export class CapacityEntity {
   @ApiProperty({
@@ -78,6 +78,7 @@ export class CapacityEntity {
     required: false,
     nullable: true,
     description: 'The dimension of the capacity',
+    enumName: 'CapacityDimension',
     enum: capacityDimension,
     example: CapacityDimension.SOURCE_IP,
   })

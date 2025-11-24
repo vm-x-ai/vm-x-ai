@@ -14,6 +14,35 @@ const nextConfig = {
     // For other options, see https://nextjs.org/docs/architecture/nextjs-compiler#emotion
     emotion: true,
   },
+  compress: true,
+  images: {
+    remotePatterns: [
+      // Allow images to be loaded from the local server
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '**',
+      },
+    ],
+    // Allow images to be loaded from the local server
+    dangerouslyAllowLocalIP: true,
+  },
+  output: 'standalone',
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+    };
+    return config;
+  },
+  turbopack: {
+    resolveAlias: {
+      fs: {
+        browser: './empty.js',
+      },
+    },
+  },
 };
 
 const plugins = [

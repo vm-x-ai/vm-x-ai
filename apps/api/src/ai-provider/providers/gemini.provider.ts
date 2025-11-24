@@ -19,6 +19,7 @@ export class GeminiProvider extends OpenAIProvider {
       id: 'gemini',
       name: 'Google Gemini',
       description: 'Google Gemini Provider',
+      defaultModel: 'gemini-2.5-flash',
       config: {
         logo: {
           url: '/assets/logos/google.png',

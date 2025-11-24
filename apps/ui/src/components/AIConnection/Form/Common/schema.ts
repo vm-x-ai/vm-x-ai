@@ -5,7 +5,6 @@ import type { ZodType } from 'zod';
 import { z } from 'zod';
 
 export const ProviderFieldsetFormSchema = z.object({
-  environmentManagedBy: z.enum(['user', 'vmx']),
   provider: z.string({
     error: 'Provider is required.',
   }),

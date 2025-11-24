@@ -19,6 +19,7 @@ export class GroqProvider extends OpenAIProvider {
       id: 'groq',
       name: 'Groq',
       description: 'Groq AI Provider',
+      defaultModel: 'openai/gpt-oss-20b',
       config: {
         logo: {
           url: '/assets/logos/groq.png',

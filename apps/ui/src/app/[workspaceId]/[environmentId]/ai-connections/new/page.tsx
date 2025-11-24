@@ -1,5 +1,4 @@
 import Alert from '@mui/material/Alert';
-import { AI } from '@/app/playground/actions';
 import CreateAIConnectionForm from '@/components/AIConnection/Form/Create';
 import { mapProviders } from '@/utils/provider';
 import { submitForm } from './actions';
@@ -59,30 +58,24 @@ export default async function Page({ params }: PageProps) {
   }
 
   return (
-    <AI
-      initialAIState={{
-        resource: '',
-        messages: [],
-      }}
-    >
-      <CreateAIConnectionForm
-        submitAction={submitForm}
-        workspaceId={workspaceId}
-        environment={environment.data}
-        providersMap={mapProviders(providers.data)}
-        apiKeys={apiKeys.data}
-        refreshApiKeyAction={async () => {
-          'use server';
+    <CreateAIConnectionForm
+      submitAction={submitForm}
+      workspaceId={workspaceId}
+      environment={environment.data}
+      baseUrl={process.env.API_BASE_URL as string}
+      providersMap={mapProviders(providers.data)}
+      apiKeys={apiKeys.data}
+      refreshApiKeyAction={async () => {
+        'use server';
 
-          const refreshKeys = await getApiKeys({
-            path: {
-              workspaceId,
-              environmentId,
-            },
-          });
-          return refreshKeys.error ? [] : refreshKeys.data;
-        }}
-      />
-    </AI>
+        const refreshKeys = await getApiKeys({
+          path: {
+            workspaceId,
+            environmentId,
+          },
+        });
+        return refreshKeys.error ? [] : refreshKeys.data;
+      }}
+    />
   );
 }

@@ -73,6 +73,8 @@ export default [
             'pino-pretty',
             'pino-http',
             '@fastify/static',
+            'tailwindcss',
+            'tw-animate-css',
           ],
         },
       ],

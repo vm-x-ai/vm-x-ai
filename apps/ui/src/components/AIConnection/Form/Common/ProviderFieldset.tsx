@@ -57,7 +57,7 @@ function ProviderFieldsetForm({
         )
         .map(([key, def], index) => (
           <Grid
-            size={7}
+            size={12}
             marginTop={index === 0 ? '1rem' : 'none'}
             spacing={3}
             key={key}
@@ -159,22 +159,36 @@ function ProviderFieldsetForm({
                 }
 
                 return (
-                  <TextField
-                    {...field}
-                    variant="outlined"
-                    margin="normal"
-                    fullWidth
-                    label={def.title}
-                    placeholder={
-                      (def as Record<string, string>).placeholder ?? ''
-                    }
-                    error={!!errors?.[key]?.message}
-                    helperText={
+                  <Box
+                    display="flex"
+                    flexDirection="column"
+                    gap={1}
+                    width="100%"
+                    padding={0}
+                  >
+                    <TextField
+                      {...field}
+                      variant="outlined"
+                      margin="normal"
+                      fullWidth
+                      label={def.title}
+                      placeholder={
+                        (def as Record<string, string>).placeholder ?? ''
+                      }
+                      error={!!errors?.[key]?.message}
+                    />
+                    <Box
+                      padding={0}
+                      sx={{
+                        fontSize: '0.75rem',
+                        color: 'text.secondary',
+                      }}
+                    >
                       <Markdown>
                         {def.description || (errors?.[key]?.message as string)}
                       </Markdown>
-                    }
-                  />
+                    </Box>
+                  </Box>
                 );
               }}
             />
@@ -209,7 +223,7 @@ export default function ProviderFieldset({
   return (
     <>
       <Grid size={12} container spacing={3}>
-        <Grid size={7}>
+        <Grid size={12}>
           <Controller
             name="provider"
             control={control}
@@ -294,7 +308,7 @@ export default function ProviderFieldset({
               }
             />
 
-            <Grid size={7}>
+            <Grid size={12}>
               {providersMap[provider].config.connection.uiComponents?.map(
                 (element, index) => {
                   if (element.type === 'accordion') {

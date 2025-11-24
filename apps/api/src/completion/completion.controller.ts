@@ -139,6 +139,7 @@ export class CompletionController {
         res.status(200).headers(response.headers).send(response.data);
       }
     } catch (err) {
+      console.log('DEBUG', err);
       return this.handleError(err, sseStarted, res);
     }
   }

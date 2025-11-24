@@ -312,6 +312,7 @@ export class CompletionService {
                 modelConfig
               ),
               headers: this.appendVmxHeaders(
+                modelConfig,
                 providerResponse,
                 requestId,
                 payload,
@@ -358,6 +359,7 @@ export class CompletionService {
               },
             },
             headers: this.appendVmxHeaders(
+              modelConfig,
               providerResponse,
               requestId,
               payload,
@@ -478,6 +480,7 @@ export class CompletionService {
   }
 
   private appendVmxHeaders(
+    modelConfig: AIResourceModelConfigEntity,
     providerResponse: CompletionResponse,
     requestId: string,
     payload: CompletionRequestDto,
@@ -495,7 +498,14 @@ export class CompletionService {
     if (routingDuration) {
       vmxHeaders['x-vmx-routing-duration-ms'] = routingDuration.toString();
     }
+
+    vmxHeaders['x-vmx-model'] = modelConfig.model;
+    vmxHeaders['x-vmx-provider'] = modelConfig.provider;
+    vmxHeaders['x-vmx-connection-id'] = modelConfig.connectionId;
+
     if (auditEvents.length > 0) {
+      vmxHeaders['x-vmx-event-count'] = auditEvents.length.toString();
+
       for (let i = 0; i < auditEvents.length; i++) {
         const event = auditEvents[i];
         vmxHeaders[`x-vmx-event-${i}-type`] = event.type;
@@ -504,15 +514,19 @@ export class CompletionService {
 
         switch (event.type) {
           case CompletionAuditEventType.FALLBACK:
-            vmxHeaders[`x-vmx-event-${i}-failed-model`] =
+            vmxHeaders[`x-vmx-event-${i}-fallback-failed-model`] =
               event.data.model.model;
-            vmxHeaders[`x-vmx-event-${i}-failure-reason`] =
+            vmxHeaders[`x-vmx-event-${i}-fallback-failure-reason`] =
               event.data.errorMessage;
             break;
           case CompletionAuditEventType.ROUTING:
-            vmxHeaders[`x-vmx-event-${i}-original-model`] =
+            vmxHeaders[`x-vmx-event-${i}-routing-original-provider`] =
+              event.data.originalModel.provider;
+            vmxHeaders[`x-vmx-event-${i}-routing-original-model`] =
               event.data.originalModel.model;
-            vmxHeaders[`x-vmx-event-${i}-routed-model`] =
+            vmxHeaders[`x-vmx-event-${i}-routing-routed-provider`] =
+              event.data.routedModel.provider;
+            vmxHeaders[`x-vmx-event-${i}-routing-routed-model`] =
               event.data.routedModel.model;
             break;
         }

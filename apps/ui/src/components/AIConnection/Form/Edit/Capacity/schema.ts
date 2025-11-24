@@ -1,20 +1,21 @@
-import type { FormActionUpdateState } from '@vm-x-ai/console-ui/types';
-import type { Capacity } from '@vm-x-ai/shared-capacity/dto';
+import { CapacityEntity } from '@/clients/api';
+import { FormActionUpdateState } from '@/types';
 import { z } from 'zod';
 
 export const schema = z.object({
   capacity: z.array(
     z.object({
       period: z.string(),
-      requests: z.number(),
-      tokens: z.number(),
-      enabled: z.boolean(),
-    }),
+      requests: z.number().nullish(),
+      tokens: z.number().nullish(),
+      enabled: z.boolean().nullish(),
+      dimension: z.string().nullish(),
+    })
   ),
 });
 
 export type FormSchema = z.output<typeof schema> & {
-  capacity: Capacity[];
+  capacity: CapacityEntity[];
 };
 
 export type FormAction = FormActionUpdateState<

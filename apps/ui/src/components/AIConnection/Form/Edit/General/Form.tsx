@@ -4,29 +4,34 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid2';
+import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import type { ActionMenuItem } from '@vm-x-ai/console-ui/components/ActionMenu/ActionMenu';
-import ActionMenu from '@vm-x-ai/console-ui/components/ActionMenu/ActionMenu';
-import ConfirmDeleteAIConnectionDialog from '@vm-x-ai/console-ui/components/AIConnection/ConfirmDeleteDialog';
-import SubmitButton from '@vm-x-ai/console-ui/components/Form/SubmitButton';
-import { DIMENSIONS } from '@vm-x-ai/console-ui/consts/layoutConstants';
-import type { AIConnection } from '@vm-x-ai/shared-ai-connection/dto';
-import { useEffect, useRef, useState } from 'react';
-import { useFormState } from 'react-dom';
+import type { ActionMenuItem } from '@/components/ActionMenu/ActionMenu';
+import ActionMenu from '@/components/ActionMenu/ActionMenu';
+import ConfirmDeleteAIConnectionDialog from '@/components/AIConnection/ConfirmDeleteDialog';
+import SubmitButton from '@/components/Form/SubmitButton';
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { schema } from './schema';
 import type { FormAction, FormSchema } from './schema';
-
-const formMaxWidth = DIMENSIONS.form.maxWidth;
+import { AiConnectionEntity } from '@/clients/api';
 
 export type AIConnectionGeneralEditFormProps = {
   workspaceId: string;
   environmentId: string;
-  data: AIConnection;
-  submitAction: (prevState: FormAction, data: FormSchema) => Promise<FormAction>;
+  data: AiConnectionEntity;
+  submitAction: (
+    prevState: FormAction,
+    data: FormSchema
+  ) => Promise<FormAction>;
 };
 
 export default function AIConnectionGeneralEditForm({
@@ -36,7 +41,7 @@ export default function AIConnectionGeneralEditForm({
   environmentId,
 }: AIConnectionGeneralEditFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, formAction] = useFormState(submitAction, {
+  const [state, formAction] = useActionState(submitAction, {
     message: '',
     success: undefined,
     pathParams: {
@@ -85,8 +90,12 @@ export default function AIConnectionGeneralEditForm({
           </Grid>
         )}
         <Grid size={12}>
-          <Box sx={{ maxWidth: formMaxWidth, width: '100%' }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box sx={{ width: '50%' }}>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Typography variant="h6">Edit AI Connection</Typography>
               <ActionMenu actionMenuItems={actionMenuItems} />
             </Box>
@@ -94,11 +103,11 @@ export default function AIConnectionGeneralEditForm({
           </Box>
         </Grid>
         <Grid size={12}>
-          <Box sx={{ maxWidth: formMaxWidth, width: '100%' }}>
+          <Box sx={{ width: '50%' }}>
             <form
-              action={async () => {
-                await handleSubmit(async (values) => {
-                  await formAction(values);
+              action={() => {
+                handleSubmit((values) => {
+                  startTransition(() => formAction(values));
                 })({
                   target: formRef.current,
                 } as unknown as React.FormEvent<HTMLFormElement>);
@@ -145,7 +154,11 @@ export default function AIConnectionGeneralEditForm({
                 <Grid size={12} marginTop="1rem">
                   <Box display="flex" justifyContent="flex-end">
                     {' '}
-                    <SubmitButton label="Save" submittingLabel="Saving..." isDirty={isDirty} />
+                    <SubmitButton
+                      label="Save"
+                      submittingLabel="Saving..."
+                      isDirty={isDirty}
+                    />
                   </Box>
                 </Grid>
               </Grid>

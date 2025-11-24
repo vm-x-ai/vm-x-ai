@@ -1,34 +1,34 @@
-import { CapacityEntity } from '@/clients/api';
+import { CapacityEntity, CapacityPeriod } from '@/clients/api';
 
 export const DEFAULT_CAPACITY: CapacityEntity[] = [
   {
     requests: 0,
     tokens: 0,
-    period: 'MINUTE',
+    period: CapacityPeriod.MINUTE,
     enabled: false,
   },
   {
     requests: 0,
     tokens: 0,
-    period: 'HOUR',
+    period: CapacityPeriod.HOUR,
     enabled: false,
   },
   {
     requests: 0,
     tokens: 0,
-    period: 'DAY',
+    period: CapacityPeriod.DAY,
     enabled: false,
   },
   {
     requests: 0,
     tokens: 0,
-    period: 'WEEK',
+    period: CapacityPeriod.WEEK,
     enabled: false,
   },
   {
     requests: 0,
     tokens: 0,
-    period: 'MONTH',
+    period: CapacityPeriod.MONTH,
     enabled: false,
   },
 ];

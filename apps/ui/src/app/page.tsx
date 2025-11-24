@@ -1,4 +1,4 @@
-import { getWorkspaces } from '@/clients/api';
+import { getEnvironments, getWorkspaces } from '@/clients/api';
 import { redirect } from 'next/navigation';
 
 export default async function Page() {
@@ -6,4 +6,19 @@ export default async function Page() {
   if (!workspaces.data?.length) {
     redirect('/getting-started');
   }
+
+  const workspaceId = workspaces.data[0].workspaceId;
+  const environments = await getEnvironments({
+    path: {
+      workspaceId,
+    },
+  });
+
+  if (environments.data && environments.data.length === 0) {
+    redirect(`/getting-started?workspaceId=${workspaceId}`);
+  }
+
+  redirect(
+    `/${workspaceId}/${environments.data?.[0]?.environmentId}/ai-connections/overview`
+  );
 }

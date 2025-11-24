@@ -8,6 +8,7 @@ import { AnthropicProvider } from './providers/anthropic.provider';
 import { GroqProvider } from './providers/groq.provider';
 import { GeminiProvider } from './providers/gemini.provider';
 import { AWSBedrockProvider } from './providers/aws-bedrock.provider';
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class AIProviderService {
   private readonly providers: Record<string, CompletionProvider> = {};
@@ -17,7 +18,8 @@ export class AIProviderService {
     private readonly anthropicProvider: AnthropicProvider,
     private readonly groqProvider: GroqProvider,
     private readonly geminiProvider: GeminiProvider,
-    private readonly awsBedrockProvider: AWSBedrockProvider
+    private readonly awsBedrockProvider: AWSBedrockProvider,
+    private readonly configService: ConfigService
   ) {
     this.providers[openaiProvider.provider.id] = this.openaiProvider;
     this.providers[anthropicProvider.provider.id] = this.anthropicProvider;
@@ -27,7 +29,17 @@ export class AIProviderService {
   }
 
   public getAll(): AIProviderDto[] {
-    return Object.values(this.providers).map((provider) => provider.provider);
+    const baseUrl = this.configService.get('BASE_URL');
+    return Object.values(this.providers).map((provider) => ({
+      ...provider.provider,
+      config: {
+        ...provider.provider.config,
+        logo: {
+          ...provider.provider.config.logo,
+          url: `${baseUrl}${provider.provider.config.logo.url}`,
+        },
+      },
+    }));
   }
 
   public get(id: string): CompletionProvider {

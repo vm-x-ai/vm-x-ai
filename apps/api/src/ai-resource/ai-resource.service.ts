@@ -38,10 +38,18 @@ export class AIResourceService {
       .$if(!!connectionId, (qb) =>
         qb.where((eb) =>
           eb.or([
-            eb(sql`COALESCE(model::text, '')`, 'like', connectionId),
-            eb(sql`COALESCE(fallback_models::text, '')`, 'like', connectionId),
-            eb(sql`COALESCE(secondary_models::text, '')`, 'like', connectionId),
-            eb(sql`COALESCE(routing::text, '')`, 'like', connectionId),
+            eb(sql`COALESCE(model::text, '')`, 'like', `%${connectionId}%`),
+            eb(
+              sql`COALESCE(fallback_models::text, '')`,
+              'like',
+              `%${connectionId}%`
+            ),
+            eb(
+              sql`COALESCE(secondary_models::text, '')`,
+              'like',
+              `%${connectionId}%`
+            ),
+            eb(sql`COALESCE(routing::text, '')`, 'like', `%${connectionId}%`),
           ])
         )
       )
@@ -121,27 +129,53 @@ export class AIResourceService {
     user: UserEntity
   ): Promise<AIResourceEntity> {
     try {
-      return await this.db.writer
-        .insertInto('aiResources')
-        .values({
-          ...payload,
-          workspaceId,
-          environmentId,
-          model: JSON.stringify(payload.model),
-          routing: payload.routing ? JSON.stringify(payload.routing) : null,
-          secondaryModels: payload.secondaryModels
-            ? JSON.stringify(payload.secondaryModels)
-            : null,
-          fallbackModels: payload.fallbackModels
-            ? JSON.stringify(payload.fallbackModels)
-            : null,
-          capacity: payload.capacity ? JSON.stringify(payload.capacity) : null,
-          enforceCapacity: payload.enforceCapacity,
-          createdBy: user.id,
-          updatedBy: user.id,
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
+      return await this.db.writer.transaction().execute(async (tx) => {
+        const { assignApiKeys, ...rest } = payload;
+        const aiResource = await tx
+          .insertInto('aiResources')
+          .values({
+            ...rest,
+            workspaceId,
+            environmentId,
+            model: JSON.stringify(payload.model),
+            routing: payload.routing ? JSON.stringify(payload.routing) : null,
+            secondaryModels: payload.secondaryModels
+              ? JSON.stringify(payload.secondaryModels)
+              : null,
+            fallbackModels: payload.fallbackModels
+              ? JSON.stringify(payload.fallbackModels)
+              : null,
+            capacity: payload.capacity
+              ? JSON.stringify(payload.capacity)
+              : null,
+            enforceCapacity: payload.enforceCapacity,
+            createdBy: user.id,
+            updatedBy: user.id,
+          })
+          .returningAll()
+          .executeTakeFirstOrThrow();
+
+        if (payload.assignApiKeys && payload.assignApiKeys.length > 0) {
+          await tx
+            .updateTable('apiKeys')
+            .set({
+              resources: sql`
+                (
+                  SELECT jsonb_agg(DISTINCT e)
+                  FROM jsonb_array_elements_text(
+                    resources || ${JSON.stringify([rest.resource])}::jsonb
+                  ) AS t(e)
+                )
+              `,
+            })
+            .where('workspaceId', '=', workspaceId)
+            .where('environmentId', '=', environmentId)
+            .where('apiKeyId', 'in', payload.assignApiKeys)
+            .execute();
+        }
+
+        return aiResource;
+      });
     } catch (error) {
       if (error instanceof DatabaseError && error.code === '23505') {
         throwServiceError(

@@ -14,7 +14,32 @@ export type HealthcheckResponseDto = {
 /**
  * The error code
  */
-export type ErrorCode = 'INTERNAL_SERVER_ERROR' | 'OIDC_NOT_CONFIGURED' | 'OIDC_RESPONSE_ERROR' | 'OIDC_CLAIMS_NOT_AVAILABLE' | 'OIDC_EMAIL_NOT_AVAILABLE' | 'OIDC_EMAIL_MISMATCH' | 'OIDC_PROVIDER_ID_MISMATCH' | 'WORKSPACE_NOT_MEMBER' | 'WORKSPACE_NOT_FOUND' | 'WORKSPACE_ACTION_NOT_ALLOWED' | 'WORKSPACE_INSUFFICIENT_PERMISSIONS' | 'ENVIRONMENT_NOT_MEMBER' | 'ENVIRONMENT_NOT_FOUND' | 'AI_CONNECTION_NOT_FOUND' | 'AI_CONNECTION_CONFIG_INVALID' | 'AI_RESOURCE_NOT_FOUND' | 'AI_RESOURCE_ALREADY_EXISTS' | 'POOL_DEFINITION_NOT_FOUND' | 'AI_PROVIDER_NOT_FOUND' | 'API_KEY_NOT_FOUND' | 'API_KEY_RESOURCE_NOT_AUTHORIZED' | 'COMPLETION_SECONDARY_MODEL_NOT_FOUND' | 'COMPLETION_BATCH_NOT_FOUND' | 'COMPLETION_BATCH_ITEM_NOT_FOUND';
+export enum ErrorCode {
+    INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
+    OIDC_NOT_CONFIGURED = 'OIDC_NOT_CONFIGURED',
+    OIDC_RESPONSE_ERROR = 'OIDC_RESPONSE_ERROR',
+    OIDC_CLAIMS_NOT_AVAILABLE = 'OIDC_CLAIMS_NOT_AVAILABLE',
+    OIDC_EMAIL_NOT_AVAILABLE = 'OIDC_EMAIL_NOT_AVAILABLE',
+    OIDC_EMAIL_MISMATCH = 'OIDC_EMAIL_MISMATCH',
+    OIDC_PROVIDER_ID_MISMATCH = 'OIDC_PROVIDER_ID_MISMATCH',
+    WORKSPACE_NOT_MEMBER = 'WORKSPACE_NOT_MEMBER',
+    WORKSPACE_NOT_FOUND = 'WORKSPACE_NOT_FOUND',
+    WORKSPACE_ACTION_NOT_ALLOWED = 'WORKSPACE_ACTION_NOT_ALLOWED',
+    WORKSPACE_INSUFFICIENT_PERMISSIONS = 'WORKSPACE_INSUFFICIENT_PERMISSIONS',
+    ENVIRONMENT_NOT_MEMBER = 'ENVIRONMENT_NOT_MEMBER',
+    ENVIRONMENT_NOT_FOUND = 'ENVIRONMENT_NOT_FOUND',
+    AI_CONNECTION_NOT_FOUND = 'AI_CONNECTION_NOT_FOUND',
+    AI_CONNECTION_CONFIG_INVALID = 'AI_CONNECTION_CONFIG_INVALID',
+    AI_RESOURCE_NOT_FOUND = 'AI_RESOURCE_NOT_FOUND',
+    AI_RESOURCE_ALREADY_EXISTS = 'AI_RESOURCE_ALREADY_EXISTS',
+    POOL_DEFINITION_NOT_FOUND = 'POOL_DEFINITION_NOT_FOUND',
+    AI_PROVIDER_NOT_FOUND = 'AI_PROVIDER_NOT_FOUND',
+    API_KEY_NOT_FOUND = 'API_KEY_NOT_FOUND',
+    API_KEY_RESOURCE_NOT_AUTHORIZED = 'API_KEY_RESOURCE_NOT_AUTHORIZED',
+    COMPLETION_SECONDARY_MODEL_NOT_FOUND = 'COMPLETION_SECONDARY_MODEL_NOT_FOUND',
+    COMPLETION_BATCH_NOT_FOUND = 'COMPLETION_BATCH_NOT_FOUND',
+    COMPLETION_BATCH_ITEM_NOT_FOUND = 'COMPLETION_BATCH_ITEM_NOT_FOUND'
+}
 
 export type ServiceError = {
     /**
@@ -341,7 +366,21 @@ export type UpdateEnvironmentDto = {
 /**
  * The period of the capacity
  */
-export type CapacityPeriod = 'MINUTE' | 'HOUR' | 'DAY' | 'WEEK' | 'MONTH' | 'LIFETIME';
+export enum CapacityPeriod {
+    MINUTE = 'minute',
+    HOUR = 'hour',
+    DAY = 'day',
+    WEEK = 'week',
+    MONTH = 'month',
+    LIFETIME = 'lifetime'
+}
+
+/**
+ * The dimension of the capacity
+ */
+export enum CapacityDimension {
+    SOURCE_IP = 'source-ip'
+}
 
 export type CapacityEntity = {
     /**
@@ -363,7 +402,7 @@ export type CapacityEntity = {
     /**
      * The dimension of the capacity
      */
-    dimension?: 'SOURCE_IP';
+    dimension?: CapacityDimension | null;
 };
 
 export type DiscoveredCapacityEntity = {
@@ -642,17 +681,43 @@ export type AiProviderDto = {
      * Configuration details for the provider
      */
     config: AiProviderConfigDto;
+    /**
+     * Default model for the provider
+     */
+    defaultModel: string;
 };
 
 /**
  * Comparator for the routing condition
  */
-export type RoutingComparator = 'EQUAL' | 'NOT_EQUAL' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUAL' | 'LESS_THAN' | 'LESS_THAN_OR_EQUAL' | 'CONTAINS' | 'NOT_CONTAINS' | 'STARTS_WITH' | 'ENDS_WITH' | 'PATTERN' | 'IN' | 'NOT_IN' | 'EXISTS';
+export enum RoutingComparator {
+    EQUAL = 'EQUAL',
+    NOT_EQUAL = 'NOT_EQUAL',
+    GREATER_THAN = 'GREATER_THAN',
+    GREATER_THAN_OR_EQUAL = 'GREATER_THAN_OR_EQUAL',
+    LESS_THAN = 'LESS_THAN',
+    LESS_THAN_OR_EQUAL = 'LESS_THAN_OR_EQUAL',
+    CONTAINS = 'CONTAINS',
+    NOT_CONTAINS = 'NOT_CONTAINS',
+    STARTS_WITH = 'STARTS_WITH',
+    ENDS_WITH = 'ENDS_WITH',
+    PATTERN = 'PATTERN',
+    IN = 'IN',
+    NOT_IN = 'NOT_IN',
+    EXISTS = 'EXISTS'
+}
 
 /**
  * The type of the routing condition value
  */
-export type RoutingConditionType = 'STRING' | 'NUMBER' | 'BOOLEAN' | 'COMMA_DELIMITED_LIST' | 'JSON_OBJECT' | 'JSON_ARRAY';
+export enum RoutingConditionType {
+    STRING = 'STRING',
+    NUMBER = 'NUMBER',
+    BOOLEAN = 'BOOLEAN',
+    COMMA_DELIMITED_LIST = 'COMMA_DELIMITED_LIST',
+    JSON_OBJECT = 'JSON_OBJECT',
+    JSON_ARRAY = 'JSON_ARRAY'
+}
 
 export type AiResourceRoutingConditionValue = {
     /**
@@ -721,17 +786,26 @@ export type AiResourceModelConfigEntity = {
 /**
  * Logical operator for grouping conditions
  */
-export type RoutingOperator = 'AND' | 'OR';
+export enum RoutingOperator {
+    AND = 'AND',
+    OR = 'OR'
+}
 
 /**
  * Action to take if group matches
  */
-export type RoutingAction = 'BLOCK' | 'CALL_MODEL';
+export enum RoutingAction {
+    BLOCK = 'BLOCK',
+    CALL_MODEL = 'CALL_MODEL'
+}
 
 /**
  * UI or advanced routing mode
  */
-export type RoutingMode = 'UI' | 'ADVANCED';
+export enum RoutingMode {
+    UI = 'UI',
+    ADVANCED = 'ADVANCED'
+}
 
 export type AiResourceRoutingModelConfig = {
     /**
@@ -910,6 +984,10 @@ export type CreateAiResourceDto = {
      * Whether capacity is enforced for requests to this resource
      */
     enforceCapacity: boolean;
+    /**
+     * The API keys to assign to the AI resource
+     */
+    assignApiKeys?: Array<string> | null;
 };
 
 export type UpdateAiResourceDto = {
@@ -949,6 +1027,10 @@ export type UpdateAiResourceDto = {
      * Whether capacity is enforced for requests to this resource
      */
     enforceCapacity?: boolean;
+    /**
+     * The API keys to assign to the AI resource
+     */
+    assignApiKeys?: Array<string> | null;
 };
 
 export type PoolDefinitionEntry = {
@@ -1267,7 +1349,10 @@ export type CompletionAuditFallbackEventEntity = {
 /**
  * The event type of the Audit event
  */
-export type CompletionAuditEventType = 'FALLBACK' | 'ROUTING';
+export enum CompletionAuditEventType {
+    FALLBACK = 'FALLBACK',
+    ROUTING = 'ROUTING'
+}
 
 export type CompletionAuditRoutingEventEntity = {
     /**
@@ -1286,7 +1371,10 @@ export type CompletionAuditRoutingEventEntity = {
     };
 };
 
-export type CompletionAuditType = 'COMPLETION' | 'COMPLETION_BATCH';
+export enum CompletionAuditType {
+    COMPLETION = 'COMPLETION',
+    COMPLETION_BATCH = 'COMPLETION_BATCH'
+}
 
 export type CompletionAuditEntity = {
     /**
@@ -1374,7 +1462,16 @@ export type CompletionAuditEntity = {
 /**
  * Operator for the filter
  */
-export type CompletionUsageDimensionOperator = 'eq' | 'neq' | 'in' | 'nin' | 'gt' | 'gte' | 'lt' | 'lte';
+export enum CompletionUsageDimensionOperator {
+    EQ = 'eq',
+    NEQ = 'neq',
+    IN = 'in',
+    NIN = 'nin',
+    GT = 'gt',
+    GTE = 'gte',
+    LT = 'lt',
+    LTE = 'lte'
+}
 
 export type CompletionUsageDimensionFilterDto = {
     /**
@@ -1390,12 +1487,38 @@ export type CompletionUsageDimensionFilterDto = {
 /**
  * Granularity unit for aggregation (time bucket size)
  */
-export type GranularityUnit = 'second' | 'second_5' | 'second_10' | 'second_15' | 'second_30' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
+export enum GranularityUnit {
+    SECOND = 'second',
+    SECOND_5 = 'second_5',
+    SECOND_10 = 'second_10',
+    SECOND_15 = 'second_15',
+    SECOND_30 = 'second_30',
+    MINUTE = 'minute',
+    HOUR = 'hour',
+    DAY = 'day',
+    WEEK = 'week',
+    MONTH = 'month',
+    YEAR = 'year'
+}
 
 /**
  * Dimensions to group results by
  */
-export type CompletionDimensions = 'workspaceId' | 'environmentId' | 'connectionId' | 'resource' | 'provider' | 'model' | 'requestId' | 'messageId' | 'failureReason' | 'statusCode' | 'correlationId' | 'apiKeyId' | 'sourceIp';
+export enum CompletionDimensions {
+    WORKSPACE_ID = 'workspaceId',
+    ENVIRONMENT_ID = 'environmentId',
+    CONNECTION_ID = 'connectionId',
+    RESOURCE = 'resource',
+    PROVIDER = 'provider',
+    MODEL = 'model',
+    REQUEST_ID = 'requestId',
+    MESSAGE_ID = 'messageId',
+    FAILURE_REASON = 'failureReason',
+    STATUS_CODE = 'statusCode',
+    CORRELATION_ID = 'correlationId',
+    API_KEY_ID = 'apiKeyId',
+    SOURCE_IP = 'sourceIp'
+}
 
 export type CompletionUsageQueryDateRangeDto = {
     /**
@@ -1614,7 +1737,10 @@ export type CreateCompletionBatchItemDto = {
 /**
  * The type of the batch request
  */
-export type CompletionBatchRequestType = 'SYNC' | 'ASYNC';
+export enum CompletionBatchRequestType {
+    SYNC = 'SYNC',
+    ASYNC = 'ASYNC'
+}
 
 export type CreateCompletionBatchDto = {
     /**
@@ -1634,7 +1760,11 @@ export type CreateCompletionBatchDto = {
 /**
  * The events to send the callback for
  */
-export type CompletionBatchCallbackEvent = 'batch_update' | 'item_update' | 'all';
+export enum CompletionBatchCallbackEvent {
+    BATCH_UPDATE = 'batch_update',
+    ITEM_UPDATE = 'item_update',
+    ALL = 'all'
+}
 
 export type CompletionBatchCallbackOptionsDto = {
     /**
@@ -1675,7 +1805,13 @@ export type CreateCompletionCallbackBatchDto = {
 /**
  * The status of the batch request
  */
-export type CompletionBatchRequestStatus = 'CANCELLED' | 'COMPLETED' | 'FAILED' | 'PENDING' | 'RUNNING';
+export enum CompletionBatchRequestStatus {
+    CANCELLED = 'CANCELLED',
+    COMPLETED = 'COMPLETED',
+    FAILED = 'FAILED',
+    PENDING = 'PENDING',
+    RUNNING = 'RUNNING'
+}
 
 export type ApiKeyRelationDto = {
     /**

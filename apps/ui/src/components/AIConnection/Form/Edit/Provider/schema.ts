@@ -1,4 +1,4 @@
-import type { FormActionUpdateState } from '@vm-x-ai/console-ui/types';
+import type { FormActionUpdateState } from '@/types';
 import { z } from 'zod';
 import { applyProviderValidation, ProviderFieldsetFormSchema } from '../../Common/schema';
 

@@ -91,6 +91,7 @@ export class AWSBedrockProvider implements CompletionProvider {
       id: 'aws-bedrock',
       name: 'AWS Bedrock',
       description: 'AWS Bedrock Provider',
+      defaultModel: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
       config: {
         logo: {
           url: '/assets/logos/aws.png',

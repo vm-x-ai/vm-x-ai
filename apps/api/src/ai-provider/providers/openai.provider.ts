@@ -33,6 +33,7 @@ export class OpenAIProvider implements CompletionProvider {
       id: 'openai',
       name: 'OpenAI',
       description: 'OpenAI Provider',
+      defaultModel: 'gpt-4.1',
       config: {
         logo: {
           url: '/assets/logos/openai.png',

@@ -20,6 +20,7 @@ export class AnthropicProvider extends OpenAIProvider {
       id: 'anthropic',
       name: 'Anthropic',
       description: 'Anthropic AI Provider',
+      defaultModel: 'claude-haiku-4-5-20251001',
       config: {
         logo: {
           url: '/assets/logos/anthropic.png',
