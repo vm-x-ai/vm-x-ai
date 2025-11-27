@@ -24,12 +24,15 @@ export const migration: Migration = {
       .addColumn('batch_id', 'uuid')
       .addColumn('correlation_id', 'text')
       .addColumn('resource', 'text')
+      .addColumn('provider', 'text')
       .addColumn('model', 'text')
       .addColumn('source_ip', 'text')
       .addColumn('error_message', 'text')
       .addColumn('failure_reason', 'text')
       .addColumn('api_key_id', 'uuid')
-      .addColumn('data', 'jsonb')
+      .addColumn('request_payload', 'jsonb')
+      .addColumn('response_data', 'jsonb')
+      .addColumn('response_headers', 'jsonb')
       .execute();
 
     await db.schema

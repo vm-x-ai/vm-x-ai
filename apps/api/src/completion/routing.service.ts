@@ -31,7 +31,10 @@ export class ResourceRoutingService {
     request: ChatCompletionCreateParams,
     requestTokens: number,
     resourceConfig: AIResourceEntity
-  ): Promise<AIResourceModelConfigEntity | undefined> {
+  ): Promise<{
+    model: AIResourceModelConfigEntity;
+    matchedRoute: AIRoutingConditionGroup;
+  } | null> {
     const startTime = Date.now();
 
     this.logger.info(
@@ -112,7 +115,7 @@ export class ResourceRoutingService {
         }
 
         if (!conditionGroup.then.traffic) {
-          return conditionGroup.then;
+          return { model: conditionGroup.then, matchedRoute: conditionGroup };
         }
 
         if (Math.random() < conditionGroup.then.traffic / 100) {
@@ -123,7 +126,7 @@ export class ResourceRoutingService {
             },
             `Routing condition traffic matched`
           );
-          return conditionGroup.then;
+          return { model: conditionGroup.then, matchedRoute: conditionGroup };
         }
       }
     }
@@ -134,7 +137,7 @@ export class ResourceRoutingService {
       },
       `No routing condition matched`
     );
-    return undefined;
+    return null;
   }
 
   private async recursiveEvaluateRoutingConditions(

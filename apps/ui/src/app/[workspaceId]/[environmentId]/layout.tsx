@@ -77,7 +77,7 @@ export default async function Layout({ children, params }: LayoutProps) {
       icon: <SecurityIcon />,
     },
     {
-      path: `/${workspaceId}/${environmentId}/insights/benchmark`,
+      path: `/${workspaceId}/${environmentId}/insights`,
       value: `/${workspaceId}/${environmentId}/insights`,
       name: 'Insights',
       icon: <LineAxisIcon />,

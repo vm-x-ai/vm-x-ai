@@ -27,27 +27,27 @@ const dimentionOptions = [
 
 const periodOptions = [
   {
-    value: 'MINUTE',
+    value: 'minute',
     label: 'Per Minute',
   },
   {
-    value: 'HOUR',
+    value: 'hour',
     label: 'Per Hour',
   },
   {
-    value: 'DAY',
+    value: 'day',
     label: 'Per Day',
   },
   {
-    value: 'WEEK',
+    value: 'week',
     label: 'Per Week',
   },
   {
-    value: 'MONTH',
+    value: 'month',
     label: 'Per Month',
   },
   {
-    value: 'LIFETIME',
+    value: 'lifetime',
     label: 'Lifetime',
   },
 ];

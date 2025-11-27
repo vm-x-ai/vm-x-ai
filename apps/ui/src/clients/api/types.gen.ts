@@ -711,12 +711,12 @@ export enum RoutingComparator {
  * The type of the routing condition value
  */
 export enum RoutingConditionType {
-    STRING = 'STRING',
-    NUMBER = 'NUMBER',
-    BOOLEAN = 'BOOLEAN',
-    COMMA_DELIMITED_LIST = 'COMMA_DELIMITED_LIST',
-    JSON_OBJECT = 'JSON_OBJECT',
-    JSON_ARRAY = 'JSON_ARRAY'
+    STRING = 'string',
+    NUMBER = 'number',
+    BOOLEAN = 'boolean',
+    COMMA_DELIMITED_LIST = 'comma-delimited-list',
+    JSON_OBJECT = 'json-object',
+    JSON_ARRAY = 'json-array'
 }
 
 export type AiResourceRoutingConditionValue = {
@@ -731,6 +731,10 @@ export type AiResourceRoutingConditionValue = {
 };
 
 export type AiResourceRoutingCondition = {
+    /**
+     * The type of the routing condition
+     */
+    type: 'condition';
     /**
      * The unique ID of the routing condition
      */
@@ -827,6 +831,10 @@ export type AiResourceRoutingModelConfig = {
 };
 
 export type AiRoutingConditionGroup = {
+    /**
+     * The type of the routing condition
+     */
+    type: 'group';
     /**
      * Optional ID for the condition group
      */
@@ -1432,6 +1440,10 @@ export type CompletionAuditEntity = {
      */
     resource?: string | null;
     /**
+     * The AI Provider of the completion audit event (if applicable)
+     */
+    provider?: string | null;
+    /**
      * The model involved in the completion audit event (if applicable)
      */
     model?: string | null;
@@ -1452,11 +1464,42 @@ export type CompletionAuditEntity = {
      */
     apiKeyId?: string | null;
     /**
-     * Additional data associated with the completion audit event (JSON object, if any)
+     * The request payload of the completion audit event (openai chat completion request payload)
      */
-    data?: {
+    requestPayload?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * The response of the completion audit data
+     */
+    responseData?: Array<{
+        [key: string]: unknown;
+    }> | null;
+    /**
+     * The headers of the completion audit data
+     */
+    responseHeaders?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+export type ListAuditResponseDto = {
+    /**
+     * The total number of items
+     */
+    total: number;
+    /**
+     * The page number
+     */
+    pageIndex: number;
+    /**
+     * The page size
+     */
+    pageSize: number;
+    /**
+     * The data
+     */
+    data: Array<CompletionAuditEntity>;
 };
 
 /**
@@ -3324,35 +3367,43 @@ export type GetCompletionAuditData = {
          */
         environmentId: string;
     };
-    query: {
+    query?: {
         /**
          * The type of audit to list
          */
-        type: CompletionAuditType;
+        type?: CompletionAuditType;
         /**
          * The connection ID to list audits for
          */
-        connectionId?: string;
+        connectionId?: string | null;
         /**
          * The resource to list audits for
          */
-        resource?: string;
+        resource?: string | null;
         /**
          * The model to list audits for
          */
-        model?: string;
+        model?: string | null;
         /**
          * The status code to list audits for
          */
-        statusCode?: number;
+        statusCode?: number | null;
         /**
          * The start date to list audits for
          */
-        startDate?: string;
+        startDate?: string | null;
         /**
          * The end date to list audits for
          */
-        endDate?: string;
+        endDate?: string | null;
+        /**
+         * The page number to list audits for
+         */
+        pageIndex?: number | null;
+        /**
+         * The page size to list audits for
+         */
+        pageSize?: number | null;
     };
     url: '/v1/completion-audit/{workspaceId}/{environmentId}';
 };
@@ -3370,7 +3421,7 @@ export type GetCompletionAuditResponses = {
     /**
      * List all completion audits associated with an environment
      */
-    200: Array<CompletionAuditEntity>;
+    200: Array<ListAuditResponseDto>;
 };
 
 export type GetCompletionAuditResponse = GetCompletionAuditResponses[keyof GetCompletionAuditResponses];

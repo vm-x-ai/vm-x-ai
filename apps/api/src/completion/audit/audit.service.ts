@@ -1,16 +1,17 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../storage/database.service';
-import { CompletionAuditEntity } from './entities/audit.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PinoLogger } from 'nestjs-pino';
-import { ListAuditQueryDto } from './dto/list-audit.dto';
+import { ListAuditQueryDto, ListAuditResponseDto } from './dto/list-audit.dto';
 import { UserEntity } from '../../users/entities/user.entity';
 import { CreateCompletionAuditDto } from './dto/create-audit.dto';
+import { sql } from 'kysely';
 
 @Injectable()
 export class CompletionAuditService {
-  private buffer: { payload: CreateCompletionAuditDto; attempts?: number }[] = [];
+  private buffer: { payload: CreateCompletionAuditDto; attempts?: number }[] =
+    [];
   private flushing = false;
 
   constructor(
@@ -23,10 +24,13 @@ export class CompletionAuditService {
     environmentId: string,
     query: ListAuditQueryDto,
     user: UserEntity
-  ): Promise<CompletionAuditEntity[]> {
-    return await this.db.reader
+  ): Promise<ListAuditResponseDto> {
+    const pageSize = query.pageSize ?? 100;
+    const pageIndex = query.pageIndex ?? 0;
+    const data = await this.db.reader
       .selectFrom('completionAudit')
       .selectAll('completionAudit')
+      .select([sql<number>`COUNT(*) OVER ()`.as('total')])
       .innerJoin(
         'workspaceUsers',
         'completionAudit.workspaceId',
@@ -56,7 +60,17 @@ export class CompletionAuditService {
       .$if(!!query.endDate, (qb) =>
         qb.where('completionAudit.timestamp', '<=', query.endDate!)
       )
+      .orderBy('completionAudit.timestamp', 'desc')
+      .limit(pageSize)
+      .offset(pageIndex * pageSize)
       .execute();
+
+    return {
+      total: data[0]?.total ?? 0,
+      pageIndex,
+      pageSize,
+      data: data.map(({ total, ...item }) => item),
+    };
   }
 
   public push(payload: CreateCompletionAuditDto) {
@@ -83,7 +97,9 @@ export class CompletionAuditService {
         .values(
           transit.map(({ payload }) => ({
             ...payload,
-            data: JSON.stringify(payload.data),
+            requestPayload: JSON.stringify(payload.requestPayload),
+            responseData: JSON.stringify(payload.responseData),
+            responseHeaders: JSON.stringify(payload.responseHeaders),
             events: JSON.stringify(payload.events),
           }))
         )

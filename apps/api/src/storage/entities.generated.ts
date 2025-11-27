@@ -111,7 +111,6 @@ export interface CompletionAudit {
   batchId: string | null;
   connectionId: string | null;
   correlationId: string | null;
-  data: ColumnType<any | null, string | null, string | null>;
   duration: number;
   environmentId: string;
   errorMessage: string | null;
@@ -119,8 +118,12 @@ export interface CompletionAudit {
   failureReason: string | null;
   id: Generated<string>;
   model: string | null;
+  provider: string | null;
   requestId: string;
+  requestPayload: ColumnType<any | null, string | null, string | null>;
   resource: string | null;
+  responseData: ColumnType<any | null, string | null, string | null>;
+  responseHeaders: ColumnType<any | null, string | null, string | null>;
   sourceIp: string | null;
   statusCode: number;
   timestamp: Timestamp;

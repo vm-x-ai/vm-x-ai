@@ -41,6 +41,7 @@ export default function GenerateApiKeyStep() {
           resources: [],
           enforceCapacity: false,
           description: 'Default Role',
+          labels: ["default"]
         },
       }).finally(() => {
         setIsGenerating(false);

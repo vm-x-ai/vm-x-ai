@@ -24,7 +24,7 @@ import { toast } from 'react-toastify';
 import { schema } from './schema';
 import type { FormSchema, FormAction } from './schema';
 import { AiConnectionEntity, CapacityEntity } from '@/clients/api';
-import { DEFAULT_CAPACITY } from '@/components/AIConnection/consts';
+import { DEFAULT_CAPACITY } from '@/components/Capacity/consts';
 
 export type AIConnectionCapacityEditFormProps = {
   data: AiConnectionEntity;

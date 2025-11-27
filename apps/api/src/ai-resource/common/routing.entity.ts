@@ -21,14 +21,14 @@ export enum RoutingAction {
   CALL_MODEL = 'CALL_MODEL',
 }
 
-export const routingActions = $enum(RoutingAction).getKeys();
+export const routingActions = $enum(RoutingAction).getValues();
 
 export enum RoutingOperator {
   AND = 'AND',
   OR = 'OR',
 }
 
-export const routingOperators = $enum(RoutingOperator).getKeys();
+export const routingOperators = $enum(RoutingOperator).getValues();
 
 export enum RoutingComparator {
   EQUAL = 'EQUAL',
@@ -47,7 +47,7 @@ export enum RoutingComparator {
   EXISTS = 'EXISTS',
 }
 
-export const routingComparators = $enum(RoutingComparator).getKeys();
+export const routingComparators = $enum(RoutingComparator).getValues();
 
 export enum RoutingConditionType {
   STRING = 'string',
@@ -58,14 +58,14 @@ export enum RoutingConditionType {
   JSON_ARRAY = 'json-array',
 }
 
-export const routingConditionTypes = $enum(RoutingConditionType).getKeys();
+export const routingConditionTypes = $enum(RoutingConditionType).getValues();
 
 export enum RoutingMode {
   UI = 'UI',
   ADVANCED = 'ADVANCED',
 }
 
-export const routingModes = $enum(RoutingMode).getKeys();
+export const routingModes = $enum(RoutingMode).getValues();
 
 export class AIResourceRoutingConditionValue {
   @ApiProperty({
@@ -86,7 +86,20 @@ export class AIResourceRoutingConditionValue {
   expression?: string;
 }
 
+export enum RoutingItemType {
+  CONDITION = 'condition',
+  GROUP = 'group',
+}
+
 export class AIResourceRoutingCondition {
+  @ApiProperty({
+    description: 'The type of the routing condition',
+    example: RoutingItemType.CONDITION,
+    enum: [RoutingItemType.CONDITION],
+  })
+  @IsEnum([RoutingItemType.CONDITION])
+  type: RoutingItemType.CONDITION = RoutingItemType.CONDITION;
+
   @ApiProperty({
     description: 'The unique ID of the routing condition',
     example: 'condition-id-string',
@@ -138,6 +151,14 @@ export class AIResourceRoutingModelConfig extends AIResourceModelConfigEntity {
 }
 
 export class AIRoutingConditionGroup {
+  @ApiProperty({
+    description: 'The type of the routing condition',
+    example: RoutingItemType.GROUP,
+    enum: [RoutingItemType.GROUP],
+  })
+  @IsEnum([RoutingItemType.GROUP])
+  type: RoutingItemType.GROUP = RoutingItemType.GROUP;
+
   @ApiPropertyOptional({
     description: 'Optional ID for the condition group',
     example: 'group-id-string',
@@ -175,11 +196,17 @@ export class AIRoutingConditionGroup {
   })
   @IsArray()
   @ValidateNested({ each: true })
-  @Type((options) => {
-    if (options && 'conditions' in options.object) {
-      return AIRoutingConditionGroup;
-    }
-    return AIResourceRoutingCondition;
+  @Type(() => Object, {
+    discriminator: {
+      property: 'type',
+      subTypes: [
+        { value: AIRoutingConditionGroup, name: RoutingItemType.GROUP },
+        {
+          value: AIResourceRoutingCondition,
+          name: RoutingItemType.CONDITION,
+        },
+      ],
+    },
   })
   conditions: Array<AIResourceRoutingCondition | AIRoutingConditionGroup>;
 

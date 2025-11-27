@@ -17,7 +17,7 @@ export default function WorkspaceSelector() {
   if (error) {
     return (
       <Alert variant="filled" severity="error">
-        {error.errorMessage}
+        Error loading workspaces: {error.errorMessage}
       </Alert>
     );
   }

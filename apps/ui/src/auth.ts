@@ -86,6 +86,7 @@ const result = NextAuth({
     session({ session, token }) {
       session.accessToken = token.accessToken;
       session.idToken = token.idToken;
+      session.expires = new Date(token.expiresAt).toISOString() as Date & string;
       if (token.error && typeof token.error === 'string') {
         session.user.error = token.error;
       }
@@ -116,7 +117,7 @@ declare module 'next-auth/jwt' {
   }
 }
 
-async function refreshToken(token: JWT) {
+async function refreshToken(token: JWT): Promise<JWT> {
   console.log('Refreshing token');
   console.log('Fetching OpenID configuration');
   const openidConfiguration = await fetch(

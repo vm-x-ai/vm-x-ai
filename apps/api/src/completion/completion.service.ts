@@ -24,7 +24,6 @@ import { getSourceIpFromRequest } from '../utils/http';
 import { v4 as uuidv4 } from 'uuid';
 import { PublicCompletionAuditType } from '../storage/entities.generated';
 import {
-  CompletionAuditDataEntity,
   CompletionAuditEventEntity,
   CompletionAuditEventType,
 } from './audit/entities/audit.entity';
@@ -35,6 +34,7 @@ import {
   CompletionHeaders,
   CompletionNonStreamingResponse,
   CompletionResponse,
+  CompletionResponseData,
   CompletionStreamingResponse,
 } from '../ai-provider/ai-provider.types';
 import { isAsyncIterable } from '../utils/async';
@@ -110,10 +110,6 @@ export class CompletionService {
     const tokensPerSecond: number | null = null;
     let messageId: string | null = null;
     const auditEvents: CompletionAuditEventEntity[] = [];
-    const auditData: CompletionAuditDataEntity = {
-      response: [],
-      headers: {},
-    };
     const requestId = uuidv4();
 
     try {
@@ -151,7 +147,7 @@ export class CompletionService {
       if (shouldRoute) {
         const routingStartAt = Date.now();
         try {
-          const routeModel =
+          const routingResult =
             await this.resourceRoutingService.evaluateRoutingConditions(
               workspaceId,
               environmentId,
@@ -159,16 +155,17 @@ export class CompletionService {
               requestTokens,
               aiResource
             );
-          if (routeModel) {
+          if (routingResult) {
             auditEvents.push({
               timestamp: new Date(),
               type: CompletionAuditEventType.ROUTING,
               data: {
                 originalModel: modelConfig,
-                routedModel: routeModel,
+                routedModel: routingResult.model,
+                matchedRoute: routingResult.matchedRoute,
               },
             });
-            modelConfig = routeModel;
+            modelConfig = routingResult.model;
           }
         } finally {
           routingDuration = Date.now() - routingStartAt;
@@ -251,7 +248,7 @@ export class CompletionService {
             modelConfig
           );
 
-          auditData.headers = providerResponse.headers;
+          const responseData: CompletionResponseData[] = [];
 
           if (isAsyncIterable(providerResponse.data)) {
             async function* createDataStream(
@@ -261,7 +258,7 @@ export class CompletionService {
               modelConfig: AIResourceModelConfigEntity
             ) {
               for await (const chunk of data) {
-                auditData.response.push(chunk);
+                responseData.push(chunk);
                 messageId = chunk.id;
 
                 if (payload.stream && !timeToFirstToken && providerStartAt) {
@@ -289,6 +286,7 @@ export class CompletionService {
               await this.postCompletion(
                 requestAt,
                 providerStartAt,
+                payload,
                 baseProps,
                 aiConnection,
                 evaluatedCapacities,
@@ -300,7 +298,7 @@ export class CompletionService {
                 tokensPerSecond,
                 completionUsage,
                 auditEvents,
-                auditData,
+                responseData,
                 providerResponse.headers
               );
             }
@@ -324,11 +322,11 @@ export class CompletionService {
           } else {
             completionUsage = providerResponse.data.usage;
             messageId = providerResponse.data.id;
-            auditData.response.push(providerResponse.data);
 
             await this.postCompletion(
               requestAt,
               providerStartAt,
+              payload,
               baseProps,
               aiConnection,
               evaluatedCapacities,
@@ -340,7 +338,7 @@ export class CompletionService {
               tokensPerSecond,
               completionUsage,
               auditEvents,
-              auditData,
+              providerResponse.data,
               providerResponse.headers
             );
           }
@@ -379,7 +377,7 @@ export class CompletionService {
             throw error;
           }
 
-          const { failureReason, statusCode, errorMessage } =
+          const { failureReason, statusCode, errorMessage, headers } =
             this.parseProviderError(error);
 
           auditEvents.push({
@@ -390,6 +388,7 @@ export class CompletionService {
               failureReason,
               statusCode,
               errorMessage,
+              headers,
             },
           });
 
@@ -413,7 +412,7 @@ export class CompletionService {
         }
       }
     } catch (err) {
-      const { failureReason, statusCode, errorMessage } =
+      const { failureReason, statusCode, errorMessage, headers } =
         this.parseProviderError(err);
 
       const baseProps = {
@@ -457,7 +456,9 @@ export class CompletionService {
         statusCode,
         type: PublicCompletionAuditType.COMPLETION,
         events: auditEvents,
-        data: auditData,
+        requestPayload: payload,
+        responseData: null,
+        responseHeaders: headers,
         duration: requestDuration,
         errorMessage,
         failureReason,
@@ -542,6 +543,7 @@ export class CompletionService {
   private async postCompletion(
     requestAt: Date,
     providerStartAt: number,
+    requestPayload: CompletionRequestDto,
     baseEventProps: {
       workspaceId: string;
       environmentId: string;
@@ -564,8 +566,8 @@ export class CompletionService {
     tokensPerSecond: number | null,
     completionUsage: CompletionUsage | undefined,
     auditEvents: CompletionAuditEventEntity[],
-    auditData: CompletionAuditDataEntity,
-    headers: CompletionHeaders
+    responseData: CompletionResponseData[] | CompletionResponseData | null,
+    responseHeaders: CompletionHeaders | null
   ) {
     const requestDuration = Date.now() - requestAt.getTime();
     const providerDuration = Date.now() - providerStartAt;
@@ -604,12 +606,18 @@ export class CompletionService {
       statusCode: HttpStatus.OK,
       type: PublicCompletionAuditType.COMPLETION,
       events: auditEvents,
-      data: auditData,
+      requestPayload,
+      responseData: Array.isArray(responseData)
+        ? responseData
+        : responseData
+        ? [responseData]
+        : null,
+      responseHeaders,
       duration: requestDuration,
     });
 
-    const requestLimit = headers['x-ratelimit-limit-requests'];
-    const tokensLimit = headers['x-ratelimit-limit-tokens'];
+    const requestLimit = responseHeaders?.['x-ratelimit-limit-requests'];
+    const tokensLimit = responseHeaders?.['x-ratelimit-limit-tokens'];
 
     if (requestLimit && tokensLimit) {
       const discoveredCapacity =
@@ -673,15 +681,17 @@ export class CompletionService {
     let failureReason = 'Internal server error';
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     let errorMessage = 'Internal server error';
+    let headers: CompletionHeaders | null = null;
     if (err instanceof CompletionError) {
       statusCode = err.data.statusCode;
       failureReason = err.data.failureReason ?? failureReason;
       errorMessage = err.data.message;
+      headers = err.data.headers ?? null;
     } else if (err instanceof Error) {
       errorMessage = err.message;
     }
 
-    return { failureReason, statusCode, errorMessage };
+    return { failureReason, statusCode, errorMessage, headers };
   }
 
   private async getAIResource(

@@ -45,7 +45,6 @@ export default function AIConnectionTable({
     {
       'mrt-row-expand': false,
       'mrt-row-select': false,
-      description: false,
     }
   );
 
@@ -97,6 +96,36 @@ export default function AIConnectionTable({
               </Box>
             }
           />
+        ),
+      },
+      {
+        accessorKey: 'createdAt',
+        header: 'Created At',
+        size: 300,
+        Cell: ({ row: { original: row } }) => (
+          <Typography variant="inherit">
+            {new Date(row.createdAt).toLocaleString()}
+          </Typography>
+        ),
+      },
+      {
+        accessorKey: 'createdBy',
+        header: 'Created By',
+        size: 300,
+        Cell: ({ row: { original: row } }) => (
+          <Typography variant="inherit">
+            {row.createdByUser?.name} ({row.createdByUser?.email})
+          </Typography>
+        ),
+      },
+      {
+        accessorKey: 'updatedAt',
+        header: 'Updated At',
+        size: 300,
+        Cell: ({ row: { original: row } }) => (
+          <Typography variant="inherit">
+            {new Date(row.updatedAt).toLocaleString()}
+          </Typography>
         ),
       },
     ],

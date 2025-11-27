@@ -9,7 +9,7 @@ import {
   getAiProviders,
 } from '@/clients/api';
 import { ApiResponse } from '@/clients/types';
-import { DEFAULT_CAPACITY } from '@/components/AIConnection/consts';
+import { DEFAULT_CAPACITY } from '@/components/Capacity/consts';
 import type { FormAction } from '@/components/AIConnection/Form/Create';
 import { type FormSchema } from '@/components/AIConnection/Form/Create';
 
@@ -158,9 +158,16 @@ export async function submitForm(
       data,
     };
   } else if (data.formType === 'advanced') {
-    const { workspaceId, environmentId, assignApiKeys, ...payload } = data;
+    const {
+      workspaceId,
+      environmentId,
+      assignApiKeys,
+      providersMap,
+      formType,
+      ...payload
+    } = data;
 
-    const [connection, providers] = await Promise.all([
+    const [{ response, ...connection }, providers] = await Promise.all([
       createAiConnection({
         path: {
           workspaceId,
@@ -181,7 +188,7 @@ export async function submitForm(
 
       if (model) {
         const resourceName = `${payload.name}-default`;
-        const resource = await createAiResource({
+        const { response, ...resource } = await createAiResource({
           path: {
             workspaceId,
             environmentId,

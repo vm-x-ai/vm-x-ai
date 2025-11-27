@@ -20,6 +20,8 @@ import type {
   CompletionResponseData,
 } from '../../../ai-provider/ai-provider.types';
 import { AIResourceModelConfigEntity } from '../../../ai-resource/common/model.entity';
+import { CompletionRequestDto } from '../../dto/completion-request.dto';
+import { AIRoutingConditionGroup } from '../../../ai-resource/common/routing.entity';
 
 export const completionAuditTypes = $enum(PublicCompletionAuditType).getKeys();
 
@@ -75,6 +77,17 @@ export class CompletionAuditFallbackEventData {
   @IsString()
   @IsNotEmpty()
   errorMessage: string;
+
+  @ApiProperty({
+    description: 'The headers of the Audit event',
+    type: Object,
+    additionalProperties: true,
+    nullable: true,
+    required: false,
+  })
+  @IsObject()
+  @IsOptional()
+  headers?: CompletionHeaders | null;
 }
 
 export class CompletionAuditFallbackEventEntity extends CompletionAuditBaseEventEntity {
@@ -116,6 +129,15 @@ export class CompletionAuditRoutingEventData {
   @ValidateNested()
   @Type(() => AIResourceModelConfigEntity)
   routedModel: AIResourceModelConfigEntity;
+
+  @ApiProperty({
+    description: 'The matched route of the Audit event',
+    type: AIRoutingConditionGroup,
+  })
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => AIRoutingConditionGroup)
+  matchedRoute: AIRoutingConditionGroup;
 }
 
 export class CompletionAuditRoutingEventEntity extends CompletionAuditBaseEventEntity {
@@ -143,23 +165,6 @@ export class CompletionAuditRoutingEventEntity extends CompletionAuditBaseEventE
 export type CompletionAuditEventEntity =
   | CompletionAuditFallbackEventEntity
   | CompletionAuditRoutingEventEntity;
-
-export class CompletionAuditDataEntity {
-  @ApiProperty({
-    description: 'The response of the completion audit data',
-    type: [Object],
-    nullable: true,
-    required: false,
-  })
-  @IsArray()
-  response: CompletionResponseData[];
-
-  @ApiProperty({
-    description: 'The headers of the completion audit data',
-  })
-  @IsObject()
-  headers: CompletionHeaders;
-}
 
 export class CompletionAuditEntity {
   @ApiProperty({
@@ -312,6 +317,18 @@ export class CompletionAuditEntity {
 
   @ApiProperty({
     description:
+      'The AI Provider of the completion audit event (if applicable)',
+    example: 'openai',
+    nullable: true,
+    required: false,
+    type: 'string',
+  })
+  @IsString()
+  @IsOptional()
+  provider?: string | null;
+
+  @ApiProperty({
+    description:
       'The model involved in the completion audit event (if applicable)',
     example: 'gpt-4o',
     nullable: true,
@@ -371,11 +388,33 @@ export class CompletionAuditEntity {
   apiKeyId?: string | null;
 
   @ApiProperty({
-    description:
-      'Additional data associated with the completion audit event (JSON object, if any)',
+    description: 'The request payload of the completion audit event (openai chat completion request payload)',
+    type: Object,
+    additionalProperties: true,
     nullable: true,
     required: false,
   })
+  @IsObject()
   @IsOptional()
-  data?: CompletionAuditDataEntity | null;
+  requestPayload?: CompletionRequestDto | null;
+
+  @ApiProperty({
+    description: 'The response of the completion audit data',
+    type: [Object],
+    nullable: true,
+    required: false,
+  })
+  @IsArray()
+  responseData?: CompletionResponseData[] | null;
+
+  @ApiProperty({
+    description: 'The headers of the completion audit data',
+    type: Object,
+    additionalProperties: true,
+    nullable: true,
+    required: false,
+  })
+  @IsObject()
+  @IsOptional()
+  responseHeaders?: CompletionHeaders | null;
 }

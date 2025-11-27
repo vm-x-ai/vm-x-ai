@@ -2,13 +2,15 @@ import { Session } from 'next-auth';
 import { getSession } from 'next-auth/react';
 
 let sessionPromise: Promise<Session | null> | null = null;
+let expiresAt: Date | null = null;
 
 export async function getToken() {
-  if (!sessionPromise) {
+  if (!sessionPromise || !expiresAt || expiresAt < new Date()) {
     sessionPromise = getSession();
   }
 
   const session = await sessionPromise;
+  expiresAt = session?.expires ? new Date(session.expires) : null;
   return session?.accessToken;
 }
 

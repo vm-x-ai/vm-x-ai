@@ -107,22 +107,16 @@ export default function Chat({
                 width: '100%',
               }}
             >
-              {[
-                resourceConfigOverrides.model,
-                ...(resourceConfigOverrides.secondaryModels ?? []),
-              ].map((_, index, list) => (
-                <ChatPanel
-                  providersMap={providersMap}
-                  overrides={resourceConfigOverrides}
-                  key={index}
-                  messages={messages}
-                  error={error}
-                  width={`${100 / list.length}%`}
-                  height={height}
-                  elevation={elevation}
-                  isGenerating={status === 'submitted'}
-                />
-              ))}
+              <ChatPanel
+                providersMap={providersMap}
+                overrides={resourceConfigOverrides}
+                messages={messages}
+                error={error}
+                width="100%"
+                height={height}
+                elevation={elevation}
+                isGenerating={status === 'submitted'}
+              />
             </Box>
 
             <Paper

@@ -133,6 +133,7 @@ export default function CreateAIConnectionForm({
       description: '',
       provider: 'openai',
       providersMap,
+      allowedModels: [],
       config: {},
       assignApiKeys: apiKeys.length ? [apiKeys[0].apiKeyId] : [],
     },

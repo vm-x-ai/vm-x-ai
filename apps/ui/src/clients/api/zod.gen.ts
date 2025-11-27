@@ -602,12 +602,12 @@ export type RoutingComparatorZodType = z.infer<typeof zRoutingComparator>;
  * The type of the routing condition value
  */
 export const zRoutingConditionType = z.enum([
-    'STRING',
-    'NUMBER',
-    'BOOLEAN',
-    'COMMA_DELIMITED_LIST',
-    'JSON_OBJECT',
-    'JSON_ARRAY'
+    'string',
+    'number',
+    'boolean',
+    'comma-delimited-list',
+    'json-object',
+    'json-array'
 ]).register(z.globalRegistry, {
     description: 'The type of the routing condition value'
 });
@@ -624,6 +624,9 @@ export const zAiResourceRoutingConditionValue = z.object({
 export type AiResourceRoutingConditionValueZodType = z.infer<typeof zAiResourceRoutingConditionValue>;
 
 export const zAiResourceRoutingCondition = z.object({
+    type: z.enum(['condition']).register(z.globalRegistry, {
+        description: 'The type of the routing condition'
+    }),
     id: z.string().register(z.globalRegistry, {
         description: 'The unique ID of the routing condition'
     }),
@@ -781,6 +784,9 @@ export const zAiResourceRoutingModelConfig = z.object({
 export type AiResourceRoutingModelConfigZodType = z.infer<typeof zAiResourceRoutingModelConfig>;
 
 export const zAiRoutingConditionGroup = z.object({
+    type: z.enum(['group']).register(z.globalRegistry, {
+        description: 'The type of the routing condition'
+    }),
     id: z.optional(z.string().register(z.globalRegistry, {
         description: 'Optional ID for the condition group'
     })),
@@ -1300,6 +1306,10 @@ export const zCompletionAuditEntity = z.object({
         z.string(),
         z.null()
     ])),
+    provider: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     model: z.optional(z.union([
         z.string(),
         z.null()
@@ -1320,13 +1330,38 @@ export const zCompletionAuditEntity = z.object({
         z.uuid(),
         z.null()
     ])),
-    data: z.optional(z.union([
+    requestPayload: z.optional(z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ])),
+    responseData: z.optional(z.union([
+        z.array(z.record(z.string(), z.unknown())),
+        z.null()
+    ])),
+    responseHeaders: z.optional(z.union([
         z.record(z.string(), z.unknown()),
         z.null()
     ]))
 });
 
 export type CompletionAuditEntityZodType = z.infer<typeof zCompletionAuditEntity>;
+
+export const zListAuditResponseDto = z.object({
+    total: z.number().register(z.globalRegistry, {
+        description: 'The total number of items'
+    }),
+    pageIndex: z.number().register(z.globalRegistry, {
+        description: 'The page number'
+    }),
+    pageSize: z.number().register(z.globalRegistry, {
+        description: 'The page size'
+    }),
+    data: z.array(zCompletionAuditEntity).register(z.globalRegistry, {
+        description: 'The data'
+    })
+});
+
+export type ListAuditResponseDtoZodType = z.infer<typeof zListAuditResponseDto>;
 
 /**
  * Operator for the filter
@@ -2796,27 +2831,41 @@ export const zGetCompletionAuditData = z.object({
             description: 'The ID of the environment'
         })
     }),
-    query: z.object({
-        type: zCompletionAuditType,
-        connectionId: z.optional(z.uuid().register(z.globalRegistry, {
-            description: 'The connection ID to list audits for'
-        })),
-        resource: z.optional(z.string().register(z.globalRegistry, {
-            description: 'The resource to list audits for'
-        })),
-        model: z.optional(z.string().register(z.globalRegistry, {
-            description: 'The model to list audits for'
-        })),
-        statusCode: z.optional(z.number().register(z.globalRegistry, {
-            description: 'The status code to list audits for'
-        })),
-        startDate: z.optional(z.iso.datetime().register(z.globalRegistry, {
-            description: 'The start date to list audits for'
-        })),
-        endDate: z.optional(z.iso.datetime().register(z.globalRegistry, {
-            description: 'The end date to list audits for'
-        }))
-    })
+    query: z.optional(z.object({
+        type: z.optional(zCompletionAuditType),
+        connectionId: z.optional(z.union([
+            z.uuid(),
+            z.null()
+        ])),
+        resource: z.optional(z.union([
+            z.string(),
+            z.null()
+        ])),
+        model: z.optional(z.union([
+            z.string(),
+            z.null()
+        ])),
+        statusCode: z.optional(z.union([
+            z.number(),
+            z.null()
+        ])),
+        startDate: z.optional(z.union([
+            z.iso.datetime(),
+            z.null()
+        ])),
+        endDate: z.optional(z.union([
+            z.iso.datetime(),
+            z.null()
+        ])),
+        pageIndex: z.optional(z.union([
+            z.int(),
+            z.null()
+        ])),
+        pageSize: z.optional(z.union([
+            z.int(),
+            z.null()
+        ]))
+    }))
 });
 
 export type GetCompletionAuditDataZodType = z.infer<typeof zGetCompletionAuditData>;
@@ -2824,7 +2873,7 @@ export type GetCompletionAuditDataZodType = z.infer<typeof zGetCompletionAuditDa
 /**
  * List all completion audits associated with an environment
  */
-export const zGetCompletionAuditResponse = z.array(zCompletionAuditEntity).register(z.globalRegistry, {
+export const zGetCompletionAuditResponse = z.array(zListAuditResponseDto).register(z.globalRegistry, {
     description: 'List all completion audits associated with an environment'
 });
 
