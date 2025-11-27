@@ -409,9 +409,6 @@ importers:
       '@ai-sdk/react':
         specifier: ^2.0.101
         version: 2.0.101(react@19.2.0)(zod@4.1.12)
-      '@ai-sdk/rsc':
-        specifier: ^1.0.102
-        version: 1.0.102(react@19.2.0)(zod@4.1.12)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.66.1(react@19.2.0))
@@ -478,9 +475,6 @@ importers:
       material-react-table:
         specifier: ^3.2.1
         version: 3.2.1(1f1fc1ab7a52268cbfe02c3aeea50fe7)
-      nanoid:
-        specifier: ^5.1.6
-        version: 5.1.6
       next:
         specifier: ^16.0.3
         version: 16.0.3(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.93.2)
@@ -596,16 +590,6 @@ packages:
 
   '@ai-sdk/react@2.0.101':
     resolution: {integrity: sha512-Cq9InVVGBs2Dw3FiqImsuGZK86HZnNp562+jygJfUtPpp5JUOwWBblCQcli7X8aDg9QsitdM0ZJpbVZQ+fwH6w==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      react: ^18 || ^19 || ^19.0.0-rc
-      zod: ^3.25.76 || ^4.1.8
-    peerDependenciesMeta:
-      zod:
-        optional: true
-
-  '@ai-sdk/rsc@1.0.102':
-    resolution: {integrity: sha512-/xLI4BEVaQ5+z27+l9WHAfdeQPtc/tAntC7fTPL0ZfNnpSvwVUL5wVcHU3lfkQ3xFoc7cypiQR5Rth0hyxFiEA==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ^19 || ^19.0.0-rc
@@ -1485,9 +1469,6 @@ packages:
   '@discoveryjs/json-ext@0.5.7':
     resolution: {integrity: sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==}
     engines: {node: '>=10.0.0'}
-
-  '@dmsnell/diff-match-patch@1.1.0':
-    resolution: {integrity: sha512-yejLPmM5pjsGvxS9gXablUSbInW7H976c/FJ4iQxWIm7/38xBySRemTPDe34lhg1gVLbJntX0+sH0jYfU+PN9A==}
 
   '@emnapi/core@1.6.0':
     resolution: {integrity: sha512-zq/ay+9fNIJJtJiZxdTnXS20PllcYMX3OE23ESc4HK/bdYu3cOWYVhsOhVnXALfU/uqJIxn5NBPd9z4v+SfoSg==}
@@ -7811,11 +7792,6 @@ packages:
   jsonc-parser@3.3.1:
     resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
 
-  jsondiffpatch@0.7.3:
-    resolution: {integrity: sha512-zd4dqFiXSYyant2WgSXAZ9+yYqilNVvragVNkNRn2IFZKgjyULNrKRznqN4Zon0MkLueCg+3QaPVCnDAVP20OQ==}
-    engines: {node: ^18.0.0 || >=20.0.0}
-    hasBin: true
-
   jsonfile@4.0.0:
     resolution: {integrity: sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg==}
 
@@ -11508,16 +11484,6 @@ snapshots:
     optionalDependencies:
       zod: 4.1.12
 
-  '@ai-sdk/rsc@1.0.102(react@19.2.0)(zod@4.1.12)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.17(zod@4.1.12)
-      ai: 5.0.101(zod@4.1.12)
-      jsondiffpatch: 0.7.3
-      react: 19.2.0
-    optionalDependencies:
-      zod: 4.1.12
-
   '@alloc/quick-lru@5.2.0': {}
 
   '@ampproject/remapping@2.3.0':
@@ -12914,8 +12880,6 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.9
 
   '@discoveryjs/json-ext@0.5.7': {}
-
-  '@dmsnell/diff-match-patch@1.1.0': {}
 
   '@emnapi/core@1.6.0':
     dependencies:
@@ -20495,10 +20459,6 @@ snapshots:
   jsonc-parser@3.2.0: {}
 
   jsonc-parser@3.3.1: {}
-
-  jsondiffpatch@0.7.3:
-    dependencies:
-      '@dmsnell/diff-match-patch': 1.1.0
 
   jsonfile@4.0.0:
     optionalDependencies:
