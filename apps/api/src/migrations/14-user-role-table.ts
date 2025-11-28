@@ -31,6 +31,28 @@ export const migration: Migration = {
       .on('user_roles')
       .column('user_id')
       .execute();
+
+    const adminUserId = await db
+      .selectFrom('users')
+      .select('id')
+      .where('username', '=', 'admin')
+      .executeTakeFirstOrThrow();
+
+    const adminRoleId = await db
+      .selectFrom('roles')
+      .select('roleId')
+      .where('name', '=', 'admin')
+      .executeTakeFirstOrThrow();
+
+    await db
+      .insertInto('userRoles')
+      .values({
+        roleId: adminRoleId.roleId,
+        userId: adminUserId.id,
+        assignedBy: adminUserId.id,
+        assignedAt: new Date(),
+      })
+      .execute();
   },
 
   async down(db: Kysely<unknown>): Promise<void> {

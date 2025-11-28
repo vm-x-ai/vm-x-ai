@@ -1,5 +1,6 @@
 import { Kysely, Migration, sql } from 'kysely';
 import { DB } from '../storage/entities.generated';
+import { RolePolicyEffect } from '../role/entities/role.entity';
 
 export const migration: Migration = {
   async up(db: Kysely<DB>): Promise<void> {
@@ -35,6 +36,33 @@ export const migration: Migration = {
       .createIndex('idx_roles_updated_by')
       .on('roles')
       .column('updated_by')
+      .execute();
+
+    const adminUserId = await db
+      .selectFrom('users')
+      .select('id')
+      .where('username', '=', 'admin')
+      .executeTakeFirstOrThrow();
+
+    await db
+      .insertInto('roles')
+      .values({
+        name: 'admin',
+        description: 'Administrator role',
+        policy: JSON.stringify({
+          statements: [
+            {
+              effect: RolePolicyEffect.ALLOW,
+              actions: ['*'],
+              resources: ['*'],
+            },
+          ],
+        }),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: adminUserId.id,
+        updatedBy: adminUserId.id,
+      })
       .execute();
   },
 
