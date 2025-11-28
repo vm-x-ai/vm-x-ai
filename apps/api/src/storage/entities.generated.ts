@@ -129,6 +129,7 @@ export interface CompletionAudit {
   statusCode: number;
   timestamp: Timestamp;
   type: PublicCompletionAuditType;
+  userId: string | null;
   workspaceId: string;
 }
 
@@ -217,6 +218,24 @@ export interface QuestdbKyselyMigrationLock {
   isLocked: Generated<number>;
 }
 
+export interface Role {
+  createdAt: Generated<Timestamp>;
+  createdBy: string;
+  description: string | null;
+  name: string;
+  policy: ColumnType<any | null, string | null, string | null>;
+  roleId: Generated<string>;
+  updatedAt: Generated<Timestamp>;
+  updatedBy: string;
+}
+
+export interface UserRole {
+  assignedAt: Generated<Timestamp>;
+  assignedBy: string;
+  roleId: string;
+  userId: string;
+}
+
 export interface User {
   createdAt: Generated<Timestamp>;
   email: string;
@@ -264,6 +283,8 @@ export interface DB {
   poolDefinitions: PoolDefinition;
   questdbKyselyMigration: QuestdbKyselyMigration;
   questdbKyselyMigrationLock: QuestdbKyselyMigrationLock;
+  roles: Role;
+  userRoles: UserRole;
   users: User;
   workspaces: Workspace;
   workspaceUsers: WorkspaceUser;

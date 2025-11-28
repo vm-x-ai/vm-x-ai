@@ -22,6 +22,11 @@ import {
 import { WorkspaceMemberGuard } from '../../workspace/workspace.guard';
 import { CompletionUsageQueryResultDto } from './dto/completion-query-result.dto';
 import { ServiceError } from '../../types';
+import {
+  COMPLETION_USAGE_BASE_RESOURCE,
+  CompletionUsageActions,
+} from './permissions/actions';
+import { RoleGuard } from '../../role/role.guard';
 
 @Controller('completion-usage')
 @UseGuards(WorkspaceMemberGuard())
@@ -37,6 +42,9 @@ export class CompletionUsageController {
   ) {}
 
   @Post(':workspaceId/:environmentId')
+  @UseGuards(
+    RoleGuard(CompletionUsageActions.QUERY, COMPLETION_USAGE_BASE_RESOURCE)
+  )
   @ApiOkResponse({
     type: CompletionUsageQueryResultDto,
     isArray: true,

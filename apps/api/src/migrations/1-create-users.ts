@@ -28,9 +28,11 @@ export const migration = (passwordService: PasswordService): Migration => ({
       .addColumn('created_at', 'timestamp', (col) =>
         col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull()
       )
+      .addColumn('created_by', 'uuid', (col) => col.references('users.id'))
       .addColumn('updated_at', 'timestamp', (col) =>
         col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull()
       )
+      .addColumn('updated_by', 'uuid', (col) => col.references('users.id'))
       .addUniqueConstraint('users_email_unique', ['email'])
       .addUniqueConstraint('users_username_unique', ['username'])
       .execute();
@@ -72,6 +74,18 @@ export const migration = (passwordService: PasswordService): Migration => ({
       .createIndex('idx_users_provider_id')
       .on('users')
       .column('provider_id')
+      .execute();
+
+    await db.schema
+      .createIndex('idx_users_created_by')
+      .on('users')
+      .column('created_by')
+      .execute();
+
+    await db.schema
+      .createIndex('idx_users_updated_by')
+      .on('users')
+      .column('updated_by')
       .execute();
 
     await db

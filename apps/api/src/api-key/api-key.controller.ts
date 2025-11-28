@@ -11,7 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiKeyService } from './api-key.service';
-import { ApiInternalServerErrorResponse, ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   ApiEnvironmentIdParam,
   ApiWorkspaceIdParam,
@@ -29,6 +34,12 @@ import { UpdateApiKeyDto } from './dto/update-api-key.dto';
 import { CreatedApiKeyDto } from './dto/created-api-key.dto';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { ServiceError } from '../types';
+import { RoleGuard } from '../role/role.guard';
+import {
+  APIKeyActions,
+  API_KEY_BASE_RESOURCE,
+  API_KEY_RESOURCE_ITEM,
+} from './permissions/actions';
 
 export function ApiApiKeyIdParam() {
   return applyDecorators(
@@ -56,6 +67,7 @@ export class ApiKeyController {
   constructor(private readonly apiKeyService: ApiKeyService) {}
 
   @Get(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(APIKeyActions.LIST, API_KEY_BASE_RESOURCE))
   @ApiOkResponse({
     type: ApiKeyEntity,
     isArray: true,
@@ -84,6 +96,7 @@ export class ApiKeyController {
   }
 
   @Get(':workspaceId/:environmentId/:apiKeyId')
+  @UseGuards(RoleGuard(APIKeyActions.GET, API_KEY_RESOURCE_ITEM))
   @ApiOkResponse({
     type: ApiKeyEntity,
     description: 'Get an API key by ID',
@@ -114,6 +127,7 @@ export class ApiKeyController {
   }
 
   @Post(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(APIKeyActions.CREATE, API_KEY_BASE_RESOURCE))
   @ApiOkResponse({
     type: CreatedApiKeyDto,
     description: 'Create a new API key',
@@ -136,6 +150,7 @@ export class ApiKeyController {
   }
 
   @Put(':workspaceId/:environmentId/:apiKeyId')
+  @UseGuards(RoleGuard(APIKeyActions.UPDATE, API_KEY_RESOURCE_ITEM))
   @ApiWorkspaceIdParam()
   @ApiEnvironmentIdParam()
   @ApiOkResponse({
@@ -165,6 +180,7 @@ export class ApiKeyController {
   }
 
   @Delete(':workspaceId/:environmentId/:apiKeyId')
+  @UseGuards(RoleGuard(APIKeyActions.DELETE, API_KEY_RESOURCE_ITEM))
   @ApiWorkspaceIdParam()
   @ApiOkResponse({
     description: 'Delete an API key',

@@ -28,6 +28,8 @@ import { AuthenticatedUser } from '../../auth/auth.guard';
 import { ListAuditQueryDto, ListAuditResponseDto } from './dto/list-audit.dto';
 import { WorkspaceMemberGuard } from '../../workspace/workspace.guard';
 import { ServiceError } from '../../types';
+import { RoleGuard } from '../../role/role.guard';
+import { COMPLETION_AUDIT_BASE_RESOURCE, CompletionAuditActions } from './permissions/actions';
 
 @Controller('completion-audit')
 @UseGuards(WorkspaceMemberGuard())
@@ -46,6 +48,7 @@ export class CompletionAuditController {
   ) {}
 
   @Get(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(CompletionAuditActions.LIST, COMPLETION_AUDIT_BASE_RESOURCE))
   @ApiOkResponse({
     type: ListAuditResponseDto,
     description: 'List all completion audits associated with an environment',

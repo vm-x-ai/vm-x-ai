@@ -16,7 +16,7 @@ export class UserEntity {
   @ApiProperty({
     description: 'The unique identifier for the user (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -74,7 +74,7 @@ export class UserEntity {
     type: 'string',
     required: false,
     nullable: true,
-    description: 'The URL of the user\'s profile picture',
+    description: "The URL of the user's profile picture",
     example: 'https://example.com/profile.jpg',
   })
   @IsString()
@@ -99,6 +99,17 @@ export class UserEntity {
   providerId: string;
 
   @ApiProperty({
+    type: Object,
+    additionalProperties: true,
+    nullable: true,
+    description: 'The provider specific metadata for the user (e.g claims)',
+    required: false,
+  })
+  @IsObject()
+  @IsOptional()
+  providerMetadata?: unknown | null;
+
+  @ApiProperty({
     description: 'The date and time the user was created',
     example: '2021-01-01T00:00:00.000Z',
   })
@@ -115,15 +126,20 @@ export class UserEntity {
   updatedAt: Date;
 
   @ApiProperty({
-    type: Object,
-    additionalProperties: true,
-    nullable: true,
-    description: 'The provider specific metadata for the user (e.g claims)',
-    required: false,
+    description: 'The user who created the user',
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsObject()
-  @IsOptional()
-  providerMetadata?: unknown | null;
+  @IsUUID('4')
+  @IsNotEmpty()
+  createdBy?: string;
+
+  @ApiProperty({
+    description: 'The user who last updated the user',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID('4')
+  @IsNotEmpty()
+  updatedBy?: string;
 }
 
 export class FullUserEntity extends UserEntity {

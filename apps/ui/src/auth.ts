@@ -59,7 +59,7 @@ const result = NextAuth({
           email: token.email,
           sub: token.sub,
           picture: token.picture,
-          expiresAt: account.expires_at,
+          expiresAt: account.expires_at ? account.expires_at * 1000 : undefined,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
           idToken: account.id_token,

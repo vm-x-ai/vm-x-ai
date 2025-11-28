@@ -42,6 +42,10 @@ export enum ErrorCode {
   // Completion Batch errors
   COMPLETION_BATCH_NOT_FOUND = 'COMPLETION_BATCH_NOT_FOUND',
   COMPLETION_BATCH_ITEM_NOT_FOUND = 'COMPLETION_BATCH_ITEM_NOT_FOUND',
+
+  // Role errors
+  ROLE_NOT_FOUND = 'ROLE_NOT_FOUND',
+  NOT_AUTHORIZED = 'NOT_AUTHORIZED',
 }
 
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -60,35 +64,50 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   // Workspace errors
   [ErrorCode.WORKSPACE_NOT_MEMBER]: 'User is not a member of the workspace',
   [ErrorCode.WORKSPACE_NOT_FOUND]: 'Workspace ${workspaceId} not found',
-  [ErrorCode.WORKSPACE_ACTION_NOT_ALLOWED]: 'You are not allowed to perform ${action} on workspace ${workspaceId}',
-  [ErrorCode.WORKSPACE_INSUFFICIENT_PERMISSIONS]: 'You are a ${role} of workspace ${workspaceId} and this action requires ${requiredRole}',
+  [ErrorCode.WORKSPACE_ACTION_NOT_ALLOWED]:
+    'You are not allowed to perform ${action} on workspace ${workspaceId}',
+  [ErrorCode.WORKSPACE_INSUFFICIENT_PERMISSIONS]:
+    'You are a ${role} of workspace ${workspaceId} and this action requires ${requiredRole}',
 
   // Environment errors
   [ErrorCode.ENVIRONMENT_NOT_MEMBER]: 'User is not a member of the environment',
   [ErrorCode.ENVIRONMENT_NOT_FOUND]: 'Environment ${environmentId} not found',
 
   // AI Connection errors
-  [ErrorCode.AI_CONNECTION_NOT_FOUND]: 'AI Connection ${connectionId} not found',
-  [ErrorCode.AI_CONNECTION_CONFIG_INVALID]: 'AI Connection config is invalid: ${error}',
+  [ErrorCode.AI_CONNECTION_NOT_FOUND]:
+    'AI Connection ${connectionId} not found',
+  [ErrorCode.AI_CONNECTION_CONFIG_INVALID]:
+    'AI Connection config is invalid: ${error}',
 
   // AI Resource errors
   [ErrorCode.AI_RESOURCE_NOT_FOUND]: 'AI Resource ${resource} not found',
-  [ErrorCode.AI_RESOURCE_ALREADY_EXISTS]: 'AI Resource ${resource} already exists',
+  [ErrorCode.AI_RESOURCE_ALREADY_EXISTS]:
+    'AI Resource ${resource} already exists',
 
   // Pool Definition errors
-  [ErrorCode.POOL_DEFINITION_NOT_FOUND]: 'Pool Definition for workspace ${workspaceId} and environment ${environmentId} not found',
+  [ErrorCode.POOL_DEFINITION_NOT_FOUND]:
+    'Pool Definition for workspace ${workspaceId} and environment ${environmentId} not found',
 
   // AI Provider errors
   [ErrorCode.AI_PROVIDER_NOT_FOUND]: 'AI Provider ${id} not found',
 
   // API Key errors
   [ErrorCode.API_KEY_NOT_FOUND]: 'API Key ${apiKeyId} not found',
-  [ErrorCode.API_KEY_RESOURCE_NOT_AUTHORIZED]: 'API Key is not authorized to access resource ${resource}',
+  [ErrorCode.API_KEY_RESOURCE_NOT_AUTHORIZED]:
+    'API Key is not authorized to access resource ${resource}',
 
   // Completion errors
-  [ErrorCode.COMPLETION_SECONDARY_MODEL_NOT_FOUND]: 'Secondary model index ${secondaryModelIndex} not found',
+  [ErrorCode.COMPLETION_SECONDARY_MODEL_NOT_FOUND]:
+    'Secondary model index ${secondaryModelIndex} not found',
 
   // Completion Batch errors
-  [ErrorCode.COMPLETION_BATCH_NOT_FOUND]: 'Completion Batch ${batchId} not found',
-  [ErrorCode.COMPLETION_BATCH_ITEM_NOT_FOUND]: 'Completion Batch Item ${itemId} not found',
+  [ErrorCode.COMPLETION_BATCH_NOT_FOUND]:
+    'Completion Batch ${batchId} not found',
+  [ErrorCode.COMPLETION_BATCH_ITEM_NOT_FOUND]:
+    'Completion Batch Item ${itemId} not found',
+
+  // Role errors
+  [ErrorCode.ROLE_NOT_FOUND]: 'Role ${roleId} not found',
+  [ErrorCode.NOT_AUTHORIZED]:
+    "You are not authorized to perform '${action}' action on '${resource}' resource",
 };

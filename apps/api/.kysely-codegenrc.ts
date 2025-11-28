@@ -48,6 +48,9 @@ export default {
       // Completion Batch Items
       'completion_batch_items.request': 'ColumnType<any | null, string | null, string | null>',
       'completion_batch_items.response': 'ColumnType<any | null, string | null, string | null>',
+
+      // Roles
+      'roles.policy': 'ColumnType<any | null, string | null, string | null>',
     },
   },
 } satisfies Config;

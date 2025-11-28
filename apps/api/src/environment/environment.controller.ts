@@ -1,6 +1,18 @@
-import { Body, Controller, Delete, Get, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { EnvironmentService } from './environment.service';
-import { ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { EnvironmentEntity } from './entities/environment.entity';
 import { CreateEnvironmentDto } from './dto/create-environment.dto';
 import { AuthenticatedUser } from '../auth/auth.guard';
@@ -16,6 +28,12 @@ import {
 } from '../common/api.decorators';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { ServiceError } from '../types';
+import { RoleGuard } from '../role/role.guard';
+import {
+  ENVIRONMENT_BASE_RESOURCE,
+  EnvironmentActions,
+  ENVIRONMENT_RESOURCE_ITEM,
+} from './permissions/actions';
 
 @UseGuards(WorkspaceMemberGuard())
 @Controller('environment')
@@ -27,6 +45,7 @@ export class EnvironmentController {
   constructor(private readonly environmentService: EnvironmentService) {}
 
   @Get(':workspaceId')
+  @UseGuards(RoleGuard(EnvironmentActions.LIST, ENVIRONMENT_BASE_RESOURCE))
   @ApiOkResponse({
     type: EnvironmentEntity,
     isArray: true,
@@ -43,7 +62,7 @@ export class EnvironmentController {
   public async getAll(
     @WorkspaceIdParam() workspaceId: string,
     @IncludesUsersQuery()
-    includesUsers: boolean,
+    includesUsers: boolean
   ): Promise<EnvironmentEntity[]> {
     return this.environmentService.getAll({
       workspaceId,
@@ -52,6 +71,7 @@ export class EnvironmentController {
   }
 
   @Get(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(EnvironmentActions.GET, ENVIRONMENT_RESOURCE_ITEM))
   @ApiOkResponse({
     type: EnvironmentEntity,
     description: 'Get an environment by ID',
@@ -69,7 +89,7 @@ export class EnvironmentController {
     @WorkspaceIdParam() workspaceId: string,
     @EnvironmentIdParam() environmentId: string,
     @IncludesUsersQuery()
-    includesUsers: boolean,
+    includesUsers: boolean
   ): Promise<EnvironmentEntity> {
     return this.environmentService.getById({
       workspaceId,
@@ -79,6 +99,7 @@ export class EnvironmentController {
   }
 
   @Post(':workspaceId')
+  @UseGuards(RoleGuard(EnvironmentActions.CREATE, ENVIRONMENT_BASE_RESOURCE))
   @ApiOkResponse({
     type: EnvironmentEntity,
     description: 'Create a new environment',
@@ -99,6 +120,7 @@ export class EnvironmentController {
   }
 
   @Put(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(EnvironmentActions.UPDATE, ENVIRONMENT_RESOURCE_ITEM))
   @ApiWorkspaceIdParam()
   @ApiEnvironmentIdParam()
   @ApiOkResponse({
@@ -126,6 +148,7 @@ export class EnvironmentController {
   }
 
   @Delete(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(EnvironmentActions.DELETE, ENVIRONMENT_RESOURCE_ITEM))
   @ApiWorkspaceIdParam()
   @ApiOkResponse({
     description: 'Delete an environment',

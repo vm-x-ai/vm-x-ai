@@ -31,6 +31,12 @@ import {
 import { WorkspaceMemberGuard } from './workspace.guard';
 import { PublicWorkspaceUserRole } from '../storage/entities.generated';
 import { ServiceError } from '../types';
+import { RoleGuard } from '../role/role.guard';
+import {
+  WORKSPACE_BASE_RESOURCE,
+  WORKSPACE_RESOURCE_ITEM,
+  WorkspaceActions,
+} from './permissions/actions';
 
 @Controller('workspace')
 @ApiInternalServerErrorResponse({
@@ -41,6 +47,7 @@ export class WorkspaceController {
   constructor(private readonly workspaceService: WorkspaceService) {}
 
   @Get()
+  @UseGuards(RoleGuard(WorkspaceActions.LIST, WORKSPACE_BASE_RESOURCE))
   @ApiOkResponse({
     type: WorkspaceEntity,
     isArray: true,
@@ -78,7 +85,10 @@ export class WorkspaceController {
   }
 
   @Get(':workspaceId')
-  @UseGuards(WorkspaceMemberGuard())
+  @UseGuards(
+    WorkspaceMemberGuard(),
+    RoleGuard(WorkspaceActions.GET, WORKSPACE_RESOURCE_ITEM)
+  )
   @ApiOkResponse({
     type: WorkspaceEntity,
     description: 'Get a workspace by ID',
@@ -100,6 +110,7 @@ export class WorkspaceController {
   }
 
   @Post()
+  @UseGuards(RoleGuard(WorkspaceActions.CREATE, WORKSPACE_BASE_RESOURCE))
   @ApiOkResponse({
     type: WorkspaceEntity,
     description: 'Create a new workspace',
@@ -118,7 +129,10 @@ export class WorkspaceController {
   }
 
   @Put(':workspaceId')
-  @UseGuards(WorkspaceMemberGuard())
+  @UseGuards(
+    WorkspaceMemberGuard(),
+    RoleGuard(WorkspaceActions.UPDATE, WORKSPACE_RESOURCE_ITEM)
+  )
   @ApiWorkspaceIdParam()
   @ApiOkResponse({
     type: WorkspaceEntity,
@@ -139,7 +153,10 @@ export class WorkspaceController {
   }
 
   @Delete(':workspaceId')
-  @UseGuards(WorkspaceMemberGuard(PublicWorkspaceUserRole.OWNER))
+  @UseGuards(
+    WorkspaceMemberGuard(PublicWorkspaceUserRole.OWNER),
+    RoleGuard(WorkspaceActions.DELETE, WORKSPACE_RESOURCE_ITEM)
+  )
   @ApiWorkspaceIdParam()
   @ApiOkResponse({
     description: 'Delete a workspace',

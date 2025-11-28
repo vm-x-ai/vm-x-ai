@@ -19,6 +19,7 @@ import { CompletionModule } from './completion/completion.module';
 import { ApiKeyModule } from './api-key/api-key.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CompletionAuditModule } from './completion/audit/audit.module';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { CompletionAuditModule } from './completion/audit/audit.module';
     ApiKeyModule,
     CompletionModule,
     CompletionAuditModule,
+    RoleModule,
   ],
   controllers: [],
   providers: [],

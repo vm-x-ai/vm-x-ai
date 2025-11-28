@@ -1,6 +1,11 @@
 import { Body, Controller, Delete, Get, Post, UseGuards } from '@nestjs/common';
 import { PoolDefinitionService } from './pool-definition.service';
-import { ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PoolDefinitionEntity } from './entities/pool-definition.entity';
 import { UpsertPoolDefinitionDto } from './dto/upsert-pool-definition.dto';
 import { AuthenticatedUser } from '../auth/auth.guard';
@@ -15,6 +20,8 @@ import {
 } from '../common/api.decorators';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { ServiceError } from '../types';
+import { RoleGuard } from '../role/role.guard';
+import { POOL_DEFINITION_BASE_RESOURCE, PoolDefinitionActions } from './permissions/actions';
 
 @UseGuards(WorkspaceMemberGuard())
 @Controller('pool-definition')
@@ -27,6 +34,7 @@ export class PoolDefinitionController {
   constructor(private readonly poolDefinitionService: PoolDefinitionService) {}
 
   @Get(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(PoolDefinitionActions.GET, POOL_DEFINITION_BASE_RESOURCE))
   @ApiOkResponse({
     type: PoolDefinitionEntity,
     description: 'Get a pool definition by workspace and environment',
@@ -44,7 +52,7 @@ export class PoolDefinitionController {
     @WorkspaceIdParam() workspaceId: string,
     @EnvironmentIdParam() environmentId: string,
     @IncludesUsersQuery()
-    includesUsers: boolean,
+    includesUsers: boolean
   ): Promise<PoolDefinitionEntity> {
     return this.poolDefinitionService.getById({
       workspaceId,
@@ -54,6 +62,7 @@ export class PoolDefinitionController {
   }
 
   @Post(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(PoolDefinitionActions.UPDATE, POOL_DEFINITION_BASE_RESOURCE))
   @ApiOkResponse({
     type: PoolDefinitionEntity,
     description: 'Created/updated a pool definition',
@@ -81,6 +90,7 @@ export class PoolDefinitionController {
   }
 
   @Delete(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(PoolDefinitionActions.DELETE, POOL_DEFINITION_BASE_RESOURCE))
   @ApiWorkspaceIdParam()
   @ApiOkResponse({
     description: 'Delete a pool definition',

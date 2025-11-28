@@ -1,12 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsDate, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { CapacityEntity } from '../../capacity/capacity.entity';
-import { UserRelationDto } from '../../users/dto/user.dto';
 import { AIResourceModelConfigEntity } from '../common/model.entity';
 import { AIResourceModelRoutingEntity } from '../common/routing.entity';
+import { BaseEntity } from '../../common/base-entity';
 
-export class AIResourceEntity {
+export class AIResourceEntity extends BaseEntity {
   @ApiProperty({
     description: 'Resource unique identifier',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -119,56 +119,4 @@ export class AIResourceEntity {
   })
   @IsBoolean()
   enforceCapacity: boolean;
-
-  @ApiProperty({
-    description: 'Timestamp when the resource was created',
-    example: '2024-05-01T12:34:56.789Z',
-  })
-  @IsDate()
-  createdAt: Date;
-
-  @ApiProperty({
-    description: 'Timestamp when the resource was last updated',
-    example: '2024-06-01T12:34:56.789Z',
-  })
-  @IsDate()
-  updatedAt: Date;
-
-  @ApiProperty({
-    description: 'User ID who created the resource',
-    example: 'user-uuid-string',
-    format: 'uuid'
-  })
-  @IsUUID('4')
-  createdBy: string;
-
-  @ApiPropertyOptional({
-    type: UserRelationDto,
-    description: 'User details of who created the resource',
-    nullable: true,
-    required: false,
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => UserRelationDto)
-  createdByUser?: UserRelationDto;
-
-  @ApiProperty({
-    description: 'User ID who last updated the resource',
-    example: 'user-uuid-string',
-    format: 'uuid'
-  })
-  @IsUUID('4')
-  updatedBy: string;
-
-  @ApiPropertyOptional({
-    type: UserRelationDto,
-    description: 'User details of who last updated the resource',
-    nullable: true,
-    required: false,
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => UserRelationDto)
-  updatedByUser?: UserRelationDto;
 }

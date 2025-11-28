@@ -38,6 +38,12 @@ import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { AIResourceRoutingCondition } from './common/routing.entity';
 import { DiscoveredCapacityEntry } from '../capacity/capacity.entity';
 import { ServiceError } from '../types';
+import { RoleGuard } from '../role/role.guard';
+import {
+  AIResourceActions,
+  AI_RESOURCE_BASE_RESOURCE,
+  AI_RESOURCE_RESOURCE_ITEM,
+} from './permissions/actions';
 
 export function ApiAIResourceIdParam() {
   return applyDecorators(
@@ -67,6 +73,7 @@ export class AIResourceController {
   constructor(private readonly aiResourceService: AIResourceService) {}
 
   @Get(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(AIResourceActions.LIST, AI_RESOURCE_BASE_RESOURCE))
   @ApiOkResponse({
     type: AIResourceEntity,
     isArray: true,
@@ -104,6 +111,7 @@ export class AIResourceController {
   }
 
   @Get(':workspaceId/:environmentId/:resourceId')
+  @UseGuards(RoleGuard(AIResourceActions.GET, AI_RESOURCE_RESOURCE_ITEM))
   @ApiOkResponse({
     type: AIResourceEntity,
     description: 'Get an AI resource by ID',
@@ -134,6 +142,7 @@ export class AIResourceController {
   }
 
   @Post(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(AIResourceActions.CREATE, AI_RESOURCE_BASE_RESOURCE))
   @ApiOkResponse({
     type: AIResourceEntity,
     description: 'Create a new AI resource',
@@ -161,6 +170,7 @@ export class AIResourceController {
   }
 
   @Put(':workspaceId/:environmentId/:resourceId')
+  @UseGuards(RoleGuard(AIResourceActions.UPDATE, AI_RESOURCE_RESOURCE_ITEM))
   @ApiWorkspaceIdParam()
   @ApiEnvironmentIdParam()
   @ApiOkResponse({
@@ -190,6 +200,7 @@ export class AIResourceController {
   }
 
   @Delete(':workspaceId/:environmentId/:resourceId')
+  @UseGuards(RoleGuard(AIResourceActions.DELETE, AI_RESOURCE_RESOURCE_ITEM))
   @ApiWorkspaceIdParam()
   @ApiOkResponse({
     description: 'Delete an AI resource',
@@ -206,6 +217,11 @@ export class AIResourceController {
     @AIResourceIdParam() resourceId: string,
     @AuthenticatedUser() user: UserEntity
   ): Promise<void> {
-    await this.aiResourceService.delete(workspaceId, environmentId, resourceId, user);
+    await this.aiResourceService.delete(
+      workspaceId,
+      environmentId,
+      resourceId,
+      user
+    );
   }
 }

@@ -33,6 +33,12 @@ import {
 } from '../common/api.decorators';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { ServiceError } from '../types';
+import { RoleGuard } from '../role/role.guard';
+import {
+  AIConnectionActions,
+  AI_CONNECTION_BASE_RESOURCE,
+  AI_CONNECTION_RESOURCE_ITEM,
+} from './permissions/actions';
 
 export function ApiAIConnectionIdParam() {
   return applyDecorators(
@@ -60,6 +66,7 @@ export class AIConnectionController {
   constructor(private readonly aiConnectionService: AIConnectionService) {}
 
   @Get(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(AIConnectionActions.LIST, AI_CONNECTION_BASE_RESOURCE))
   @ApiOkResponse({
     type: AIConnectionEntity,
     isArray: true,
@@ -78,7 +85,7 @@ export class AIConnectionController {
     @WorkspaceIdParam() workspaceId: string,
     @EnvironmentIdParam() environmentId: string,
     @IncludesUsersQuery()
-    includesUsers: boolean,
+    includesUsers: boolean
   ): Promise<AIConnectionEntity[]> {
     return this.aiConnectionService.getAll({
       workspaceId,
@@ -88,6 +95,7 @@ export class AIConnectionController {
   }
 
   @Get(':workspaceId/:environmentId/:connectionId')
+  @UseGuards(RoleGuard(AIConnectionActions.GET, AI_CONNECTION_RESOURCE_ITEM))
   @ApiOkResponse({
     type: AIConnectionEntity,
     description: 'Get an AI connection by ID',
@@ -107,7 +115,7 @@ export class AIConnectionController {
     @EnvironmentIdParam() environmentId: string,
     @AIConnectionIdParam() connectionId: string,
     @IncludesUsersQuery()
-    includesUsers: boolean,
+    includesUsers: boolean
   ): Promise<AIConnectionEntity> {
     return this.aiConnectionService.getById({
       workspaceId,
@@ -120,6 +128,7 @@ export class AIConnectionController {
   }
 
   @Post(':workspaceId/:environmentId')
+  @UseGuards(RoleGuard(AIConnectionActions.CREATE, AI_CONNECTION_BASE_RESOURCE))
   @ApiOkResponse({
     type: AIConnectionEntity,
     description: 'Create a new AI connection',
@@ -147,6 +156,7 @@ export class AIConnectionController {
   }
 
   @Put(':workspaceId/:environmentId/:connectionId')
+  @UseGuards(RoleGuard(AIConnectionActions.UPDATE, AI_CONNECTION_RESOURCE_ITEM))
   @ApiWorkspaceIdParam()
   @ApiEnvironmentIdParam()
   @ApiOkResponse({
@@ -176,6 +186,7 @@ export class AIConnectionController {
   }
 
   @Delete(':workspaceId/:environmentId/:connectionId')
+  @UseGuards(RoleGuard(AIConnectionActions.DELETE, AI_CONNECTION_RESOURCE_ITEM))
   @ApiWorkspaceIdParam()
   @ApiOkResponse({
     description: 'Delete an AI connection',

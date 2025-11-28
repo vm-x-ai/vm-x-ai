@@ -18,10 +18,7 @@ import {
   EnvironmentIdParam,
   WorkspaceIdParam,
 } from '../common/api.decorators';
-import {
-  AppGuard,
-  IgnoreGlobalGuard,
-} from '../auth/auth.guard';
+import { AppGuard, IgnoreGlobalGuard } from '../auth/auth.guard';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ApiOperation } from '@nestjs/swagger';
 import { CompletionError } from './completion.types';
@@ -36,6 +33,8 @@ import {
 import { ApiKeyEntity } from '../api-key/entities/api-key.entity';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { isAsyncIterable } from '../utils/async';
+import { RoleGuard } from '../role/role.guard';
+import { COMPLETION_BASE_RESOURCE, CompletionActions } from './permissions/actions';
 
 const transformPipe = new ValidationPipe({
   transform: true,
@@ -82,6 +81,7 @@ export class CompletionController {
       },
     },
   })
+  @UseGuards(RoleGuard(CompletionActions.EXECUTE, COMPLETION_BASE_RESOURCE))
   @ApiWorkspaceIdParam()
   @ApiEnvironmentIdParam()
   @Post(':workspaceId/:environmentId/chat/completions')

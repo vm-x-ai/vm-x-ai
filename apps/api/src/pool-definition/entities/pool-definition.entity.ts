@@ -6,11 +6,9 @@ import {
   IsString,
   ValidateNested,
   IsUUID,
-  IsDate,
-  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { UserRelationDto } from '../../users/dto/user.dto';
+import { BaseEntity } from '../../common/base-entity';
 
 export class PoolDefinitionEntry {
   @ApiProperty({
@@ -54,7 +52,7 @@ export class PoolDefinitionEntry {
   resources: string[];
 }
 
-export class PoolDefinitionEntity {
+export class PoolDefinitionEntity extends BaseEntity {
   @ApiProperty({
     description: 'Workspace UUID',
     example: '47ad68b7-1a09-4efb-8cfd-0f0130f6c2a5',
@@ -79,53 +77,4 @@ export class PoolDefinitionEntity {
   @ValidateNested({ each: true })
   @Type(() => PoolDefinitionEntry)
   definition: PoolDefinitionEntry[];
-
-  @ApiProperty({
-    description: 'Timestamp when the pool definition was created',
-    example: '2024-05-01T12:34:56.789Z',
-  })
-  @IsDate()
-  createdAt: Date;
-
-  @ApiProperty({
-    description: 'Timestamp when the pool definition was last updated',
-  })
-  @IsDate()
-  updatedAt: Date;
-
-  @ApiProperty({
-    description: 'User ID who created the pool definition',
-    example: 'user-uuid-string',
-  })
-  @IsUUID()
-  createdBy: string;
-
-  @ApiProperty({
-    description: 'User who created the pool definition',
-    example: 'user-uuid-string',
-    nullable: true,
-    required: false,
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => UserRelationDto)
-  createdByUser?: UserRelationDto;
-
-  @ApiProperty({
-    description: 'User ID who last updated the pool definition',
-    example: 'user-uuid-string',
-  })
-  @IsUUID()
-  updatedBy: string;  
-
-  @ApiProperty({
-    description: 'User who last updated the pool definition',
-    example: 'user-uuid-string',
-    nullable: true,
-    required: false,
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => UserRelationDto)
-  updatedByUser?: UserRelationDto;
 }

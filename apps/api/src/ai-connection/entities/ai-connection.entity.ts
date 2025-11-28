@@ -1,23 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
-  IsDateString,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
-import { UserRelationDto } from '../../users/dto/user.dto';
 import { Type } from 'class-transformer';
 import {
   CapacityEntity,
   DiscoveredCapacityEntity,
 } from '../../capacity/capacity.entity';
+import { BaseEntity } from '../../common/base-entity';
 
 export class AIConnectionEntity<
   T extends Record<string, unknown> = Record<string, unknown>
-> {
+> extends BaseEntity {
   @ApiProperty({
     description: 'The unique identifier for the AI connection (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -119,50 +118,4 @@ export class AIConnectionEntity<
   @IsObject()
   @IsOptional()
   config?: T | null;
-
-  @ApiProperty({
-    description: 'The date and time the AI connection was created',
-    example: '2021-01-01T00:00:00.000Z',
-  })
-  @IsDateString()
-  @IsNotEmpty()
-  createdAt: Date;
-
-  @ApiProperty({
-    description: 'The date and time the AI connection was last updated',
-    example: '2021-01-01T00:00:00.000Z',
-  })
-  @IsDateString()
-  @IsNotEmpty()
-  updatedAt: Date;
-
-  @ApiProperty({
-    description: 'The user who created the AI connection',
-  })
-  @IsNotEmpty()
-  createdBy: string;
-
-  @ApiProperty({
-    description: 'The user who created the AI connection',
-    nullable: true,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => UserRelationDto)
-  createdByUser?: UserRelationDto;
-
-  @ApiProperty({
-    description: 'The user who last updated the AI connection',
-  })
-  @IsNotEmpty()
-  updatedBy: string;
-
-  @ApiProperty({
-    description: 'The user who last updated the AI connection',
-    nullable: true,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => UserRelationDto)
-  updatedByUser?: UserRelationDto;
 }

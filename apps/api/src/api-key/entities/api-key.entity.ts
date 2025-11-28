@@ -2,17 +2,16 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
-  IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
-import { UserRelationDto } from '../../users/dto/user.dto';
 import { Type } from 'class-transformer';
 import { CapacityEntity } from '../../capacity/capacity.entity';
+import { BaseEntity } from '../../common/base-entity';
 
-export class ApiKeyEntity {
+export class ApiKeyEntity extends BaseEntity {
   @ApiProperty({
     description: 'The unique identifier for the API key (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -118,52 +117,6 @@ export class ApiKeyEntity {
   @IsString()
   @IsNotEmpty()
   maskedKey: string;
-
-  @ApiProperty({
-    description: 'The date and time the API key was created',
-    example: '2021-01-01T00:00:00.000Z',
-  })
-  @IsDateString()
-  @IsNotEmpty()
-  createdAt: Date;
-
-  @ApiProperty({
-    description: 'The date and time the API key was last updated',
-    example: '2021-01-01T00:00:00.000Z',
-  })
-  @IsDateString()
-  @IsNotEmpty()
-  updatedAt: Date;
-
-  @ApiProperty({
-    description: 'The user who created the API key',
-  })
-  @IsNotEmpty()
-  createdBy: string;
-
-  @ApiProperty({
-    description: 'The user who created the API key',
-    nullable: true,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => UserRelationDto)
-  createdByUser?: UserRelationDto;
-
-  @ApiProperty({
-    description: 'The user who last updated the API key',
-  })
-  @IsNotEmpty()
-  updatedBy: string;
-
-  @ApiProperty({
-    description: 'The user who last updated the API key',
-    nullable: true,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => UserRelationDto)
-  updatedByUser?: UserRelationDto;
 }
 
 export class FullApiKeyEntity extends ApiKeyEntity {

@@ -1,15 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
-import { UserRelationDto } from '../../users/dto/user.dto';
-import { Type } from 'class-transformer';
+import { BaseEntity } from '../../common/base-entity';
 
-export class EnvironmentEntity {
+export class EnvironmentEntity extends BaseEntity {
   @ApiProperty({
     description: 'The unique identifier for the environment (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -46,50 +44,4 @@ export class EnvironmentEntity {
   @IsString()
   @IsOptional()
   description?: string | null;
-
-  @ApiProperty({
-    description: 'The date and time the workspace was created',
-    example: '2021-01-01T00:00:00.000Z',
-  })
-  @IsDateString()
-  @IsNotEmpty()
-  createdAt: Date;
-
-  @ApiProperty({
-    description: 'The date and time the workspace was last updated',
-    example: '2021-01-01T00:00:00.000Z',
-  })
-  @IsDateString()
-  @IsNotEmpty()
-  updatedAt: Date;
-
-  @ApiProperty({
-    description: 'The user who created the workspace',
-  })
-  @IsNotEmpty()
-  createdBy: string;
-
-  @ApiProperty({
-    required: false,
-    nullable: true,
-    description: 'The user who created the workspace',
-  })
-  @IsOptional()
-  @Type(() => UserRelationDto)
-  createdByUser?: UserRelationDto;
-
-  @ApiProperty({
-    description: 'The user who last updated the workspace',
-  })
-  @IsNotEmpty()
-  updatedBy: string;
-
-  @ApiProperty({
-    required: false,
-    nullable: true,
-    description: 'The user who last updated the workspace',
-  })
-  @IsOptional()
-  @Type(() => UserRelationDto)
-  updatedByUser?: UserRelationDto;
 }
