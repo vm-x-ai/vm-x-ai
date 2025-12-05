@@ -76,7 +76,7 @@ export class UsersService {
     usernameOrEmail: string
   ): Promise<FullUserEntity | undefined> {
     const user = await this.cache.wrap(
-      this.getUserCacheKey(usernameOrEmail),
+      this.getUserCacheKeyByUsername(usernameOrEmail),
       () =>
         this.db.reader
           .selectFrom('users')
@@ -132,6 +132,7 @@ export class UsersService {
       updatePayload.passwordHash = await this.passwordService.hash(password);
     }
 
+    const oldUser = await this.getById(userId, true);
     const result = await this.db.writer.transaction().execute(async (tx) => {
       if (payload.email) {
         const existingUser = await tx
@@ -183,7 +184,10 @@ export class UsersService {
       return result;
     });
 
-    await this.cache.mdel([this.getUserCacheKey(userId)]);
+    await this.cache.mdel([
+      this.getUserCacheKey(userId),
+      this.getUserCacheKeyByUsername(oldUser.username),
+    ]);
 
     return result;
   }
@@ -279,12 +283,20 @@ export class UsersService {
   }
 
   public async delete(userId: string): Promise<void> {
+    const user = await this.getById(userId, true);
     await this.db.writer.deleteFrom('users').where('id', '=', userId).execute();
 
-    await this.cache.mdel([this.getUserCacheKey(userId)]);
+    await this.cache.mdel([
+      this.getUserCacheKey(userId),
+      this.getUserCacheKeyByUsername(user.username),
+    ]);
   }
 
   private getUserCacheKey(id: string) {
     return `user:${id}`;
+  }
+
+  private getUserCacheKeyByUsername(username: string) {
+    return `user:username:${username}`;
   }
 }

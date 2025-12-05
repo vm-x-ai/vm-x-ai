@@ -23,16 +23,20 @@ import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import RoleSelector from './RoleSelector';
+import { UserEntity } from '@/clients/api';
 
-export type CreateUserFormProps = {
+export type EditUserFormProps = {
+  user: UserEntity;
   submitAction: (
     prevState: FormAction,
     data: FormSchema
   ) => Promise<FormAction>;
 };
 
-export default function CreateUserForm({ submitAction }: CreateUserFormProps) {
+export default function EditUserForm({
+  user,
+  submitAction,
+}: EditUserFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -53,14 +57,9 @@ export default function CreateUserForm({ submitAction }: CreateUserFormProps) {
   const form = useForm<FormSchema>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: '',
-      firstName: '',
-      lastName: '',
-      email: '',
-      username: '',
+      ...user,
       password: '',
       confirmPassword: '',
-      roleIds: [],
     },
   });
 
@@ -85,7 +84,7 @@ export default function CreateUserForm({ submitAction }: CreateUserFormProps) {
               noValidate
             >
               <Grid size={12}>
-                <Typography variant="h6">New User</Typography>
+                <Typography variant="h6">Edit User</Typography>
                 <Divider />
               </Grid>
               <Grid container size={12}>
@@ -195,7 +194,7 @@ export default function CreateUserForm({ submitAction }: CreateUserFormProps) {
                             fullWidth
                             label="Password"
                             error={!!form.formState.errors.password?.message}
-                            helperText={form.formState.errors.password?.message}
+                            helperText={form.formState.errors.password?.message ?? 'Leave blank to keep the current password.'}
                             slotProps={{
                               input: {
                                 endAdornment: (
@@ -262,29 +261,6 @@ export default function CreateUserForm({ submitAction }: CreateUserFormProps) {
                         )}
                       />
                     </Grid>
-                  </Grid>
-                </Grid>
-              </Grid>
-              <Grid container size={12} spacing={3}>
-                <Grid size={12}>
-                  <Typography variant="subtitle2">Roles</Typography>
-                  <Divider />
-                  <Typography variant="caption">
-                    Select the roles you want to assign to the user.
-                  </Typography>
-                </Grid>
-                <Grid container size={12}>
-                  <Grid size={6}>
-                    <Controller
-                      name="roleIds"
-                      control={form.control}
-                      render={({ field }) => (
-                        <RoleSelector
-                          {...field}
-                          onChange={(value) => field.onChange(value)}
-                        />
-                      )}
-                    />
                   </Grid>
                 </Grid>
               </Grid>
