@@ -3,6 +3,7 @@ import { QuestDBDatabaseService } from './storage/database.service';
 import { QuestDBMigrationsModule } from './migrations/migrations.module';
 import { QuestDBMigrationsService } from './migrations/migrations.service';
 import { QuestDBCompletionUsageProvider } from './questdb.provider';
+import { COMPLETION_USAGE_PROVIDER } from '../usage.types';
 
 @Module({
   imports: [QuestDBMigrationsModule],
@@ -10,12 +11,15 @@ import { QuestDBCompletionUsageProvider } from './questdb.provider';
   providers: [
     QuestDBDatabaseService,
     QuestDBMigrationsService,
-    QuestDBCompletionUsageProvider,
+    {
+      provide: COMPLETION_USAGE_PROVIDER,
+      useClass: QuestDBCompletionUsageProvider,
+    },
   ],
   exports: [
     QuestDBDatabaseService,
-    QuestDBCompletionUsageProvider,
     QuestDBMigrationsService,
+    COMPLETION_USAGE_PROVIDER,
   ],
 })
 export class QuestDBModule {}

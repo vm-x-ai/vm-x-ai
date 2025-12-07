@@ -15,15 +15,15 @@ import {
 } from '../../../../migrations/base';
 import { PinoLogger } from 'nestjs-pino';
 import { migration as migration01 } from './1-create-completions-table';
-import { DB } from '../storage/entities';
+import { TimestreamWriteClient } from '@aws-sdk/client-timestream-write';
 
 @Injectable()
-export class QuestDBMigrationsService
+export class AWSTimestreamMigrationsService
   extends BaseMigrationsService
   implements OnModuleInit
 {
   constructor(logger: PinoLogger, configService: ConfigService) {
-    super(logger, configService, 'DATABASE_MIGRATION_URL', 'questdb');
+    super(logger, configService, 'DATABASE_MIGRATION_URL', 'aws-timestream');
     this.db = new Kysely({
       dialect: new PostgresDialect({
         pool: new Pool({
@@ -36,24 +36,19 @@ export class QuestDBMigrationsService
       plugins: [new CamelCasePlugin()],
     });
 
-    const questdb = new Kysely<DB>({
-      dialect: new PostgresDialect({
-        pool: new Pool({
-          connectionString: this.configService.getOrThrow('QUESTDB_URL'),
-          connectionTimeoutMillis: 10_000,
-        }),
-      }),
-      plugins: [new CamelCasePlugin()],
-    });
+    const writeClient = new TimestreamWriteClient({});
+    const databaseName = this.configService.getOrThrow(
+      'AWS_TIMESTREAM_DATABASE_NAME'
+    );
 
     const schema = this.configService.getOrThrow('DATABASE_SCHEMA');
     this.migrator = new Migrator({
       db: this.db.withSchema(schema),
       disableTransactions: true,
-      migrationTableName: `questdb_${DEFAULT_MIGRATION_TABLE}`,
-      migrationLockTableName: `questdb_${DEFAULT_MIGRATION_LOCK_TABLE}`,
+      migrationTableName: `aws_timestream_${DEFAULT_MIGRATION_TABLE}`,
+      migrationLockTableName: `aws_timestream_${DEFAULT_MIGRATION_LOCK_TABLE}`,
       provider: new ListMigrationProvider({
-        '01': migration01(questdb),
+        '01': migration01(databaseName, writeClient),
       }),
     });
   }

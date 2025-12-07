@@ -68,6 +68,8 @@ const STOP_REASONS_MAP: Record<
   [StopReason.CONTENT_FILTERED]: 'content_filter',
   [StopReason.END_TURN]: 'stop',
   [StopReason.GUARDRAIL_INTERVENED]: 'stop',
+  [StopReason.MALFORMED_MODEL_OUTPUT]: 'stop',
+  [StopReason.MALFORMED_TOOL_USE]: 'tool_calls',
   [StopReason.MAX_TOKENS]: 'length',
   [StopReason.MODEL_CONTEXT_WINDOW_EXCEEDED]: 'length',
   [StopReason.STOP_SEQUENCE]: 'stop',

@@ -50,7 +50,7 @@
   ],
   "references": [
     {
-      "path": "../../packages/libs/shared/ai-provider"
+      "path": "../libs/shared/ai-provider"
     }
   ]
 }

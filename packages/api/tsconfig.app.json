@@ -30,7 +30,7 @@
   ],
   "references": [
     {
-      "path": "../../packages/libs/shared/ai-provider/tsconfig.lib.json"
+      "path": "../libs/shared/ai-provider/tsconfig.lib.json"
     }
   ]
 }

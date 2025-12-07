@@ -112,6 +112,8 @@
   "dependencies": {
     "@aws-crypto/client-node": "^4.2.1",
     "@aws-sdk/client-bedrock-runtime": "^3.931.0",
+    "@aws-sdk/client-timestream-query": "^3.946.0",
+    "@aws-sdk/client-timestream-write": "^3.946.0",
     "@aws-sdk/credential-providers": "^3.931.0",
     "@fastify/express": "^4.0.2",
     "@fastify/static": "^8.3.0",

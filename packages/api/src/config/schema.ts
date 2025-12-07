@@ -53,16 +53,22 @@ export const configSchema = Joi.object({
     then: Joi.required(),
     otherwise: Joi.optional(),
   }),
-  VAULT_HASHCORP_APPROLE_ROLE_ID: Joi.string().when('VAULT_ENCRYPTION_SERVICE', {
-    is: 'hashcorp',
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  VAULT_HASHCORP_APPROLE_SECRET_ID: Joi.string().when('VAULT_ENCRYPTION_SERVICE', {
-    is: 'hashcorp',
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
+  VAULT_HASHCORP_APPROLE_ROLE_ID: Joi.string().when(
+    'VAULT_ENCRYPTION_SERVICE',
+    {
+      is: 'hashcorp',
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }
+  ),
+  VAULT_HASHCORP_APPROLE_SECRET_ID: Joi.string().when(
+    'VAULT_ENCRYPTION_SERVICE',
+    {
+      is: 'hashcorp',
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }
+  ),
 
   // AWS KMS
   VAULT_AWS_KMS_KEY_ID: Joi.string().when('VAULT_ENCRYPTION_SERVICE', {
@@ -72,8 +78,23 @@ export const configSchema = Joi.object({
   }),
 
   // TimeseriesDB
-  QUESTDB_URL: Joi.string().uri().required(),
-  QUESTDB_MIGRATION_URL: Joi.string().uri().required(),
+  COMPLETION_USAGE_PROVIDER: Joi.string()
+    .valid('questdb', 'aws-timestream')
+    .default('questdb'),
+
+  // QuestDB Usage Provider
+  QUESTDB_URL: Joi.string().uri().when('COMPLETION_USAGE_PROVIDER', {
+    is: 'questdb',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+
+  // AWS Timestream Usage Provider
+  AWS_TIMESTREAM_DATABASE_NAME: Joi.string().when('COMPLETION_USAGE_PROVIDER', {
+    is: 'aws-timestream',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
 
   // Batch Queue
   BATCH_QUEUE_VISIBILITY_TIMEOUT: Joi.number().default(1000 * 120), // 2 minutes
