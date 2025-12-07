@@ -4,7 +4,7 @@ export VAULT_ADDR=http://localhost:8200
 export VAULT_TOKEN=$(cat ../../docker/vault/config/root-token.txt)
 
 echo "Writing VMXAI policy..."
-vault policy write vmxai-policy ./src/vault/policy.hcl
+vault policy write vmxai-policy ./src/vault/hashcorp/policy.hcl
 
 echo "Enabling Approle authentication..."
 vault auth enable approle
@@ -35,9 +35,9 @@ else
     vault secrets enable -version=2 -path=secret kv
 fi
 
-VAULT_APPROLE_ROLE_ID=$(vault read auth/approle/role/vmxai-app/role-id --format=json | jq -r '.data.role_id')
-VAULT_APPROLE_SECRET_ID=$(vault write -f auth/approle/role/vmxai-app/secret-id --format=json | jq -r '.data.secret_id')
+VAULT_HASHCORP_APPROLE_ROLE_ID=$(vault read auth/approle/role/vmxai-app/role-id --format=json | jq -r '.data.role_id')
+VAULT_HASHCORP_APPROLE_SECRET_ID=$(vault write -f auth/approle/role/vmxai-app/secret-id --format=json | jq -r '.data.secret_id')
 
 echo "Appending .env.local with VAULT_APPROLE_ROLE_ID and VAULT_APPROLE_SECRET_ID..."
-echo "VAULT_APPROLE_ROLE_ID=$VAULT_APPROLE_ROLE_ID" >> .env.local
-echo "VAULT_APPROLE_SECRET_ID=$VAULT_APPROLE_SECRET_ID" >> .env.local
+echo "VAULT_HASHCORP_APPROLE_ROLE_ID=$VAULT_HASHCORP_APPROLE_ROLE_ID" >> .env.local
+echo "VAULT_HASHCORP_APPROLE_SECRET_ID=$VAULT_HASHCORP_APPROLE_SECRET_ID" >> .env.local

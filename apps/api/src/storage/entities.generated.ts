@@ -188,6 +188,14 @@ export interface Environment {
   workspaceId: string;
 }
 
+export interface GlobalSecret {
+  createdAt: Generated<Timestamp>;
+  description: string | null;
+  name: string;
+  secretId: Generated<string>;
+  value: string;
+}
+
 export interface OidcProvider {
   consumed: Generated<boolean>;
   expiresAt: Timestamp | null;
@@ -281,6 +289,7 @@ export interface DB {
   completionBatch: CompletionBatch;
   completionBatchItems: CompletionBatchItem;
   environments: Environment;
+  globalSecrets: GlobalSecret;
   oidcProvider: OidcProvider;
   poolDefinitions: PoolDefinition;
   questdbKyselyMigration: QuestdbKyselyMigration;

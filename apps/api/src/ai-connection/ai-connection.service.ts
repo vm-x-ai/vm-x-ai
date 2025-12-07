@@ -10,7 +10,6 @@ import { UpdateAIConnectionDto } from './dto/update-ai-connection.dto';
 import { sql } from 'kysely';
 import { AIProviderService } from '../ai-provider/ai-provider.service';
 import { AIProviderDto } from '../ai-provider/dto/ai-provider.dto';
-import { EncryptionService } from '../vault/encryption.service';
 import { JSONSchema7 } from 'json-schema';
 import { v4 as uuidv4 } from 'uuid';
 import { PinoLogger } from 'nestjs-pino';
@@ -18,6 +17,10 @@ import { DiscoveredCapacityEntity } from '../capacity/capacity.entity';
 import { ListAIConnectionDto } from './dto/list-ai-connection.dto';
 import { GetAIConnectionDto } from './dto/get-ai-connection.dto';
 import { aiProviderConfigSchemaValidator } from '@vm-x-ai/shared-ai-provider';
+import {
+  ENCRYPTION_SERVICE,
+  type IEncryptionService,
+} from '../vault/encryption.service.base';
 
 const MASKED_VALUE = '********';
 
@@ -32,7 +35,8 @@ export class AIConnectionService implements OnModuleInit {
     private readonly logger: PinoLogger,
     private readonly db: DatabaseService,
     private readonly aiProviderService: AIProviderService,
-    private readonly encryptionService: EncryptionService,
+    @Inject(ENCRYPTION_SERVICE)
+    private readonly encryptionService: IEncryptionService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache
   ) {}
 
@@ -479,10 +483,9 @@ export class AIConnectionService implements OnModuleInit {
           typeof config[key] === 'string' &&
           !config[key].startsWith('****')
         ) {
-          config[key] = await this.encryptionService.encrypt(
-            config[key],
-            connectionId
-          );
+          config[key] = await this.encryptionService.encrypt(config[key], {
+            connectionId,
+          });
         } else if (
           config &&
           existingConnection?.config &&
@@ -538,10 +541,9 @@ export class AIConnectionService implements OnModuleInit {
     )) {
       if ((def as JSONSchema7).format === 'secret') {
         if (config && key in config && typeof config[key] === 'string') {
-          config[key] = await this.encryptionService.decrypt(
-            config[key],
-            connectionId
-          );
+          config[key] = await this.encryptionService.decrypt(config[key], {
+            connectionId,
+          });
         }
       }
     }

@@ -43,9 +43,33 @@ export const configSchema = Joi.object({
   OIDC_FEDERATED_DEFAULT_ROLE: Joi.string().default('power-user'),
 
   // Vault
-  VAULT_ADDR: Joi.string().uri().required(),
-  VAULT_APPROLE_ROLE_ID: Joi.string().required(),
-  VAULT_APPROLE_SECRET_ID: Joi.string().required(),
+  VAULT_ENCRYPTION_SERVICE: Joi.string()
+    .valid('hashcorp', 'aws-kms')
+    .default('hashcorp'),
+
+  // Hashcorp Vault
+  VAULT_HASHCORP_ADDR: Joi.string().uri().when('VAULT_ENCRYPTION_SERVICE', {
+    is: 'hashcorp',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  VAULT_HASHCORP_APPROLE_ROLE_ID: Joi.string().when('VAULT_ENCRYPTION_SERVICE', {
+    is: 'hashcorp',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  VAULT_HASHCORP_APPROLE_SECRET_ID: Joi.string().when('VAULT_ENCRYPTION_SERVICE', {
+    is: 'hashcorp',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+
+  // AWS KMS
+  VAULT_AWS_KMS_KEY_ID: Joi.string().when('VAULT_ENCRYPTION_SERVICE', {
+    is: 'aws-kms',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
 
   // TimeseriesDB
   QUESTDB_URL: Joi.string().uri().required(),
