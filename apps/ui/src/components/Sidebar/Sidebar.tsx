@@ -9,13 +9,13 @@ import ListItemText from '@mui/material/ListItemText';
 import { CSSObject, styled, Theme, useTheme } from '@mui/material/styles';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import DashboardIcon from '@mui/icons-material/Dashboard';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React from 'react';
 import PersonIcon from '@mui/icons-material/Person';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
+import WorkspacesIcon from '@mui/icons-material/Workspaces';
 
 export const DRAWER_WIDTH = 240;
 
@@ -102,9 +102,9 @@ const sidebarItems: SidebarMenu[] = [
   },
   {
     type: 'menu',
-    text: 'Dashboard',
-    icon: <DashboardIcon />,
-    href: '/dashboard',
+    text: 'Workspaces',
+    icon: <WorkspacesIcon />,
+    href: '/workspaces',
   },
   {
     type: 'divider',

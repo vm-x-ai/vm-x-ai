@@ -81,7 +81,7 @@ export default function GenerateApiKeyStep() {
           <Button
             variant="contained"
             component={Link}
-            href={`/dashboard/${workspaceId}/${environmentId}/ai-connections/new`}
+            href={`/workspaces/${workspaceId}/${environmentId}/ai-connections/new`}
           >
             Finish
           </Button>

@@ -69,9 +69,10 @@ export class WorkspaceService {
       )
       .$if(!!includesEnvironments, (qb) =>
         qb.select((eb) => [
-          this.withEnvironments(eb.ref('workspaces.workspaceId')).as(
-            'environments'
-          ),
+          this.withEnvironments(
+            eb.ref('workspaces.workspaceId'),
+            !!includesUsers
+          ).as('environments'),
         ])
       )
       .orderBy('createdAt', 'desc')
@@ -233,11 +234,15 @@ export class WorkspaceService {
     return `workspace-member:${workspaceId}:${userId}`;
   }
 
-  private withEnvironments(workspaceId: Expression<string>) {
+  private withEnvironments(
+    workspaceId: Expression<string>,
+    includesUsers: boolean
+  ) {
     return jsonArrayFrom(
       this.db.reader
         .selectFrom('environments')
         .selectAll('environments')
+        .$if(!!includesUsers, this.db.includeEntityControlUsers('environments'))
         .where('workspaceId', '=', workspaceId)
         .orderBy('name')
     );

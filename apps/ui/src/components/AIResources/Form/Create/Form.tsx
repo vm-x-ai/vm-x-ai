@@ -62,7 +62,7 @@ export default function CreateAIResourceForm({
       toast.success(state.message);
 
       router.push(
-        `/dashboard/${workspaceId}/${environmentId}/ai-resources/edit/${state.response?.resourceId}/general`
+        `/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${state.response?.resourceId}/general`
       );
     }
   }, [environmentId, router, state, workspaceId]);

@@ -4,11 +4,11 @@ export const useRoutePattern = () => {
   const pathname = usePathname();
   const routePatterns = [
     '/getting-started',
-    '/dashboard/[workspaceId]/[environmentId]/ai-connections/edit/[connectionId]',
-    '/dashboard/[workspaceId]/[environmentId]/ai-resources/edit/[resourceId]',
-    '/dashboard/[workspaceId]/[environmentId]/security/auth/role/edit/[roleId]',
-    '/dashboard/[workspaceId]/[environmentId]',
-    '/dashboard/[workspaceId]',
+    '/workspaces/[workspaceId]/[environmentId]/ai-connections/edit/[connectionId]',
+    '/workspaces/[workspaceId]/[environmentId]/ai-resources/edit/[resourceId]',
+    '/workspaces/[workspaceId]/[environmentId]/security/auth/role/edit/[roleId]',
+    '/workspaces/[workspaceId]/[environmentId]',
+    '/workspaces/[workspaceId]',
   ];
 
   for (const pattern of routePatterns) {

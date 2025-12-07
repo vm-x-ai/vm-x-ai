@@ -94,6 +94,10 @@ export default function UserTable() {
         header: 'Email',
       },
       {
+        accessorKey: 'providerType',
+        header: 'Authentication Provider',
+      },
+      {
         accessorKey: 'createdAt',
         header: 'Created At',
         size: 300,

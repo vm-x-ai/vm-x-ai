@@ -131,7 +131,7 @@ export default function BatchCreateResultDialog({
         'connectionId' in row.connection ? (
           <MUILink
             component={Link}
-            href={`/dashboard/${workspaceId}/${environmentId}/ai-connections/edit/${row.connection.connectionId}/general`}
+            href={`/workspaces/${workspaceId}/${environmentId}/ai-connections/edit/${row.connection.connectionId}/general`}
             variant="body2"
           >
             {row.connection.name}
@@ -147,7 +147,7 @@ export default function BatchCreateResultDialog({
           'resourceId' in row.resource ? (
             <MUILink
               component={Link}
-              href={`/dashboard/${workspaceId}/${environmentId}/ai-resources/edit/${row.resource.resourceId}/general`}
+              href={`/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${row.resource.resourceId}/general`}
               variant="body2"
             >
               {row.resource.name}

@@ -164,7 +164,7 @@ export default function AIResourceTable({
     muiTableBodyRowProps: ({ row }) => ({
       onClick: () => {
         router.push(
-          `/dashboard/${workspaceId}/${environmentId}/ai-resources/edit/${row.original.resourceId}/general`
+          `/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${row.original.resourceId}/general`
         );
       },
       sx: (theme) => ({
@@ -182,7 +182,7 @@ export default function AIResourceTable({
         <Tooltip title="Edit">
           <IconButton
             LinkComponent={Link}
-            href={`/dashboard/${workspaceId}/${environmentId}/ai-resources/edit/${row.original.resourceId}`}
+            href={`/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${row.original.resourceId}`}
           >
             <EditIcon />
           </IconButton>
@@ -206,7 +206,7 @@ export default function AIResourceTable({
       <Button
         variant="outlined"
         LinkComponent={Link}
-        href={`/dashboard/${workspaceId}/${environmentId}/ai-resources/new`}
+        href={`/workspaces/${workspaceId}/${environmentId}/ai-resources/new`}
       >
         Create new AI Resource
       </Button>

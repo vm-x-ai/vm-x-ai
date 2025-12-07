@@ -24,7 +24,8 @@ export const migration: Migration = {
         'fk_pool_definitions_environment',
         ['workspace_id', 'environment_id'],
         'environments',
-        ['workspace_id', 'environment_id']
+        ['workspace_id', 'environment_id'],
+        (eb) => eb.onDelete('cascade')
       )
       .addPrimaryKeyConstraint('pk_pool_definitions', [
         'workspace_id',

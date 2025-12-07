@@ -154,16 +154,17 @@ export default function EditUserForm({
               </Grid>
               <Grid container size={12}>
                 <Grid size={12}>
-                  <Typography variant="subtitle2">Authentication</Typography>
+                  <Typography variant="subtitle2">Authentication (Local Only)</Typography>
                   <Divider />
                   <Typography variant="caption">
-                    Enter the email and password for the user.
+                    Enter the email and password for the user. This is only available for local users.
                   </Typography>
                 </Grid>
                 <Grid container size={12}>
                   <Grid size={6}>
                     <Controller
                       name="email"
+                      disabled={user.providerType !== 'LOCAL'}
                       control={form.control}
                       render={({ field }) => (
                         <TextField
@@ -184,6 +185,7 @@ export default function EditUserForm({
                     <Grid size={6}>
                       <Controller
                         name="password"
+                        disabled={user.providerType !== 'LOCAL'}
                         control={form.control}
                         render={({ field }) => (
                           <TextField
@@ -200,6 +202,7 @@ export default function EditUserForm({
                                 endAdornment: (
                                   <InputAdornment position="end">
                                     <IconButton
+                                      disabled={user.providerType !== 'LOCAL'}
                                       onClick={() => {
                                         setShowPassword(!showPassword);
                                       }}
@@ -221,6 +224,7 @@ export default function EditUserForm({
                     <Grid size={6}>
                       <Controller
                         name="confirmPassword"
+                        disabled={user.providerType !== 'LOCAL'}
                         control={form.control}
                         render={({ field }) => (
                           <TextField
@@ -241,6 +245,7 @@ export default function EditUserForm({
                                 endAdornment: (
                                   <InputAdornment position="end">
                                     <IconButton
+                                      disabled={user.providerType !== 'LOCAL'}
                                       onClick={() => {
                                         setShowConfirmPassword(
                                           !showConfirmPassword

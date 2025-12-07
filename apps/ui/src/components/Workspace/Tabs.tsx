@@ -40,7 +40,7 @@ export default function WorkspaceTabs({
 
   return (
     // Match only the first 3 elements of the URL and ignore all the rest (<workspaceId>/<environmentId>/<tab>)
-    <TabContext pathPattern={'^/dashboard/[^/]+/[^/]+/[^/]+'}>
+    <TabContext pathPattern={'^/workspaces/[^/]+/[^/]+/[^/]+'}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider', width: '100%' }}>
         <CustomTabList
           aria-label="Environment config tabs"

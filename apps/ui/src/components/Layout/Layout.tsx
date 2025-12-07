@@ -15,6 +15,7 @@ import { useSession } from 'next-auth/react';
 import { styled } from '@mui/material/styles';
 import Sidebar, { DRAWER_WIDTH } from '../Sidebar/Sidebar';
 import { useAppStore } from '@/store/provider';
+import { usePathname } from 'next/navigation';
 
 interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
@@ -51,6 +52,7 @@ export default function Layout({ children }: LayoutProps) {
   const { data: authSession } = useSession();
   const open = useAppStore((state) => state.sidebar.open);
   const setOpen = useAppStore((state) => state.setSidebarOpen);
+  const pathname = usePathname();
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -98,9 +100,11 @@ export default function Layout({ children }: LayoutProps) {
           {authSession && (
             <Box sx={{ marginLeft: 'auto' }}>
               <Box display="flex" gap="1rem">
-                <Suspense fallback={<div>Loading workspaces...</div>}>
-                  <WorkspaceSelector />
-                </Suspense>
+                {pathname?.startsWith('/workspaces') && (
+                  <Suspense fallback={<div>Loading workspaces...</div>}>
+                    <WorkspaceSelector />
+                  </Suspense>
+                )}
                 <AccountMenu user={authSession?.user} />
               </Box>
             </Box>

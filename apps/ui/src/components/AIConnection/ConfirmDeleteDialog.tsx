@@ -68,7 +68,7 @@ export default function ConfirmDeleteAIConnectionDialog({
         },
       });
 
-      router.push(`/dashboard/${workspaceId}/${environmentId}/ai-connections/overview`);
+      router.push(`/workspaces/${workspaceId}/${environmentId}/ai-connections/overview`);
       toast.success(`Connection ${aiConnection.name} has been deleted.`);
       handleClose();
     } catch (error) {

@@ -586,7 +586,7 @@ export default function CreateAIConnectionForm({
           }}
           onClose={() => {
             router.push(
-              `/${workspaceId}/${environment.environmentId}/ai-connections/overview`
+              `/workspaces/${workspaceId}/${environment.environmentId}/ai-connections/overview`
             );
           }}
         />

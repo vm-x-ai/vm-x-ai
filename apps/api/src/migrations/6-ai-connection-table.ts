@@ -33,7 +33,8 @@ export const migration: Migration = {
         'fk_ai_connections_environment',
         ['workspace_id', 'environment_id'],
         'environments',
-        ['workspace_id', 'environment_id']
+        ['workspace_id', 'environment_id'],
+        (eb) => eb.onDelete('cascade')
       )
       .addPrimaryKeyConstraint('pk_ai_connections', [
         'connection_id',

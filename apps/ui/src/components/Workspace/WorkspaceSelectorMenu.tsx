@@ -2,11 +2,9 @@
 
 import { WorkspaceEntity } from '@/clients/api';
 import AddIcon from '@mui/icons-material/Add';
-import SettingsIcon from '@mui/icons-material/Settings';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -14,7 +12,6 @@ import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
-import Tooltip from '@mui/material/Tooltip';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -34,13 +31,13 @@ export default function WorkspaceSelectorMenu({
   const pathname = usePathname();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const selectedWorkspaceIndex = workspaces.findIndex((workspace) =>
-    pathname?.startsWith(`/${workspace.workspaceId}`)
+    pathname?.startsWith(`/workspaces/${workspace.workspaceId}`)
   );
   const selectedWorkspace = workspaces[selectedWorkspaceIndex];
   const selectedEnvironmentIndex = selectedWorkspace?.environments?.findIndex(
     (environment) =>
       pathname?.startsWith(
-        `/${selectedWorkspace?.workspaceId}/${environment.environmentId}`
+        `/workspaces/${selectedWorkspace?.workspaceId}/${environment.environmentId}`
       )
   );
   const selectedEnvironment =
@@ -49,7 +46,7 @@ export default function WorkspaceSelectorMenu({
     selectedEnvironment && selectedWorkspace
       ? pathname
           ?.replace(
-            `/${selectedWorkspace.workspaceId}/${selectedEnvironment.environmentId}/`,
+            `/workspaces/${selectedWorkspace.workspaceId}/${selectedEnvironment.environmentId}/`,
             ''
           )
           .split('/')[0]
@@ -109,10 +106,8 @@ export default function WorkspaceSelectorMenu({
         {workspaces.map((workspace, workspaceIndex) => [
           <MenuItem
             selected={workspaceIndex === selectedWorkspaceIndex}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
+            component={Link}
+            href={`/workspaces/${workspace.workspaceId}`}
             key={workspace.workspaceId}
           >
             <Box
@@ -125,19 +120,6 @@ export default function WorkspaceSelectorMenu({
                 <WorkspacesIcon fontSize="small" />
               </ListItemIcon>
               <ListItemText>{workspace.name}</ListItemText>
-              <Tooltip title="Settings">
-                <IconButton
-                  size="small"
-                  LinkComponent={Link}
-                  href={`/${workspace.workspaceId}/settings`}
-                  sx={{
-                    padding: 0,
-                    marginRight: 'auto',
-                  }}
-                >
-                  <SettingsIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
             </Box>
           </MenuItem>,
           ...(workspace.environments?.map((environment, envIndex) => (
@@ -148,7 +130,7 @@ export default function WorkspaceSelectorMenu({
                 workspaceIndex === selectedWorkspaceIndex &&
                 envIndex === selectedEnvironmentIndex
               }
-              href={`/${workspace.workspaceId}/${environment.environmentId}/${
+              href={`/workspaces/${workspace.workspaceId}/${environment.environmentId}/${
                 currentTab ? currentTab : 'ai-connections/overview'
               }`}
               sx={{
