@@ -3,7 +3,7 @@ import { ColumnType } from 'kysely';
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface Completion {
-  ts: Timestamp;
+  time: Timestamp;
 
   promptTokens: number | null;
   completionTokens: number | null;

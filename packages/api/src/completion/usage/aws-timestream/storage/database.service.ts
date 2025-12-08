@@ -1,6 +1,6 @@
 import { Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CamelCasePlugin, Kysely } from 'kysely';
+import { Kysely } from 'kysely';
 import { DB } from './entities';
 import { AWSTimestreamDialect } from './dialect';
 import { TimestreamQueryClient } from '@aws-sdk/client-timestream-query';
@@ -11,18 +11,18 @@ export class AWSTimestreamDatabaseService implements OnApplicationShutdown {
   public instance: Kysely<DB>;
 
   constructor(private readonly configService: ConfigService) {
+    const databaseName = this.configService.getOrThrow(
+      'AWS_TIMESTREAM_DATABASE_NAME'
+    );
     const dialect = new AWSTimestreamDialect({
       queryClient: new TimestreamQueryClient({}),
       writeClient: new TimestreamWriteClient({}),
-      databaseName: this.configService.getOrThrow('AWS_TIMESTREAM_DATABASE_NAME'),
+      databaseName,
     });
-
-    const camelCasePlugin = new CamelCasePlugin();
 
     this.instance = new Kysely<DB>({
       dialect,
-      plugins: [camelCasePlugin],
-    });
+    }).withSchema(databaseName);
   }
 
   async onApplicationShutdown() {

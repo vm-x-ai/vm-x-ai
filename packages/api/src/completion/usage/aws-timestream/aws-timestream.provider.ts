@@ -4,8 +4,6 @@ import { Injectable } from '@nestjs/common';
 import { CompletionUsageProvider } from '../usage.types';
 import { AWSTimestreamDatabaseService } from './storage/database.service';
 import { CompletionUsageDto } from '../dto/completion-usage.dto';
-import { plainToInstance } from 'class-transformer';
-import { replaceUndefinedWithNull } from '../../../utils/object';
 import {
   CompletionUsageDimensionOperator,
   CompletionUsageQueryDto,
@@ -13,6 +11,16 @@ import {
 } from '../dto/completion-query.dto';
 import { sql } from 'kysely';
 import { CompletionUsageQueryRawResultDto } from '../dto/completion-query-result.dto';
+import { ConfigService } from '@nestjs/config';
+import {
+  _Record,
+  Dimension,
+  MeasureValue,
+  TimestreamWriteClient,
+  WriteRecordsCommand,
+} from '@aws-sdk/client-timestream-write';
+import { toZonedTime } from 'date-fns-tz';
+import { ValidationException } from '@aws-sdk/client-timestream-query';
 
 const OPERATOR_MAP = {
   [CompletionUsageDimensionOperator.EQ]: '=',
@@ -28,7 +36,10 @@ const OPERATOR_MAP = {
 
 @Injectable()
 export class QuestDBCompletionUsageProvider implements CompletionUsageProvider {
-  constructor(private readonly db: AWSTimestreamDatabaseService) {}
+  constructor(
+    private readonly db: AWSTimestreamDatabaseService,
+    private readonly configService: ConfigService
+  ) {}
 
   async query(
     query: CompletionUsageQueryDto
@@ -38,7 +49,7 @@ export class QuestDBCompletionUsageProvider implements CompletionUsageProvider {
       dbQuery = dbQuery.limit(query.limit);
     }
 
-    let timeExpression = sql`ts as time`;
+    let timeExpression = sql`time`;
     if (query.granularity) {
       switch (query.granularity) {
         case GranularityUnit.SECOND:
@@ -47,32 +58,30 @@ export class QuestDBCompletionUsageProvider implements CompletionUsageProvider {
         case GranularityUnit.SECOND_15:
         case GranularityUnit.SECOND_30: {
           const secondInterval = parseInt(query.granularity.split('_')[1]) || 1;
-          timeExpression = sql`timestamp_floor('${sql.lit(
-            secondInterval
-          )}s', ts)`;
+          timeExpression = sql`bin(time, ${sql.lit(secondInterval)}s)`;
           break;
         }
         case GranularityUnit.MINUTE:
-          timeExpression = sql`date_trunc('minute', ts)`;
+          timeExpression = sql`date_trunc('minute', time)`;
           break;
         case GranularityUnit.HOUR:
-          timeExpression = sql`date_trunc('hour', ts)`;
+          timeExpression = sql`date_trunc('hour', time)`;
           break;
         case GranularityUnit.DAY:
-          timeExpression = sql`date_trunc('day', ts)`;
+          timeExpression = sql`date_trunc('day', time)`;
           break;
         case GranularityUnit.WEEK:
-          timeExpression = sql`date_trunc('week', ts)`;
+          timeExpression = sql`date_trunc('week', time)`;
           break;
         case GranularityUnit.MONTH:
-          timeExpression = sql`date_trunc('month', ts)`;
+          timeExpression = sql`date_trunc('month', time)`;
           break;
         case GranularityUnit.YEAR:
-          timeExpression = sql`date_trunc('year', ts)`;
+          timeExpression = sql`date_trunc('year', time)`;
           break;
       }
       dbQuery = dbQuery.select([
-        sql`cast(${timeExpression} as string)`.as('time'),
+        timeExpression.as('time'),
         ...query.dimensions,
       ]);
     } else {
@@ -91,9 +100,7 @@ export class QuestDBCompletionUsageProvider implements CompletionUsageProvider {
         );
       } else {
         dbQuery = dbQuery.select(
-          sql<number>`cast(${sql.raw(agg)}(${sql.ref(metric)}) as double)`.as(
-            metric
-          )
+          sql<number>`${sql.raw(agg)}(${sql.ref(metric)})`.as(metric)
         );
       }
     }
@@ -103,8 +110,16 @@ export class QuestDBCompletionUsageProvider implements CompletionUsageProvider {
     }
 
     dbQuery = dbQuery
-      .where('ts', '>=', new Date(query.filter.dateRange.start))
-      .where('ts', '<', new Date(query.filter.dateRange.end));
+      .where(
+        'time',
+        '>=',
+        toZonedTime(new Date(query.filter.dateRange.start), 'UTC')
+      )
+      .where(
+        'time',
+        '<',
+        toZonedTime(new Date(query.filter.dateRange.end), 'UTC')
+      );
 
     for (const [field, filter] of Object.entries(query.filter.fields ?? {})) {
       if (
@@ -131,24 +146,108 @@ export class QuestDBCompletionUsageProvider implements CompletionUsageProvider {
         ? [timeExpression, ...query.dimensions]
         : [...query.dimensions]
     );
-    return (await dbQuery.execute()) as CompletionUsageQueryRawResultDto[];
+    try {
+      return (await dbQuery.execute()) as CompletionUsageQueryRawResultDto[];
+    } catch (error) {
+      if (error instanceof ValidationException) {
+        if (error.message?.includes('does not exist')) {
+          return [];
+        }
+      }
+
+      throw error;
+    }
   }
 
   async push(...usage: CompletionUsageDto[]): Promise<void> {
-    const values = usage.map((item) => {
-      const value = plainToInstance(
-        CompletionUsageDto,
-        replaceUndefinedWithNull(item)
-      );
-      const { timestamp, error, ...rest } = value;
-      return {
-        ...rest,
-        ts: item.timestamp,
-        requestCount: 1,
-        errorCount: item.error ? 1 : 0,
-        successCount: item.error ? 0 : 1,
-      };
+    const databaseName = this.configService.getOrThrow<string>(
+      'AWS_TIMESTREAM_DATABASE_NAME'
+    );
+    const writeClient = new TimestreamWriteClient({});
+    await writeClient.send(
+      new WriteRecordsCommand({
+        DatabaseName: databaseName,
+        TableName: 'completions',
+        Records: usage.map(this.parseUsageRow),
+      })
+    );
+  }
+
+  private parseUsageRow(item: CompletionUsageDto): _Record {
+    const metricsValues: MeasureValue[] = [
+      {
+        Name: 'requestCount',
+        Value: '1',
+        Type: 'BIGINT',
+      },
+      {
+        Name: 'errorCount',
+        Value: item.error ? '1' : '0',
+        Type: 'BIGINT',
+      },
+      {
+        Name: 'successCount',
+        Value: item.error ? '0' : '1',
+        Type: 'BIGINT',
+      },
+    ];
+
+    const metrics = [
+      ['promptTokens', 'BIGINT'],
+      ['completionTokens', 'BIGINT'],
+      ['totalTokens', 'BIGINT'],
+      ['tokensPerSecond', 'DOUBLE'],
+      ['timeToFirstToken', 'BIGINT'],
+      ['requestDuration', 'BIGINT'],
+      ['providerDuration', 'BIGINT'],
+      ['gateDuration', 'BIGINT'],
+      ['routingDuration', 'BIGINT'],
+    ] as const;
+
+    metrics.forEach(([metric, type]) => {
+      if (item[metric]) {
+        metricsValues.push({
+          Name: metric,
+          Value: item[metric].toString(),
+          Type: type,
+        });
+      }
     });
-    await this.db.instance.insertInto('completions').values(values).execute();
+
+    const dimensionsValues: Dimension[] = [];
+    const dimensions = [
+      'workspaceId',
+      'environmentId',
+      'connectionId',
+      'resourceId',
+      'provider',
+      'model',
+      'requestId',
+      'messageId',
+      'failureReason',
+      'statusCode',
+      'correlationId',
+      'apiKeyId',
+      'sourceIp',
+      'userId',
+    ] as const;
+
+    dimensions.forEach((dimension) => {
+      if (item[dimension]) {
+        dimensionsValues.push({
+          Name: dimension,
+          Value: item[dimension].toString(),
+        });
+      }
+    });
+
+    return {
+      TimeUnit: 'MILLISECONDS',
+      Time: item.timestamp.getTime().toString(),
+      MeasureName: 'completion',
+      MeasureValueType: 'MULTI',
+      MeasureValues: metricsValues,
+      Dimensions: dimensionsValues,
+    };
   }
 }

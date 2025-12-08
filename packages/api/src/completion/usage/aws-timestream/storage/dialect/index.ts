@@ -4,12 +4,12 @@ import {
   Dialect,
   DialectAdapter,
   QueryCompiler,
-  PostgresQueryCompiler,
 } from 'kysely';
 import { AWSTimestreamIntrospector } from './introspector';
 import { AWSTimestreamDialectAdapter } from './adapter';
 import { TimestreamDialectConfig } from './config';
 import { AWSTimestreamDriver } from './driver';
+import { AWSTimestreamQueryCompiler } from './query-compiler';
 
 export class AWSTimestreamDialect implements Dialect {
   constructor(private readonly config: TimestreamDialectConfig) {}
@@ -18,7 +18,7 @@ export class AWSTimestreamDialect implements Dialect {
     return new AWSTimestreamDriver(this.config);
   }
   createQueryCompiler(): QueryCompiler {
-    return new PostgresQueryCompiler();
+    return new AWSTimestreamQueryCompiler();
   }
   createAdapter(): DialectAdapter {
     return new AWSTimestreamDialectAdapter();

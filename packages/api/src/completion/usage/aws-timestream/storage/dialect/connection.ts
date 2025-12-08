@@ -7,17 +7,26 @@ import {
 } from '@aws-sdk/client-timestream-query';
 import { CompiledQuery, DatabaseConnection, QueryResult } from 'kysely';
 import { TimestreamDialectConfig } from './config';
+import { format } from 'date-fns';
+import { fromZonedTime } from 'date-fns-tz';
 
 export class AWSTimestreamConnection implements DatabaseConnection {
   constructor(private readonly config: TimestreamDialectConfig) {}
 
   async executeQuery<R>(compiledQuery: CompiledQuery): Promise<QueryResult<R>> {
-    if (compiledQuery.sql.startsWith('INSERT')) {
-      // TODO: Implement INSERT support
+    if (
+      compiledQuery.sql.startsWith('INSERT') ||
+      compiledQuery.sql.startsWith('UPDATE') ||
+      compiledQuery.sql.startsWith('DELETE')
+    ) {
+      throw new Error(
+        'INSERT, UPDATE, and DELETE queries are not supported by the AWS Timestream dialect'
+      );
     }
 
+    const normalizedSql = this.inlineParameters(compiledQuery);
     const result = await this.config.queryClient.send(
-      new QueryCommand({ QueryString: compiledQuery.sql })
+      new QueryCommand({ QueryString: normalizedSql })
     );
     return { rows: this.parseQueryResult<R>(result) };
   }
@@ -27,6 +36,25 @@ export class AWSTimestreamConnection implements DatabaseConnection {
     throw new Error(
       'Stream queries are not supported by the AWS Timestream dialect'
     );
+  }
+
+  private inlineParameters(compiledQuery: CompiledQuery): string {
+    let sql = compiledQuery.sql;
+    for (let i = 0; i < compiledQuery.parameters.length; i++) {
+      const pattern = new RegExp(`\\$${i + 1}`, 'g');
+      const parameter = compiledQuery.parameters[i];
+      if (parameter instanceof Date) {
+        sql = sql.replace(
+          pattern,
+          `TIMESTAMP '${format(parameter, 'yyyy-MM-dd HH:mm:ss')}'`
+        );
+      } else if (typeof parameter === 'number') {
+        sql = sql.replace(pattern, `${parameter}`);
+      } else {
+        sql = sql.replace(pattern, `'${parameter}'`);
+      }
+    }
+    return sql;
   }
 
   private parseQueryResult<T>(queryResult: QueryCommandOutput): Array<T> {
@@ -108,7 +136,7 @@ export class AWSTimestreamConnection implements DatabaseConnection {
     if (value) {
       switch (columnInfo.Type?.ScalarType) {
         case 'TIMESTAMP':
-          value = new Date(value);
+          value = fromZonedTime(value, 'UTC');
           break;
         case 'BIGINT':
         case 'DOUBLE':
