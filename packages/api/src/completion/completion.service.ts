@@ -45,9 +45,23 @@ import os from 'os';
 import { CompletionBatchEntity } from './batch/entity/batch.entity';
 import merge from 'lodash.merge';
 import { UserEntity } from '../users/entities/user.entity';
+import { MetricService } from 'nestjs-otel';
+import { Attributes, Counter, Histogram, ValueType } from '@opentelemetry/api';
 
 @Injectable()
 export class CompletionService {
+  private completionErrorCounter: Counter;
+  private completionSuccessCounter: Counter;
+  private completionRequestTokensHistogram: Histogram;
+  private completionResponseTokensHistogram: Histogram;
+  private completionTotalTokensHistogram: Histogram;
+  private completionTokensPerSecondHistogram: Histogram;
+  private completionTimeToFirstTokenHistogram: Histogram;
+  private completionRequestDurationHistogram: Histogram;
+  private completionProviderDurationHistogram: Histogram;
+  private completionGateDurationHistogram: Histogram;
+  private completionRoutingDurationHistogram: Histogram;
+
   constructor(
     private readonly logger: PinoLogger,
     private readonly aiProviderService: AIProviderService,
@@ -58,8 +72,84 @@ export class CompletionService {
     private readonly completionUsageService: CompletionUsageService,
     private readonly completionMetricsService: CompletionMetricsService,
     private readonly completionAuditService: CompletionAuditService,
-    private readonly tokenService: TokenService
-  ) {}
+    private readonly tokenService: TokenService,
+    private readonly metricService: MetricService
+  ) {
+    this.completionErrorCounter = this.metricService.getCounter(
+      'completion.error.count',
+      {
+        description: 'Number of completion errors',
+        valueType: ValueType.INT,
+      }
+    );
+    this.completionSuccessCounter = this.metricService.getCounter(
+      'completion.success.count',
+      {
+        description: 'Number of successful completions',
+        valueType: ValueType.INT,
+      }
+    );
+    this.completionRequestTokensHistogram = this.metricService.getHistogram(
+      'completion.request.tokens',
+      {
+        description: 'Number of request tokens',
+        valueType: ValueType.INT,
+      }
+    );
+    this.completionResponseTokensHistogram = this.metricService.getHistogram(
+      'completion.response.tokens',
+      {
+        description: 'Number of response tokens',
+        valueType: ValueType.INT,
+      }
+    );
+    this.completionTotalTokensHistogram = this.metricService.getHistogram(
+      'completion.total.tokens',
+      {
+        description: 'Number of total tokens',
+        valueType: ValueType.INT,
+      }
+    );
+    this.completionTokensPerSecondHistogram = this.metricService.getHistogram(
+      'completion.tokens.per.second',
+      {
+        description: 'Tokens per second',
+        valueType: ValueType.DOUBLE,
+      }
+    );
+    this.completionTimeToFirstTokenHistogram = this.metricService.getHistogram(
+      'completion.time.to.first.token',
+      {
+        description: 'Time to first token',
+        valueType: ValueType.INT,
+        unit: 'ms',
+      }
+    );
+    this.completionRequestDurationHistogram = this.metricService.getHistogram(
+      'completion.request.duration',
+      {
+        description: 'Request duration',
+        valueType: ValueType.INT,
+        unit: 'ms',
+      }
+    );
+    this.completionProviderDurationHistogram = this.metricService.getHistogram(
+      'completion.provider.duration',
+      {
+        description: 'Provider duration',
+        valueType: ValueType.INT,
+        unit: 'ms',
+      }
+    );
+    this.completionGateDurationHistogram = this.metricService.getHistogram(
+      'completion.gate.duration',
+      {
+        description: 'Gate duration',
+        valueType: ValueType.INT,
+        unit: 'ms',
+      }
+    );
+  }
 
   public async completion(
     workspaceId: string,
@@ -142,6 +232,12 @@ export class CompletionService {
             }
           );
 
+      const baseMetricsAttributes = {
+        workspaceId,
+        environmentId,
+        resourceId: aiResource?.resourceId,
+      };
+
       const requestTokens = this.tokenService.getRequestTokens(payload);
 
       const shouldRoute = usePrimaryModel && aiResource.routing?.enabled;
@@ -166,6 +262,17 @@ export class CompletionService {
                 matchedRoute: routingResult.matchedRoute,
               },
             });
+            this.completionRoutingDurationHistogram.record(
+              Date.now() - routingStartAt,
+              {
+                ...baseMetricsAttributes,
+                routedModel: routingResult.model.model,
+                routedProvider: routingResult.model.provider,
+                originalModel: modelConfig.model,
+                originalProvider: modelConfig.provider,
+              }
+            );
+
             modelConfig = routingResult.model;
           }
         } finally {
@@ -195,6 +302,13 @@ export class CompletionService {
           correlationId: payload.vmx?.correlationId,
           connectionId: modelConfig.connectionId,
           userId: user?.id,
+        };
+
+        const metricsAttributes = {
+          ...baseMetricsAttributes,
+          provider: modelConfig.provider,
+          model: modelConfig.model,
+          connectionId: modelConfig.connectionId,
         };
 
         try {
@@ -241,6 +355,11 @@ export class CompletionService {
             gateDuration = Date.now() - gateStartAt;
           }
 
+          this.completionGateDurationHistogram.record(
+            gateDuration,
+            metricsAttributes
+          );
+
           const { vmx, ...rawPayload } = payload;
           providerStartAt = Date.now();
           let completionUsage: CompletionUsage | undefined = undefined;
@@ -265,6 +384,10 @@ export class CompletionService {
 
                 if (payload.stream && !timeToFirstToken && providerStartAt) {
                   timeToFirstToken = Date.now() - providerStartAt;
+                  this.completionTimeToFirstTokenHistogram.record(
+                    timeToFirstToken,
+                    metricsAttributes
+                  );
                 }
 
                 if (chunk.usage && !completionUsage) {
@@ -305,7 +428,8 @@ export class CompletionService {
                 completionUsage,
                 auditEvents,
                 responseData,
-                providerResponse.headers
+                providerResponse.headers,
+                metricsAttributes
               );
             }
 
@@ -345,7 +469,8 @@ export class CompletionService {
               completionUsage,
               auditEvents,
               providerResponse.data,
-              providerResponse.headers
+              providerResponse.headers,
+              metricsAttributes
             );
           }
 
@@ -385,6 +510,11 @@ export class CompletionService {
 
           const { failureReason, statusCode, errorMessage, headers } =
             this.parseProviderError(error);
+
+          this.completionErrorCounter.add(1, {
+            ...metricsAttributes,
+            failureReason,
+          });
 
           auditEvents.push({
             timestamp: new Date(),
@@ -572,14 +702,44 @@ export class CompletionService {
     completionUsage: CompletionUsage | undefined,
     auditEvents: CompletionAuditEventEntity[],
     responseData: CompletionResponseData[] | CompletionResponseData | null,
-    responseHeaders: CompletionHeaders | null
+    responseHeaders: CompletionHeaders | null,
+    metricsAttributes: Attributes
   ) {
     const requestDuration = Date.now() - requestAt.getTime();
     const providerDuration = Date.now() - providerStartAt;
     if (completionUsage) {
       tokensPerSecond =
         completionUsage.total_tokens / ((Date.now() - providerStartAt) / 1000);
+
+      this.completionRequestTokensHistogram.record(
+        completionUsage.prompt_tokens,
+        metricsAttributes
+      );
+      this.completionResponseTokensHistogram.record(
+        completionUsage.completion_tokens,
+        metricsAttributes
+      );
+      this.completionTotalTokensHistogram.record(
+        completionUsage.total_tokens,
+        metricsAttributes
+      );
+      if (tokensPerSecond) {
+        this.completionTokensPerSecondHistogram.record(
+          tokensPerSecond,
+          metricsAttributes
+        );
+      }
     }
+
+    this.completionRequestDurationHistogram.record(
+      requestDuration,
+      metricsAttributes
+    );
+    this.completionProviderDurationHistogram.record(
+      providerDuration,
+      metricsAttributes
+    );
+    this.completionSuccessCounter.add(1, metricsAttributes);
 
     if (completionUsage) {
       await this.gateService.increaseTokenResponseUsage(

@@ -1,3 +1,5 @@
+import otelSDK from './tracing';
+
 import { LoggerErrorInterceptor, Logger as PinoLogger } from 'nestjs-pino';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -14,6 +16,8 @@ import { join } from 'path';
 import '@fastify/view';
 
 async function bootstrap() {
+  await otelSDK.start();
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
