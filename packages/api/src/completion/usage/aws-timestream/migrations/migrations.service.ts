@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CamelCasePlugin,
@@ -18,10 +18,7 @@ import { migration as migration01 } from './1-create-completions-table';
 import { TimestreamWriteClient } from '@aws-sdk/client-timestream-write';
 
 @Injectable()
-export class AWSTimestreamMigrationsService
-  extends BaseMigrationsService
-  implements OnModuleInit
-{
+export class AWSTimestreamMigrationsService extends BaseMigrationsService {
   constructor(logger: PinoLogger, configService: ConfigService) {
     super(logger, configService, 'DATABASE_MIGRATION_URL', 'aws-timestream');
     this.db = new Kysely({
@@ -51,9 +48,5 @@ export class AWSTimestreamMigrationsService
         '01': migration01(databaseName, writeClient),
       }),
     });
-  }
-
-  async onModuleInit() {
-    await this.migrate();
   }
 }

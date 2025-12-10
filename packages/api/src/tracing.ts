@@ -20,16 +20,18 @@ import {
 
 import process from 'process';
 
+const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
+
 const otelSDK = new NodeSDK({
   metricReader: new PeriodicExportingMetricReader({
     exporter: new OTLPMetricExporter({
-      url: 'http://localhost:4318/v1/metrics',
+      url: `${otlpEndpoint}/v1/metrics`,
     }),
     exportIntervalMillis: 60000, // 1 minute
   }),
   spanProcessor: new BatchSpanProcessor(
     new OTLPTraceExporter({
-      url: 'http://localhost:4318/v1/traces',
+      url: `${otlpEndpoint}/v1/traces`,
     })
   ),
   resource: resourceFromAttributes({

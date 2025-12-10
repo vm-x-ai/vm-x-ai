@@ -93,13 +93,6 @@
           "cwd": "{projectRoot}"
         }
       },
-      "gen-jwks": {
-        "executor": "nx:run-commands",
-        "options": {
-          "command": "ts-node -P tsconfig.app.json src/gen-jwks.ts",
-          "cwd": "{projectRoot}"
-        }
-      },
       "bootstrap": {
         "executor": "nx:run-commands",
         "options": {

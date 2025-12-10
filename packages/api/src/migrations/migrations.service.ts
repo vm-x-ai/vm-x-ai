@@ -1,8 +1,7 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CamelCasePlugin, Kysely, Migrator, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
-import { SERVICE_NAME } from '../consts';
 import { PinoLogger } from 'nestjs-pino';
 import { migration as migration01 } from './1-create-users';
 import { migration as migration02 } from './2-create-oidc-provider';
@@ -23,10 +22,7 @@ import { PasswordService } from '../auth/password.service';
 import { BaseMigrationsService, ListMigrationProvider } from './base';
 
 @Injectable()
-export class MigrationsService
-  extends BaseMigrationsService
-  implements OnModuleInit
-{
+export class MigrationsService extends BaseMigrationsService {
   constructor(
     logger: PinoLogger,
     configService: ConfigService,
@@ -67,12 +63,5 @@ export class MigrationsService
         '15': migration15,
       }),
     });
-  }
-
-  async onModuleInit() {
-    await this.db.schema
-      .createSchema(SERVICE_NAME.toLowerCase())
-      .ifNotExists()
-      .execute();
   }
 }

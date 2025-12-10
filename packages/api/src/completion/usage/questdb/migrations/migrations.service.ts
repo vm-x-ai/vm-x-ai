@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CamelCasePlugin,
@@ -18,10 +18,7 @@ import { migration as migration01 } from './1-create-completions-table';
 import { DB } from '../storage/entities';
 
 @Injectable()
-export class QuestDBMigrationsService
-  extends BaseMigrationsService
-  implements OnModuleInit
-{
+export class QuestDBMigrationsService extends BaseMigrationsService {
   constructor(logger: PinoLogger, configService: ConfigService) {
     super(logger, configService, 'DATABASE_MIGRATION_URL', 'questdb');
     this.db = new Kysely({
@@ -56,9 +53,5 @@ export class QuestDBMigrationsService
         '01': migration01(questdb),
       }),
     });
-  }
-
-  async onModuleInit() {
-    await this.migrate();
   }
 }

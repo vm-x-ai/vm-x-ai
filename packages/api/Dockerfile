@@ -4,13 +4,22 @@
 #
 # Run the container with `nx docker:run @open-vm-x-ai/api -p 3000:3000`.
 #
-FROM docker.io/node:lts-alpine
+FROM docker.io/node:24.2.0-alpine
 
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
 RUN corepack enable
 
+# Install vault CLI and jq for bootstrap script
+# Vault is not available in Alpine repos, so we download it from HashiCorp
+RUN apk add --no-cache jq bash curl unzip && \
+    VAULT_VERSION=1.18.0 && \
+    curl -fsSL https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip -o /tmp/vault.zip && \
+    unzip /tmp/vault.zip -d /usr/local/bin && \
+    rm /tmp/vault.zip && \
+    chmod +x /usr/local/bin/vault && \
+    vault version
 
 WORKDIR /app
 
@@ -21,4 +30,13 @@ COPY dist .
 
 RUN pnpm install
 
-CMD [ "node", "main.js" ]
+# Copy bootstrap script, entrypoint, and vault policy
+COPY script/bootstrap.sh /app/script/bootstrap.sh
+COPY script/vault/policy.hcl /app/script/vault/policy.hcl
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/script/bootstrap.sh /app/docker-entrypoint.sh
+
+EXPOSE 3000
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD [ "node", "src/main.js" ]

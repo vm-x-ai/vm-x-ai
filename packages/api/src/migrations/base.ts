@@ -8,6 +8,7 @@ import {
 import { DB } from '../storage/entities.generated';
 import { PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
+import { SERVICE_NAME } from '../consts';
 
 export class ListMigrationProvider implements MigrationProvider {
   constructor(private migrations: Record<string, Migration>) {}
@@ -29,6 +30,11 @@ export abstract class BaseMigrationsService {
   ) {}
 
   async migrate() {
+    await this.db.schema
+      .createSchema(SERVICE_NAME.toLowerCase())
+      .ifNotExists()
+      .execute();
+
     this.logger.debug(`${this.service}: Starting database migration`);
     const { error, results } = await this.migrator.migrateToLatest();
 
@@ -37,7 +43,10 @@ export abstract class BaseMigrationsService {
       throw error;
     }
 
-    this.logger.info({ results }, `${this.service}: Migration completed successfully`);
+    this.logger.info(
+      { results },
+      `${this.service}: Migration completed successfully`
+    );
     return results;
   }
 
@@ -53,7 +62,10 @@ export abstract class BaseMigrationsService {
       throw error;
     }
 
-    this.logger.info({ results }, `${this.service}: Migration up completed successfully`);
+    this.logger.info(
+      { results },
+      `${this.service}: Migration up completed successfully`
+    );
     return results;
   }
 
@@ -83,7 +95,10 @@ export abstract class BaseMigrationsService {
       throw error;
     }
 
-    this.logger.info({ results }, `${this.service}: Migration down completed successfully`);
+    this.logger.info(
+      { results },
+      `${this.service}: Migration down completed successfully`
+    );
     return results;
   }
 

@@ -32,7 +32,7 @@ export function ensureServerClientsInitialized() {
   for (const { client, baseUrl } of [
     {
       client: apiClient,
-      baseUrl: process.env.API_BASE_URL as string,
+      baseUrl: (process.env.API_BASE_INTERNAL_URL || process.env.API_BASE_URL) as string,
     },
   ]) {
     client.setConfig({

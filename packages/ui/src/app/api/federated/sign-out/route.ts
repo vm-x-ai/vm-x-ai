@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       `${
         data.end_session_endpoint
       }?post_logout_redirect_uri=${encodeURIComponent(
-        request.nextUrl.origin
+        process.env.AUTH_URL || request.nextUrl.origin
       )}&id_token_hint=${idToken}`
     );
   }

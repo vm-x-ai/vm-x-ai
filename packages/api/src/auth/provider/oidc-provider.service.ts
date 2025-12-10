@@ -48,7 +48,7 @@ export class OidcProviderService implements OnModuleInit {
   }
 
   get issuerUrl(): string {
-    return `${this.configService.getOrThrow<string>('BASE_URL')}/oauth2`;
+    return `${this.configService.getOrThrow<string>('OIDC_PROVIDER_ISSUER')}`;
   }
 
   private async getOidcConfiguration(): Promise<Configuration> {

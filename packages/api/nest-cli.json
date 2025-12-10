@@ -5,7 +5,14 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "assets": [
-      "assets/*"
+      {
+        "include": "../assets/*",
+        "outDir": "dist/assets"
+      },
+      {
+        "include": "../views/*",
+        "outDir": "dist/views"
+      }
     ],
     "watchAssets": true,
     "builder": "swc",

@@ -8,6 +8,7 @@ import { DefaultJWT, JWT } from 'next-auth/jwt';
 let refreshingPromise: Promise<JWT> | null = null;
 
 const result = NextAuth({
+  trustHost: true,
   pages: {
     signIn: '/api/signin',
   },

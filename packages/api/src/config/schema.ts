@@ -29,6 +29,7 @@ export const configSchema = Joi.object({
   REDIS_PORT: Joi.number().port().required(),
 
   // OIDC Provider
+  OIDC_PROVIDER_ISSUER: Joi.string().uri().required(),
   OIDC_PROVIDER_AUTO_CONSENT_CLIENT_IDS: Joi.string().default('ui'),
 
   // OIDC Federated Login
