@@ -10,11 +10,11 @@ global:
 images:
   api:
     repository: vmxai/api
-    tag: "2512.11.49fe280"
+    tag: "2512.11.94f0dae"
     pullPolicy: IfNotPresent
   ui:
     repository: vmxai/ui
-    tag: "2512.11.49fe280"
+    tag: "2512.11.94f0dae"
     pullPolicy: IfNotPresent
 
 # API Configuration

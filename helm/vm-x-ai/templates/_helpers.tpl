@@ -150,10 +150,15 @@ Generate API base URL
 */}}
 {{- define "vm-x-ai.api.baseUrl" -}}
 {{- if .Values.ingress.enabled }}
-{{- $host := (index .Values.ingress.hosts 0).host }}
+{{- $host := "" }}
+{{- if eq .Values.ingress.type "istio" }}
+{{- $host = (index .Values.ingress.istio.virtualService.hosts 0) }}
+{{- else }}
+{{- $host = (index .Values.ingress.nginx.hosts 0).host }}
+{{- end }}
 {{- printf "https://%s/api" $host }}
 {{- else }}
-{{- printf "http://%s-api:%d" (include "vm-x-ai.fullname" .) .Values.api.service.port }}
+{{- printf "http://%s-api:%d" (include "vm-x-ai.fullname" .) (int .Values.api.service.port) }}
 {{- end }}
 {{- end }}
 
@@ -162,10 +167,15 @@ Generate UI base URL
 */}}
 {{- define "vm-x-ai.ui.baseUrl" -}}
 {{- if .Values.ingress.enabled }}
-{{- $host := (index .Values.ingress.hosts 0).host }}
+{{- $host := "" }}
+{{- if eq .Values.ingress.type "istio" }}
+{{- $host = (index .Values.ingress.istio.virtualService.hosts 0) }}
+{{- else }}
+{{- $host = (index .Values.ingress.nginx.hosts 0).host }}
+{{- end }}
 {{- printf "https://%s" $host }}
 {{- else }}
-{{- printf "http://%s-ui:%d" (include "vm-x-ai.fullname" .) .Values.ui.service.port }}
+{{- printf "http://%s-ui:%d" (include "vm-x-ai.fullname" .) (int .Values.ui.service.port) }}
 {{- end }}
 {{- end }}
 

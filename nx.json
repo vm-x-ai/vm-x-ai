@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
     "production": [
       "default",
       "!{projectRoot}/.eslintrc.json",
@@ -90,7 +93,9 @@
   ],
   "targetDefaults": {
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     }
   },
   "tui": {
@@ -109,20 +114,19 @@
     "git": {
       "commitMessage": "chore(release): publish [no ci]"
     },
-    "version": {
-      "conventionalCommits": true
-    },
-    "projects": ["packages/**"],
-    "projectsRelationship": "independent",
-    "changelog": {
-      "projectChangelogs": {
-        "renderOptions": {
-          "authors": true,
-          "mapAuthorsToGitHubUsernames": true,
-          "commitReferences": true,
-          "versionTitleDate": true
+    "groups": {
+      "apps": {
+        "projects": [
+          "api",
+          "ui"
+        ],
+        "projectsRelationship": "independent",
+        "docker": {
+          "skipVersionActions": true
         },
-        "createRelease": "github"
+        "changelog": {
+          "projectChangelogs": true
+        }
       }
     }
   }

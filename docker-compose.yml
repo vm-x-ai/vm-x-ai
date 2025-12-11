@@ -38,9 +38,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    volumes:
-      # Mount vault config to access root-token.txt
-      - ./docker/vault/config:/vault/config:ro
     depends_on:
       - otel-collector
       - jaeger
@@ -48,7 +45,6 @@ services:
       - loki
       - grafana
       - postgres
-      - vault
       - redis
       - redis2
       - redis3
@@ -65,7 +61,7 @@ services:
       DATABASE_PORT: 5440
       DATABASE_USER: admin
       DATABASE_PASSWORD: password
-      DATABASE_DB_NAME: vmxai_dev
+      DATABASE_DB_NAME: vmxai
 
       # OIDC Provider
       OIDC_PROVIDER_ISSUER: http://localhost:3000/oauth2
@@ -75,7 +71,7 @@ services:
       REDIS_PORT: 7001
 
       # Vault
-      ENCRYPTION_PROVIDER: node-crypto
+      ENCRYPTION_PROVIDER: libsodium
       
       # Libsodium openssl rand -base64 32
       # Only used for development

@@ -15,6 +15,12 @@ WORKDIR /app
 
 COPY dist .
 
+RUN apk add --no-cache \
+    libc6-compat \
+    libstdc++ \
+    bash \
+    openssl
+
 # You can remove this install step if you build with `--bundle` option.
 # The bundled output will include external dependencies.
 
