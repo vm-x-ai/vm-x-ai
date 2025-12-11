@@ -1,3 +1,13 @@
+# 2512.11.a15b1e4 (2025-12-11)
+
+### 🩹 Fixes
+
+- add libsodium docker dependencies ([a15b1e4](https://github.com/vm-x-ai/open-vm-x-ai/commit/a15b1e4))
+
+### ❤️ Thank You
+
+- Lucas Vieira @lucasvieirasilva
+
 # 2512.11.94f0dae (2025-12-11)
 
 ### 🚀 Features
