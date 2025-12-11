@@ -1,3 +1,17 @@
+# 2512.11.9a5a7e7 (2025-12-11)
+
+### 🚀 Features
+
+- replace hashcorp vault with libsodium ([560adda](https://github.com/vm-x-ai/open-vm-x-ai/commit/560adda))
+
+### 🧱 Updated Dependencies
+
+- Updated shared-ai-provider to 0.3.0
+
+### ❤️ Thank You
+
+- Lucas Vieira @lucasvieirasilva
+
 # 2512.11.49fe280 (2025-12-11)
 
 This was a version bump only for ui to align it with other projects, there were no code changes.

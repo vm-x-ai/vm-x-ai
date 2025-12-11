@@ -1,3 +1,7 @@
+## 0.3.0 (2025-12-11)
+
+This was a version bump only for shared-ai-provider to align it with other projects, there were no code changes.
+
 ## 0.2.1 (2025-12-11)
 
 ### 🚀 Features
