@@ -9,7 +9,7 @@
     ],
     "release": {
       "docker": {
-        "repositoryName": "vmxai/api"
+        "repositoryName": "vmxai/ui"
       }
     },
     "targets": {
