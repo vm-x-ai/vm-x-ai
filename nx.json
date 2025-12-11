@@ -109,6 +109,9 @@
     "git": {
       "commitMessage": "chore(release): publish [no ci]"
     },
+    "version": {
+      "conventionalCommits": true
+    },
     "projects": ["packages/**"],
     "projectsRelationship": "independent",
     "docker": {
