@@ -17,9 +17,7 @@ export class AwsKmsEncryptionService extends EncryptionServiceBase {
 
     this.client = buildClient(CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT);
 
-    const kmsKeyId = this.configService.getOrThrow<string>(
-      'VAULT_AWS_KMS_KEY_ID'
-    );
+    const kmsKeyId = this.configService.getOrThrow<string>('AWS_KMS_KEY_ID');
 
     this.keyring = new KmsKeyringNode({
       generatorKeyId: kmsKeyId,

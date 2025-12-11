@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { SecretService } from './secrets.service';
-import { HashcorpEncryptionModule } from './hashcorp/encryption.module';
+import { LibsodiumEncryptionModule } from './libsodium/encryption.module';
 import { ConditionalModule } from '@nestjs/config';
 import { AwsKmsEncryptionModule } from './aws-kms/encryption.module';
 
@@ -8,12 +8,12 @@ import { AwsKmsEncryptionModule } from './aws-kms/encryption.module';
 @Module({
   imports: [
     ConditionalModule.registerWhen(
-      HashcorpEncryptionModule,
-      (env: NodeJS.ProcessEnv) => env.VAULT_ENCRYPTION_SERVICE === 'hashcorp'
+      LibsodiumEncryptionModule,
+      (env: NodeJS.ProcessEnv) => env.ENCRYPTION_PROVIDER === 'libsodium'
     ),
     ConditionalModule.registerWhen(
       AwsKmsEncryptionModule,
-      (env: NodeJS.ProcessEnv) => env.VAULT_ENCRYPTION_SERVICE === 'aws-kms'
+      (env: NodeJS.ProcessEnv) => env.ENCRYPTION_PROVIDER === 'aws-kms'
     ),
   ],
   providers: [SecretService],

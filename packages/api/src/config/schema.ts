@@ -48,35 +48,19 @@ export const configSchema = Joi.object({
   OIDC_FEDERATED_DEFAULT_ROLE: Joi.string().default('power-user'),
 
   // Vault
-  VAULT_ENCRYPTION_SERVICE: Joi.string()
-    .valid('hashcorp', 'aws-kms')
-    .default('hashcorp'),
+  ENCRYPTION_PROVIDER: Joi.string()
+    .valid('libsodium', 'aws-kms')
+    .default('libsodium'),
 
-  // Hashcorp Vault
-  VAULT_HASHCORP_ADDR: Joi.string().uri().when('VAULT_ENCRYPTION_SERVICE', {
-    is: 'hashcorp',
+  // Libsodium (default)
+  LIBSODIUM_ENCRYPTION_KEY: Joi.string().when('ENCRYPTION_PROVIDER', {
+    is: 'libsodium',
     then: Joi.required(),
     otherwise: Joi.optional(),
   }),
-  VAULT_HASHCORP_APPROLE_ROLE_ID: Joi.string().when(
-    'VAULT_ENCRYPTION_SERVICE',
-    {
-      is: 'hashcorp',
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }
-  ),
-  VAULT_HASHCORP_APPROLE_SECRET_ID: Joi.string().when(
-    'VAULT_ENCRYPTION_SERVICE',
-    {
-      is: 'hashcorp',
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }
-  ),
 
   // AWS KMS
-  VAULT_AWS_KMS_KEY_ID: Joi.string().when('VAULT_ENCRYPTION_SERVICE', {
+  AWS_KMS_KEY_ID: Joi.string().when('ENCRYPTION_PROVIDER', {
     is: 'aws-kms',
     then: Joi.required(),
     otherwise: Joi.optional(),

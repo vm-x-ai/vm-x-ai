@@ -75,12 +75,11 @@ services:
       REDIS_PORT: 7001
 
       # Vault
-      VAULT_ENCRYPTION_SERVICE: hashcorp
-
-      # Hashcorp
-      # VAULT_HASHCORP_APPROLE_ROLE_ID and VAULT_HASHCORP_APPROLE_SECRET_ID
-      # are automatically set by the bootstrap script
-      VAULT_HASHCORP_ADDR: http://localhost:8200
+      ENCRYPTION_PROVIDER: node-crypto
+      
+      # Libsodium openssl rand -base64 32
+      # Only used for development
+      LIBSODIUM_ENCRYPTION_KEY: mPpddUYSuhIkuLq6MqeARZSEBZiwWm0HwEGQD5YSMFc=
 
       # Timeseries Database
       COMPLETION_USAGE_PROVIDER: questdb
@@ -175,48 +174,6 @@ services:
       POSTGRES_USER: 'admin'
       POSTGRES_PASSWORD: password
       POSTGRES_DB: vmxai
-
-  # --------------------------------
-  # Hashcorp Vault (Secret Storage)
-  # --------------------------------
-  # Only for development, use a real KMS to unseal the vault in production
-  vault-kms:
-    image: hashicorp/vault:latest
-    ports:
-      - "8201:8200"
-    volumes:
-      - ./docker/vault-kms/config:/vault/config
-      - ./docker/vault-kms/file:/vault/file
-    command: /vault/config/init.sh
-    healthcheck:
-      test: ["CMD", "sh", "-c", "VAULT_TOKEN=root vault read -address=http://127.0.0.1:8200 transit/keys/autounseal"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  # --------------------------------
-  # Hashcorp Vault (Secret Storage)
-  # --------------------------------
-  vault:
-    image: hashicorp/vault:latest
-    ports:
-      - "8200:8200"
-    environment:
-      DB_HOST: postgres
-      DB_USER: admin
-      DB_NAME: vmxai
-      DB_PASSWORD: password
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - ./docker/vault/config:/vault/config
-    depends_on:
-      postgres:
-        condition: service_started
-      vault-kms:
-        condition: service_healthy
-    command: /vault/config/init.sh
 
   # -------------------------------
   # Redis (Cache) Node 1 (Main)

@@ -345,6 +345,12 @@ importers:
       kysely-codegen:
         specifier: 0.19.0
         version: 0.19.0(kysely@0.28.8)(pg@8.16.3)(typescript@5.9.3)
+      libsodium:
+        specifier: ^0.7.15
+        version: 0.7.15
+      libsodium-wrappers:
+        specifier: ^0.7.15
+        version: 0.7.15
       lodash:
         specifier: 4.17.21
         version: 4.17.21
@@ -430,6 +436,9 @@ importers:
       '@types/json-schema':
         specifier: ^7.0.15
         version: 7.0.15
+      '@types/libsodium-wrappers':
+        specifier: ^0.7.14
+        version: 0.7.14
       '@types/lodash.get':
         specifier: ^4.4.9
         version: 4.4.9
@@ -5119,6 +5128,9 @@ packages:
   '@types/koa@3.0.1':
     resolution: {integrity: sha512-VkB6WJUQSe0zBpR+Q7/YIUESGp5wPHcaXr0xueU5W0EOUWtlSbblsl+Kl31lyRQ63nIILh0e/7gXjQ09JXJIHw==}
 
+  '@types/libsodium-wrappers@0.7.14':
+    resolution: {integrity: sha512-5Kv68fXuXK0iDuUir1WPGw2R9fOZUlYlSAa0ztMcL0s0BfIDTqg9GXz8K30VJpPP3sxWhbolnQma2x+/TfkzDQ==}
+
   '@types/lodash.get@4.4.9':
     resolution: {integrity: sha512-J5dvW98sxmGnamqf+/aLP87PYXyrha9xIgc2ZlHl6OHMFR2Ejdxep50QfU0abO1+CH6+ugx+8wEUN1toImAinA==}
 
@@ -8743,6 +8755,12 @@ packages:
 
   libphonenumber-js@1.12.24:
     resolution: {integrity: sha512-l5IlyL9AONj4voSd7q9xkuQOL4u8Ty44puTic7J88CmdXkxfGsRfoVLXHCxppwehgpb/Chdb80FFehHqjN3ItQ==}
+
+  libsodium-wrappers@0.7.15:
+    resolution: {integrity: sha512-E4anqJQwcfiC6+Yrl01C1m8p99wEhLmJSs0VQqST66SbQXXBoaJY0pF4BNjRYa/sOQAxx6lXAaAFIlx+15tXJQ==}
+
+  libsodium@0.7.15:
+    resolution: {integrity: sha512-sZwRknt/tUpE2AwzHq3jEyUU5uvIZHtSssktXq7owd++3CSgn8RGrv6UZJJBpP7+iBghBqe7Z06/2M31rI2NKw==}
 
   license-webpack-plugin@4.0.2:
     resolution: {integrity: sha512-771TFWFD70G1wLTC4oU2Cw4qvtmNrIw+wRvBtn+okgHl7slJVi7zfNcdmqDL72BojM30VNJ2UHylr1o77U37Jw==}
@@ -18363,6 +18381,8 @@ snapshots:
       '@types/koa-compose': 3.2.9
       '@types/node': 20.19.9
 
+  '@types/libsodium-wrappers@0.7.14': {}
+
   '@types/lodash.get@4.4.9':
     dependencies:
       '@types/lodash': 4.17.20
@@ -22724,6 +22744,12 @@ snapshots:
       type-check: 0.4.0
 
   libphonenumber-js@1.12.24: {}
+
+  libsodium-wrappers@0.7.15:
+    dependencies:
+      libsodium: 0.7.15
+
+  libsodium@0.7.15: {}
 
   license-webpack-plugin@4.0.2(webpack@5.102.1):
     dependencies:

@@ -114,11 +114,6 @@
     },
     "projects": ["packages/**"],
     "projectsRelationship": "independent",
-    "docker": {
-      "versionSchemes": {
-        "production": "{versionActionsVersion}"
-      }
-    },
     "changelog": {
       "projectChangelogs": {
         "renderOptions": {
