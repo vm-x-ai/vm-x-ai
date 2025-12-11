@@ -1,6 +1,61 @@
 {{- if .Values.otel.enabled }}
 {{- if .Values.otel.collector.enabled }}
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-otel-collector-config
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+
+    exporters:
+    {{- if .Values.otel.jaeger.enabled }}
+      otlp:
+        endpoint: {{ include "vm-x-ai.fullname" . }}-jaeger:4318
+        tls:
+          insecure: true
+    {{- end }}
+    {{- if .Values.otel.prometheus.enabled }}
+      prometheus:
+        endpoint: 0.0.0.0:8889
+    {{- end }}
+    {{- if .Values.otel.loki.enabled }}
+      otlphttp:
+        endpoint: http://{{ include "vm-x-ai.fullname" . }}-loki:{{ .Values.otel.loki.service.port }}/otlp
+    {{- end }}
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp]
+    {{- if .Values.otel.prometheus.enabled }}
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
+    {{- end }}
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+    {{- if .Values.otel.loki.enabled }}
+          exporters: [otlphttp]
+    {{- end }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,8 +92,22 @@ spec:
           containerPort: {{ .port }}
           protocol: TCP
         {{- end }}
+        {{- if .Values.otel.prometheus.enabled }}
+        - name: prometheus
+          containerPort: 8889
+          protocol: TCP
+        {{- end }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otel-collector-config.yaml
+          subPath: otel-collector-config.yaml
+          readOnly: true
         resources:
           {{- toYaml .Values.otel.collector.resources | nindent 10 }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "vm-x-ai.fullname" . }}-otel-collector-config
 ---
 apiVersion: v1
 kind: Service
@@ -55,6 +124,12 @@ spec:
       targetPort: {{ .name }}
       protocol: TCP
       name: {{ .name }}
+    {{- end }}
+    {{- if .Values.otel.prometheus.enabled }}
+    - port: 8889
+      targetPort: prometheus
+      protocol: TCP
+      name: prometheus
     {{- end }}
   selector:
     {{- include "vm-x-ai.selectorLabels" . | nindent 4 }}
@@ -210,7 +285,7 @@ data:
     global:
       scrape_interval: 15s
       evaluation_interval: 15s
-    
+
     scrape_configs:
       - job_name: 'vm-x-ai-api'
         kubernetes_sd_configs:
@@ -219,6 +294,11 @@ data:
           - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
             action: keep
             regex: api
+    {{- if .Values.otel.collector.enabled }}
+      - job_name: 'otel-collector'
+        static_configs:
+          - targets: ['{{ include "vm-x-ai.fullname" . }}-otel-collector:8889']
+    {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -326,6 +406,36 @@ spec:
 {{- end }}
 {{- if .Values.otel.grafana.enabled }}
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-grafana-datasources
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  datasources.yaml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://{{ include "vm-x-ai.fullname" . }}-prometheus:{{ .Values.otel.prometheus.service.port }}
+        isDefault: true
+        editable: true
+        jsonData:
+          timeInterval: "15s"
+{{- if .Values.otel.loki.enabled }}
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://{{ include "vm-x-ai.fullname" . }}-loki:{{ .Values.otel.loki.service.port }}
+        editable: true
+        jsonData:
+          maxLines: 1000
+{{- end }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -360,6 +470,9 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /var/lib/grafana
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+          readOnly: true
         resources:
           {{- toYaml .Values.otel.grafana.resources | nindent 10 }}
       volumes:
@@ -370,6 +483,9 @@ spec:
         {{- else }}
         emptyDir: {}
         {{- end }}
+      - name: datasources
+        configMap:
+          name: {{ include "vm-x-ai.fullname" . }}-grafana-datasources
 ---
 {{- if .Values.otel.grafana.persistence.enabled }}
 apiVersion: v1

@@ -146,6 +146,23 @@ Generate QuestDB host
 {{- end }}
 
 {{/*
+Check if TLS is enabled for ingress
+*/}}
+{{- define "vm-x-ai.ingress.tlsEnabled" -}}
+{{- if eq .Values.ingress.type "istio" }}
+{{- range .Values.ingress.istio.gateway.servers }}
+{{- if and (eq .port.protocol "HTTPS") .tls }}
+true
+{{- end }}
+{{- end }}
+{{- else }}
+{{- if .Values.ingress.nginx.tls }}
+true
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 Generate API base URL
 */}}
 {{- define "vm-x-ai.api.baseUrl" -}}
@@ -156,7 +173,12 @@ Generate API base URL
 {{- else }}
 {{- $host = (index .Values.ingress.nginx.hosts 0).host }}
 {{- end }}
+{{- $tlsEnabled := include "vm-x-ai.ingress.tlsEnabled" . }}
+{{- if $tlsEnabled }}
 {{- printf "https://%s/api" $host }}
+{{- else }}
+{{- printf "http://%s/api" $host }}
+{{- end }}
 {{- else }}
 {{- printf "http://%s-api:%d" (include "vm-x-ai.fullname" .) (int .Values.api.service.port) }}
 {{- end }}
@@ -173,7 +195,12 @@ Generate UI base URL
 {{- else }}
 {{- $host = (index .Values.ingress.nginx.hosts 0).host }}
 {{- end }}
+{{- $tlsEnabled := include "vm-x-ai.ingress.tlsEnabled" . }}
+{{- if $tlsEnabled }}
 {{- printf "https://%s" $host }}
+{{- else }}
+{{- printf "http://%s" $host }}
+{{- end }}
 {{- else }}
 {{- printf "http://%s-ui:%d" (include "vm-x-ai.fullname" .) (int .Values.ui.service.port) }}
 {{- end }}
@@ -184,6 +211,19 @@ Generate OIDC Provider Issuer
 */}}
 {{- define "vm-x-ai.oidc.issuer" -}}
 {{- include "vm-x-ai.api.baseUrl" . }}/oauth2
+{{- end }}
+
+{{/*
+Generate OTEL Exporter Endpoint
+*/}}
+{{- define "vm-x-ai.otel.exporterEndpoint" -}}
+{{- if .Values.otel.exporterEndpoint }}
+{{- .Values.otel.exporterEndpoint }}
+{{- else if and .Values.otel.enabled .Values.otel.collector.enabled }}
+{{- printf "http://%s-otel-collector:%d" (include "vm-x-ai.fullname" .) (int (index .Values.otel.collector.service.ports 1).port) }}
+{{- else }}
+{{- "" }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -281,4 +321,5 @@ Get secret key for ui auth secret
 {{- "auth-secret" }}
 {{- end }}
 {{- end }}
+
 

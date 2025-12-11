@@ -41,7 +41,7 @@ export function setupOpenAPIDocumentation(app: INestApplication) {
     const document = SwaggerModule.createDocument(app, config);
 
     // Manually add OIDC provider endpoints
-    document.paths['/oauth2/authorize'] = {
+    document.paths['/api/oauth2/authorize'] = {
       get: {
         security: [],
         summary: 'OIDC Authorization Endpoint',
@@ -108,7 +108,7 @@ export function setupOpenAPIDocumentation(app: INestApplication) {
       },
     };
 
-    document.paths['/oauth2/token'] = {
+    document.paths['/api/oauth2/token'] = {
       post: {
         security: [],
         summary: 'OIDC Token Endpoint',
@@ -173,7 +173,7 @@ export function setupOpenAPIDocumentation(app: INestApplication) {
       },
     };
 
-    document.paths['/oauth2/userinfo'] = {
+    document.paths['/api/oauth2/userinfo'] = {
       get: {
         description: 'Returns claims about the authenticated end-user',
         tags: ['OIDC Provider'],
@@ -202,7 +202,7 @@ export function setupOpenAPIDocumentation(app: INestApplication) {
       },
     };
 
-    document.paths['/oauth2/revoke'] = {
+    document.paths['/api/oauth2/revoke'] = {
       post: {
         security: [],
         summary: 'Token Revocation Endpoint',
@@ -234,7 +234,7 @@ export function setupOpenAPIDocumentation(app: INestApplication) {
       },
     };
 
-    document.paths['/oauth2/.well-known/openid-configuration'] = {
+    document.paths['/api/oauth2/.well-known/openid-configuration'] = {
       get: {
         security: [],
         summary: 'OpenID Connect Discovery',
@@ -258,7 +258,7 @@ export function setupOpenAPIDocumentation(app: INestApplication) {
 
     return document;
   };
-  SwaggerModule.setup('docs', app, documentFactory, {
+  SwaggerModule.setup('api/docs', app, documentFactory, {
     swaggerOptions: {
       persistAuthorization: true,
       oauth2RedirectUrl: `${configService.getOrThrow<string>(

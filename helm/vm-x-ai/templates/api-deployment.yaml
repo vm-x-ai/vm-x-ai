@@ -73,6 +73,8 @@ spec:
           value: {{ include "vm-x-ai.redis.host" . | quote }}
         - name: REDIS_PORT
           value: {{ include "vm-x-ai.redis.port" . | toString | quote }}
+        - name: REDIS_MODE
+          value: {{ .Values.redis.mode | quote }}
         - name: ENCRYPTION_PROVIDER
           value: {{ .Values.api.encryption.provider | quote }}
         {{- if eq .Values.api.encryption.provider "libsodium" }}
@@ -127,10 +129,13 @@ spec:
           value: {{ .Values.api.oidcFederated.defaultRole | quote }}
         {{- end }}
         {{- if .Values.otel.enabled }}
+        {{- $otelEndpoint := include "vm-x-ai.otel.exporterEndpoint" . }}
+        {{- if $otelEndpoint }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: {{ printf "http://%s-otel-collector:%d" (include "vm-x-ai.fullname" .) (index .Values.otel.collector.service.ports 1).port | quote }}
+          value: {{ $otelEndpoint | quote }}
         - name: OTEL_LOG_LEVEL
           value: error
+        {{- end }}
         {{- end }}
         resources:
           {{- toYaml .Values.api.resources | nindent 10 }}

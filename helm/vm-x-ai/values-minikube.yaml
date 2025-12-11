@@ -27,21 +27,44 @@ ui:
       cpu: 500m
       memory: 512Mi
 
-postgresql:
-  persistence:
-    enabled: false  # Use emptyDir for development
-
 redis:
   mode: single
-  single:
-    persistence:
-      enabled: false  # Use emptyDir for development
 
-questdb:
-  persistence:
-    enabled: false  # Use emptyDir for development
-
-# Disable OTEL services by default (can be enabled if needed)
 otel:
-  enabled: false
+  enabled: true
+  collector:
+    enabled: true
+  jaeger:
+    enabled: true
+  prometheus:
+    enabled: true
+  loki:
+    enabled: true
+  grafana:
+    enabled: true
 
+ingress:
+  type: istio
+  enabled: true
+
+  istio:
+    # Gateway configuration
+    gateway:
+      name: vm-x-ai-gateway
+      namespace: istio-system  # Usually deployed in istio-system
+      selector:
+        istio: ingressgateway
+      servers:
+        - port:
+            number: 80
+            name: http
+            protocol: HTTP
+          hosts:
+            - vm-x-ai.local
+    
+    # VirtualService configuration
+    virtualService:
+      hosts:
+        - vm-x-ai.local
+      gateways:
+        - istio-system/vm-x-ai-gateway

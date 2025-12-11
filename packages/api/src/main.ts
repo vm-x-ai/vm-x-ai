@@ -24,6 +24,9 @@ async function bootstrap() {
       bodyLimit: 100 * 1024 * 1024, // 100MB
     })
   );
+
+  app.setGlobalPrefix('api');
+
   const fastify = app.getHttpAdapter().getInstance();
   // Register the plugin to allow Express-style middleware
   if (typeof fastify.use !== 'function') {
@@ -61,11 +64,11 @@ async function bootstrap() {
 
   const oidcProvider = app.get(OidcProviderService);
   // Mount the OIDC provider
-  fastify.use('/oauth2', oidcProvider.provider.callback());
+  fastify.use('/api/oauth2', oidcProvider.provider.callback());
 
   app.useStaticAssets({
     root: join(__dirname, '..', 'assets'),
-    prefix: '/assets/',
+    prefix: '/api/assets/',
   });
 
   app.setViewEngine({

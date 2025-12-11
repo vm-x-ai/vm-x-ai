@@ -10,11 +10,11 @@ global:
 images:
   api:
     repository: vmxai/api
-    tag: "2512.11.94f0dae"
-    pullPolicy: IfNotPresent
+    tag: "lts"
+    pullPolicy: Always
   ui:
     repository: vmxai/ui
-    tag: "2512.11.94f0dae"
+    tag: "2512.11.9a5a7e7"
     pullPolicy: IfNotPresent
 
 # API Configuration
@@ -274,6 +274,11 @@ questdb:
 otel:
   enabled: false
   
+  # OTEL Exporter Endpoint
+  # If empty, will auto-generate based on collector service (if collector is enabled)
+  # Otherwise, specify a custom endpoint (e.g., "http://external-otel-collector:4318")
+  exporterEndpoint: ""  # Empty = auto-generate, or specify custom endpoint
+  
   collector:
     enabled: false
     image:
@@ -315,6 +320,10 @@ otel:
           port: 14268
         - name: collector-grpc
           port: 14250
+        - name: otlp-grpc
+          port: 4317
+        - name: otlp-http
+          port: 4318
     
     resources:
       requests:

@@ -138,7 +138,7 @@ export class OidcInteractionController {
     }
 
     res.redirect(
-      `/interaction/${uid}?error=invalid_credentials`,
+      `/api/interaction/${uid}?error=invalid_credentials`,
       HttpStatus.FOUND
     );
   }
@@ -230,7 +230,7 @@ export class OidcInteractionController {
     @Query('state') state: string | undefined
   ) {
     return {
-      url: `/interaction/${state}/federated?${new URLSearchParams(
+      url: `/api/interaction/${state}/federated?${new URLSearchParams(
         req.query as Record<string, string>
       ).toString()}`,
       statusCode: HttpStatus.FOUND,

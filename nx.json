@@ -122,7 +122,8 @@
         ],
         "projectsRelationship": "independent",
         "docker": {
-          "skipVersionActions": true
+          "skipVersionActions": true,
+          "groupPreVersionCommand": "pnpm nx affected --target=docker:build"
         },
         "changelog": {
           "projectChangelogs": true

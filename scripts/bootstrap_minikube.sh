@@ -111,3 +111,5 @@ if ! helm status ingressgateway -n istio-system &>/dev/null; then
 fi
 
 log_newline
+
+cleanup

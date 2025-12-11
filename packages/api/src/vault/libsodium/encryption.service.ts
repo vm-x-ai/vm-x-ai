@@ -26,6 +26,8 @@ export class LibsodiumEncryptionService
     plaintext: string,
     context?: Record<string, string>
   ): Promise<string> {
+    await sodium.ready;
+
     const nonce = sodium.randombytes_buf(
       sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
     );
@@ -54,6 +56,8 @@ export class LibsodiumEncryptionService
     ciphertext: string,
     context?: Record<string, string>
   ): Promise<string> {
+    await sodium.ready;
+
     const encryptedData = Buffer.from(ciphertext, 'base64');
     const { ciphertext: ciphertextBase64, nonce: nonceBase64 } = JSON.parse(
       encryptedData.toString('utf8')

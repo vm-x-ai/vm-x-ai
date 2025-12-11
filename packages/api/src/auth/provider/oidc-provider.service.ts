@@ -205,7 +205,7 @@ export class OidcProviderService implements OnModuleInit {
       },
       interactions: {
         url(_, interaction) {
-          return `/interaction/${interaction.uid}`;
+          return `/api/interaction/${interaction.uid}`;
         },
       },
       cookies: {

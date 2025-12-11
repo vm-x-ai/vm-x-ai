@@ -55,6 +55,13 @@ spec:
           value: {{ printf "%s/api/auth" (include "vm-x-ai.ui.baseUrl" .) | quote }}
         - name: API_BASE_URL
           value: {{ include "vm-x-ai.api.baseUrl" . | quote }}
+        {{- if .Values.otel.enabled }}
+        {{- $otelEndpoint := include "vm-x-ai.otel.exporterEndpoint" . }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ $otelEndpoint | quote }}
+        - name: OTEL_LOG_LEVEL
+          value: error
+        {{- end }}
         resources:
           {{- toYaml .Values.ui.resources | nindent 10 }}
       {{- with .Values.ui.nodeSelector }}
