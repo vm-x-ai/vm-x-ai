@@ -1,0 +1,94 @@
+# Example values for Istio service mesh
+# Usage: helm install vm-x-ai ./helm/vm-x-ai -f values-istio.yaml
+#
+# Prerequisites:
+# - Istio must be installed in your cluster
+# - Gateway should be deployed in istio-system namespace
+# - TLS secret should exist in istio-system namespace
+
+# Use Istio instead of nginx ingress
+ingress:
+  type: istio
+  enabled: true
+  
+  istio:
+    gateway:
+      name: vm-x-ai-gateway
+      namespace: istio-system
+      selector:
+        istio: ingressgateway
+      servers:
+        - port:
+            number: 80
+            name: http
+            protocol: HTTP
+          hosts:
+            - vm-x-ai.example.com
+        - port:
+            number: 443
+            name: https
+            protocol: HTTPS
+          tls:
+            mode: SIMPLE
+            credentialName: vm-x-ai-tls  # Must exist in istio-system namespace
+          hosts:
+            - vm-x-ai.example.com
+    
+    virtualService:
+      hosts:
+        - vm-x-ai.example.com
+      gateways:
+        - istio-system/vm-x-ai-gateway
+      
+      # Traffic management policies
+      trafficPolicy:
+        # Load balancing strategy
+        loadBalancer:
+          simple: LEAST_CONN  # Options: ROUND_ROBIN, LEAST_CONN, RANDOM, PASSTHROUGH
+        
+        # Connection pool settings for better performance
+        connectionPool:
+          tcp:
+            maxConnections: 100
+          http:
+            http1MaxPendingRequests: 10
+            http2MaxRequests: 100
+            maxRequestsPerConnection: 2
+            idleTimeout: 90s
+        
+        # Circuit breaker for resilience
+        outlierDetection:
+          consecutiveErrors: 3
+          interval: 30s
+          baseEjectionTime: 30s
+          maxEjectionPercent: 50
+          minHealthPercent: 50
+
+# Production-ready settings
+api:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 4000m
+      memory: 4Gi
+
+ui:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Note: With Istio, you also get:
+# - Automatic mTLS between services
+# - Advanced observability (Kiali, Grafana, Prometheus)
+# - Traffic splitting for canary deployments
+# - Request routing based on headers, weights, etc.
+# - Rate limiting and fault injection capabilities
+

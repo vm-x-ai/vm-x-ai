@@ -1,0 +1,79 @@
+{{- if and .Values.ingress.enabled (eq .Values.ingress.type "istio") }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ .Values.ingress.istio.gateway.name }}
+  namespace: {{ .Values.ingress.istio.gateway.namespace }}
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- toYaml .Values.ingress.istio.gateway.selector | nindent 4 }}
+  servers:
+    {{- toYaml .Values.ingress.istio.gateway.servers | nindent 4 }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+spec:
+  hosts:
+    {{- toYaml .Values.ingress.istio.virtualService.hosts | nindent 4 }}
+  gateways:
+    {{- toYaml .Values.ingress.istio.virtualService.gateways | nindent 4 }}
+  http:
+    # API routes (must come before UI routes for proper matching)
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: {{ include "vm-x-ai.fullname" . }}-api
+            port:
+              number: {{ .Values.api.service.port }}
+      {{- if .Values.ingress.istio.virtualService.trafficPolicy }}
+      {{- with .Values.ingress.istio.virtualService.trafficPolicy }}
+      {{- if .loadBalancer }}
+      loadBalancer:
+        {{- toYaml .loadBalancer | nindent 8 }}
+      {{- end }}
+      {{- if .connectionPool }}
+      connectionPool:
+        {{- toYaml .connectionPool | nindent 8 }}
+      {{- end }}
+      {{- if .outlierDetection }}
+      outlierDetection:
+        {{- toYaml .outlierDetection | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+    # UI routes (catch-all)
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: {{ include "vm-x-ai.fullname" . }}-ui
+            port:
+              number: {{ .Values.ui.service.port }}
+      {{- if .Values.ingress.istio.virtualService.trafficPolicy }}
+      {{- with .Values.ingress.istio.virtualService.trafficPolicy }}
+      {{- if .loadBalancer }}
+      loadBalancer:
+        {{- toYaml .loadBalancer | nindent 8 }}
+      {{- end }}
+      {{- if .connectionPool }}
+      connectionPool:
+        {{- toYaml .connectionPool | nindent 8 }}
+      {{- end }}
+      {{- if .outlierDetection }}
+      outlierDetection:
+        {{- toYaml .outlierDetection | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+{{- end }}
+

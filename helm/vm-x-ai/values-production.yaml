@@ -1,0 +1,206 @@
+# Example values for production environment
+# Usage: helm install vm-x-ai ./helm/vm-x-ai -f values-production.yaml
+
+# Production-ready settings
+api:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 4000m
+      memory: 4Gi
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+  timeseriesDb:
+    provider: aws-timestream
+    awsTimestream:
+      databaseName: "vmxai-production"
+  vault:
+    encryptionService: aws-kms
+    awsKms:
+      keyId: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+
+ui:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Use external PostgreSQL (recommended for production)
+postgresql:
+  enabled: false
+  external:
+    host: "postgres.example.com"
+    port: 5432
+    database: "vmxai"
+    username: "admin"
+    # password should be set via secret
+
+# Use Redis cluster for production
+redis:
+  enabled: true
+  mode: cluster
+  cluster:
+    nodes: 6
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClass: "fast-ssd"
+
+# Use external QuestDB or AWS Timestream (recommended for production)
+questdb:
+  enabled: false
+
+# Use AWS KMS instead of Hashcorp Vault (recommended for production)
+vault:
+  enabled: false
+
+# Enable ingress with TLS
+# Option 1: Nginx Ingress (uncomment to use)
+# ingress:
+#   type: nginx
+#   enabled: true
+#   nginx:
+#     className: "nginx"
+#     annotations:
+#       cert-manager.io/cluster-issuer: "letsencrypt-prod"
+#       nginx.ingress.kubernetes.io/ssl-redirect: "true"
+#     hosts:
+#       - host: vm-x-ai.example.com
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             service: ui
+#           - path: /api
+#             pathType: Prefix
+#             service: api
+#     tls:
+#       - secretName: vm-x-ai-tls
+#         hosts:
+#           - vm-x-ai.example.com
+
+# Option 2: Istio (recommended for production - uncomment to use)
+ingress:
+  type: istio
+  enabled: true
+  istio:
+    gateway:
+      name: vm-x-ai-gateway
+      namespace: istio-system
+      selector:
+        istio: ingressgateway
+      servers:
+        - port:
+            number: 80
+            name: http
+            protocol: HTTP
+          hosts:
+            - vm-x-ai.example.com
+        - port:
+            number: 443
+            name: https
+            protocol: HTTPS
+          tls:
+            mode: SIMPLE
+            credentialName: vm-x-ai-tls  # Must exist in istio-system namespace
+          hosts:
+            - vm-x-ai.example.com
+    
+    virtualService:
+      hosts:
+        - vm-x-ai.example.com
+      gateways:
+        - istio-system/vm-x-ai-gateway
+      
+      trafficPolicy:
+        loadBalancer:
+          simple: LEAST_CONN
+        connectionPool:
+          tcp:
+            maxConnections: 100
+        outlierDetection:
+          consecutiveErrors: 3
+          interval: 30s
+          baseEjectionTime: 30s
+          maxEjectionPercent: 50
+          minHealthPercent: 50
+
+# Enable OTEL for observability
+otel:
+  enabled: true
+  collector:
+    enabled: true
+  jaeger:
+    enabled: true
+  prometheus:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 100Gi
+      storageClass: "fast-ssd"
+  loki:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 200Gi
+      storageClass: "fast-ssd"
+  grafana:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: "fast-ssd"
+
+# Use proper storage classes
+postgresql:
+  persistence:
+    storageClass: "fast-ssd"
+
+# Security: Use external secrets in production
+# Option 1: Reference existing Kubernetes secrets
+secrets:
+  method: external
+  external:
+    database:
+      secretName: "postgresql-credentials"  # Create this secret separately
+      passwordKey: "password"
+    questdb:
+      secretName: "questdb-credentials"
+      passwordKey: "password"
+    ui:
+      secretName: "ui-auth-secret"
+      authSecretKey: "auth-secret"
+    vault:
+      secretName: "vault-root-token"
+      rootTokenKey: "root-token"
+    vaultApprole:
+      secretName: "vault-approle-credentials"
+      roleIdKey: "role-id"
+      secretIdKey: "secret-id"
+
+# Option 2: Use External Secrets Operator (uncomment to use)
+# secrets:
+#   method: eso
+#   externalSecrets:
+#     enabled: true
+#     secretStore:
+#       name: "aws-secrets-manager"
+#       kind: SecretStore
+#     database:
+#       secretKey: "vmxai/production/postgresql"
+#       passwordKey: "password"
+#     questdb:
+#       secretKey: "vmxai/production/questdb"
+#       passwordKey: "password"
+#     ui:
+#       secretKey: "vmxai/production/ui"
+#       authSecretKey: "auth-secret"
+

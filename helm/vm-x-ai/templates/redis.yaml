@@ -1,0 +1,266 @@
+{{- if .Values.redis.enabled }}
+{{- if eq .Values.redis.mode "single" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-redis
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "vm-x-ai.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "vm-x-ai.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: redis
+        image: {{ printf "%s:%s" .Values.redis.single.image.repository .Values.redis.single.image.tag }}
+        imagePullPolicy: {{ .Values.redis.single.image.pullPolicy }}
+        ports:
+        - name: redis
+          containerPort: 6379
+          protocol: TCP
+        command:
+        - redis-server
+        - --appendonly
+        - "yes"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          {{- toYaml .Values.redis.single.resources | nindent 10 }}
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: data
+        {{- if .Values.redis.single.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "vm-x-ai.fullname" . }}-redis
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+---
+{{- if .Values.redis.single.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-redis
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.redis.single.persistence.size }}
+  {{- if .Values.redis.single.persistence.storageClass }}
+  storageClassName: {{ .Values.redis.single.persistence.storageClass }}
+  {{- end }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-redis
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  type: {{ .Values.redis.single.service.type }}
+  ports:
+    - port: {{ .Values.redis.single.service.port }}
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "vm-x-ai.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+{{- else if eq .Values.redis.mode "cluster" }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-redis-cluster
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  serviceName: {{ include "vm-x-ai.fullname" . }}-redis-cluster
+  replicas: {{ .Values.redis.cluster.nodes }}
+  selector:
+    matchLabels:
+      {{- include "vm-x-ai.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "vm-x-ai.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: redis
+        image: {{ printf "%s:%s" .Values.redis.cluster.image.repository .Values.redis.cluster.image.tag }}
+        imagePullPolicy: {{ .Values.redis.cluster.image.pullPolicy }}
+        ports:
+        - name: client
+          containerPort: 6379
+          protocol: TCP
+        - name: cluster
+          containerPort: 16379
+          protocol: TCP
+        command:
+        - /bin/sh
+        - -c
+        - |
+          redis-server /etc/redis/redis.conf --cluster-announce-ip $(hostname -i) --cluster-announce-port 6379
+        volumeMounts:
+        - name: config
+          mountPath: /etc/redis
+        - name: data
+          mountPath: /data
+        resources:
+          {{- toYaml .Values.redis.cluster.resources | nindent 10 }}
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "vm-x-ai.fullname" . }}-redis-config
+      - name: data
+        {{- if .Values.redis.cluster.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: data
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+  volumeClaimTemplates:
+  {{- if .Values.redis.cluster.persistence.enabled }}
+  - metadata:
+      name: data
+      labels:
+        {{- include "vm-x-ai.labels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: {{ .Values.redis.cluster.persistence.size }}
+      {{- if .Values.redis.cluster.persistence.storageClass }}
+      storageClassName: {{ .Values.redis.cluster.persistence.storageClass }}
+      {{- end }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-redis-config
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+data:
+  redis.conf: |
+    port 6379
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    cluster-node-timeout 5000
+    appendonly yes
+    protected-mode no
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-redis-cluster
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  type: {{ .Values.redis.cluster.service.type }}
+  clusterIP: None
+  ports:
+    {{- range .Values.redis.cluster.service.ports }}
+    - port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: TCP
+      name: {{ .name }}
+    {{- end }}
+  selector:
+    {{- include "vm-x-ai.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-redis-cluster-init
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "vm-x-ai.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      restartPolicy: OnFailure
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: redis-cluster-init
+        image: {{ printf "%s:%s" .Values.redis.cluster.image.repository .Values.redis.cluster.image.tag }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          sleep 10
+          redis-cli --cluster create \
+            {{- range $i := until .Values.redis.cluster.nodes }}
+            {{- printf " %s-redis-cluster-%d.%s-redis-cluster:6379" (include "vm-x-ai.fullname" $) $i (include "vm-x-ai.fullname" $) }}
+            {{- end }} \
+            --cluster-replicas {{ .Values.redis.cluster.replicas }}
+{{- end }}
+{{- end }}
+

@@ -1,0 +1,58 @@
+1. Get the application URLs by running these commands:
+{{- if .Values.ingress.enabled }}
+{{- if eq .Values.ingress.type "istio" }}
+{{- $host := (index .Values.ingress.istio.virtualService.hosts 0) }}
+  UI:  https://{{ $host }}
+  API: https://{{ $host }}/api
+  
+  Note: Using Istio Gateway. Ensure the Gateway is deployed and the TLS secret exists in istio-system namespace.
+{{- else }}
+{{- range $host := .Values.ingress.nginx.hosts }}
+  {{- range $path := $host.paths }}
+  {{- if eq $path.service "ui" }}
+  UI:  https://{{ $host.host }}{{ $path.path }}
+  {{- end }}
+  {{- if eq $path.service "api" }}
+  API: https://{{ $host.host }}{{ $path.path }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- else }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "vm-x-ai.fullname" . }}-ui)
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "UI:  http://$NODE_IP:$NODE_PORT"
+  
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "vm-x-ai.fullname" . }}-api)
+  echo "API: http://$NODE_IP:$NODE_PORT"
+{{- end }}
+
+2. Check the status of your deployment:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+3. View logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=api --tail=100
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=ui --tail=100
+
+{{- if .Values.vault.enabled }}
+4. Vault Status:
+  kubectl exec -n {{ .Release.Namespace }} -it $(kubectl get pod -n {{ .Release.Namespace }} -l app.kubernetes.io/component=vault -o jsonpath='{.items[0].metadata.name}') -- vault status
+
+{{- if .Values.vault.selfSealed }}
+  Note: Vault is running in self-sealed mode. This is suitable for development but not recommended for production.
+{{- end }}
+{{- end }}
+
+{{- if .Values.otel.enabled }}
+5. OpenTelemetry Services:
+{{- if .Values.otel.jaeger.enabled }}
+  Jaeger UI: kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "vm-x-ai.fullname" . }}-jaeger 16686:16686
+{{- end }}
+{{- if .Values.otel.grafana.enabled }}
+  Grafana: kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "vm-x-ai.fullname" . }}-grafana 3000:3000
+{{- end }}
+{{- if .Values.otel.prometheus.enabled }}
+  Prometheus: kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "vm-x-ai.fullname" . }}-prometheus 9090:9090
+{{- end }}
+{{- end }}
+

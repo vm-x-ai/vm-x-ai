@@ -1,0 +1,51 @@
+# Example values for Minikube/development environment
+# Usage: helm install vm-x-ai ./helm/vm-x-ai -f values-minikube.yaml
+
+# Enable self-sealed vault for development
+vault:
+  enabled: true
+  selfSealed: true
+  storage: file
+  fileStorage:
+    persistence:
+      enabled: false  # Use emptyDir for development
+
+# Use smaller resource requests for Minikube
+api:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+ui:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+postgresql:
+  persistence:
+    enabled: false  # Use emptyDir for development
+
+redis:
+  mode: single
+  single:
+    persistence:
+      enabled: false  # Use emptyDir for development
+
+questdb:
+  persistence:
+    enabled: false  # Use emptyDir for development
+
+# Disable OTEL services by default (can be enabled if needed)
+otel:
+  enabled: false
+

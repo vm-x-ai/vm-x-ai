@@ -1,0 +1,111 @@
+{{- if .Values.questdb.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-questdb
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: questdb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "vm-x-ai.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: questdb
+  template:
+    metadata:
+      labels:
+        {{- include "vm-x-ai.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: questdb
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: questdb
+        image: {{ printf "%s:%s" .Values.questdb.image.repository .Values.questdb.image.tag }}
+        imagePullPolicy: {{ .Values.questdb.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 9000
+          protocol: TCP
+        - name: postgres
+          containerPort: 8812
+          protocol: TCP
+        env:
+        - name: QDB_PG_USER
+          value: {{ .Values.questdb.auth.user | quote }}
+        - name: QDB_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "vm-x-ai.fullname" . }}-questdb
+              key: password
+        - name: QDB_PG_DATABASE
+          value: {{ .Values.questdb.auth.database | quote }}
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/questdb
+        resources:
+          {{- toYaml .Values.questdb.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: data
+        {{- if .Values.questdb.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "vm-x-ai.fullname" . }}-questdb
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+---
+{{- if .Values.questdb.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-questdb
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: questdb
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.questdb.persistence.size }}
+  {{- if .Values.questdb.persistence.storageClass }}
+  storageClassName: {{ .Values.questdb.persistence.storageClass }}
+  {{- end }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vm-x-ai.fullname" . }}-questdb
+  labels:
+    {{- include "vm-x-ai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: questdb
+spec:
+  type: {{ .Values.questdb.service.type }}
+  ports:
+    {{- range .Values.questdb.service.ports }}
+    - port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: TCP
+      name: {{ .name }}
+    {{- end }}
+  selector:
+    {{- include "vm-x-ai.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: questdb
+{{- end }}
+

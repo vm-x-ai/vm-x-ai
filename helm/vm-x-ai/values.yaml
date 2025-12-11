@@ -1,0 +1,631 @@
+# Default values for vm-x-ai
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# Application images
+images:
+  api:
+    repository: vmxai/api
+    tag: "0.2.1"
+    pullPolicy: IfNotPresent
+  ui:
+    repository: vmxai/ui
+    tag: "0.2.1"
+    pullPolicy: IfNotPresent
+
+# API Configuration
+api:
+  enabled: true
+  replicaCount: 2
+  
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  
+  env:
+    LOG_LEVEL: info
+    NODE_ENV: production
+    PORT: 3000
+    BASE_URL: "" # Will be set based on ingress or service
+    UI_BASE_URL: "" # Will be set based on ingress or service
+    OIDC_PROVIDER_ISSUER: "" # Will be set based on BASE_URL
+    DATABASE_WRITER_POOL_MAX: 25
+    DATABASE_READER_POOL_MAX: 50
+    BATCH_QUEUE_VISIBILITY_TIMEOUT: 120000
+  
+  # Vault Configuration
+  vault:
+    encryptionService: hashcorp # hashcorp or aws-kms
+    hashcorp:
+      addr: "" # Will be set automatically if vault is enabled
+      # roleId and secretId will be set from secrets
+    awsKms:
+      keyId: "" # Required if using aws-kms
+  
+  # Timeseries DB Configuration
+  timeseriesDb:
+    provider: questdb # questdb or aws-timestream
+    questdb:
+      host: "" # Will be set automatically if questdb is enabled
+      port: 8812
+      user: admin
+      password: "" # Will be set from secrets
+      dbName: vmxai
+    awsTimestream:
+      databaseName: "" # Required if using aws-timestream
+  
+  # OIDC Federated Login (optional)
+  oidcFederated:
+    enabled: false
+    issuer: ""
+    clientId: ""
+    # clientSecret is optional - only set if your OIDC provider requires it
+    # If set, a secret will be created/referenced for the client secret
+    clientSecret: "" # Optional - set to enable client secret authentication
+    scope: "openid profile email"
+    defaultRole: "power-user"
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# UI Configuration
+ui:
+  enabled: true
+  replicaCount: 2
+  
+  service:
+    type: ClusterIP
+    port: 3001
+    targetPort: 3001
+  
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  
+  env:
+    AUTH_URL: "" # Will be set based on ingress or service
+    AUTH_SECRET: "" # Will be set from secrets
+    AUTH_OIDC_ISSUER: "" # Will be set based on API BASE_URL
+    AUTH_OIDC_CLIENT_ID: ui
+    AUTH_OIDC_CLIENT_SECRET: ui
+    AUTH_REDIRECT_PROXY_URL: "" # Will be set based on ingress or service
+    API_BASE_URL: "" # Will be set based on API service
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# PostgreSQL Configuration
+postgresql:
+  # Set to false to use external PostgreSQL
+  enabled: true
+  
+  # If enabled, these values are used
+  image:
+    repository: postgres
+    tag: "15"
+    pullPolicy: IfNotPresent
+  
+  auth:
+    postgresPassword: "" # Will be generated if not set
+    database: vmxai
+    username: admin
+  
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: ""
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  
+  service:
+    type: ClusterIP
+    port: 5432
+  
+  # If disabled, provide external connection details
+  external:
+    host: ""
+    port: 5432
+    database: ""
+    username: ""
+    password: "" # Will be set from secrets
+    # For read replicas
+    roHost: "" # If not set, uses host
+
+# Redis Configuration
+redis:
+  # Set to false to use external Redis
+  enabled: true
+  
+  # Mode: single or cluster
+  mode: single # single or cluster
+  
+  # Single node configuration
+  single:
+    image:
+      repository: redis
+      tag: "7"
+      pullPolicy: IfNotPresent
+    
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+    
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    
+    service:
+      type: ClusterIP
+      port: 6379
+  
+  # Cluster configuration
+  cluster:
+    nodes: 3
+    replicas: 0 # Number of replicas per master
+    
+    image:
+      repository: redis
+      tag: "7"
+      pullPolicy: IfNotPresent
+    
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+    
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    
+    service:
+      type: ClusterIP
+      ports:
+        - name: client
+          port: 6379
+        - name: cluster
+          port: 16379
+  
+  # If disabled, provide external connection details
+  external:
+    host: ""
+    port: 6379
+    # For cluster mode, provide all nodes
+    nodes: [] # Array of {host: "", port: 6379}
+
+# QuestDB Configuration
+questdb:
+  # Set to false if using aws-timestream
+  enabled: true
+  
+  image:
+    repository: questdb/questdb
+    tag: "9.1.1"
+    pullPolicy: IfNotPresent
+  
+  auth:
+    user: admin
+    password: "" # Will be generated if not set
+    database: vmxai
+  
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: ""
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  
+  service:
+    type: ClusterIP
+    ports:
+      - name: http
+        port: 9000
+      - name: postgres
+        port: 8812
+
+# Hashcorp Vault Configuration
+vault:
+  # Set to false if using aws-kms
+  enabled: true
+  
+  image:
+    repository: hashicorp/vault
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # Self-sealed mode (useful for Minikube/development)
+  # If false, requires external unsealing mechanism
+  selfSealed: false
+  
+  # Storage backend: file or postgres
+  storage: postgres # file or postgres
+  
+  # File storage (for self-sealed mode)
+  fileStorage:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+  
+  # PostgreSQL storage backend
+  postgresStorage:
+    host: "" # If empty, uses postgresql service
+    port: 5432
+    database: vmxai
+    username: admin
+    password: "" # Will be set from postgresql secrets
+  
+  # Vault KMS for auto-unsealing (if not self-sealed)
+  vaultKms:
+    enabled: false
+    image:
+      repository: hashicorp/vault
+      tag: latest
+      pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 8200
+  
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  
+  # Bootstrap configuration
+  bootstrap:
+    policyFile: "" # Path to policy.hcl file in container
+    approleRoleName: vmxai-app
+
+# OpenTelemetry Services
+otel:
+  enabled: false
+  
+  collector:
+    enabled: false
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: latest
+      pullPolicy: IfNotPresent
+    
+    service:
+      type: ClusterIP
+      ports:
+        - name: otlp-grpc
+          port: 4317
+        - name: otlp-http
+          port: 4318
+        - name: zpages
+          port: 55679
+    
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  
+  jaeger:
+    enabled: false
+    image:
+      repository: jaegertracing/all-in-one
+      tag: latest
+      pullPolicy: IfNotPresent
+    
+    service:
+      type: ClusterIP
+      ports:
+        - name: ui
+          port: 16686
+        - name: collector-http
+          port: 14268
+        - name: collector-grpc
+          port: 14250
+    
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  
+  prometheus:
+    enabled: false
+    image:
+      repository: prom/prometheus
+      tag: latest
+      pullPolicy: IfNotPresent
+    
+    service:
+      type: ClusterIP
+      port: 9090
+    
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+    
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+  
+  loki:
+    enabled: false
+    image:
+      repository: grafana/loki
+      tag: latest
+      pullPolicy: IfNotPresent
+    
+    service:
+      type: ClusterIP
+      port: 3100
+    
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: ""
+    
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+  
+  grafana:
+    enabled: false
+    image:
+      repository: grafana/grafana
+      tag: latest
+      pullPolicy: IfNotPresent
+    
+    service:
+      type: ClusterIP
+      port: 3000
+    
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+    
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+# Secrets Configuration
+# WARNING: Do NOT store secrets in values.yaml for production!
+# Use one of the following production-safe methods:
+# 1. External Secrets Operator (recommended)
+# 2. Sealed Secrets
+# 3. Reference existing Kubernetes secrets
+# 4. Use secret management systems (Vault, AWS Secrets Manager, etc.)
+secrets:
+  # Method: "create" (auto-generate), "external" (use existing), "eso" (External Secrets Operator)
+  # For production, use "external" or "eso"
+  method: create  # create, external, eso
+  
+  # Option 1: Auto-generate (DEVELOPMENT ONLY - NOT FOR PRODUCTION)
+  # When method: "create", secrets are always auto-generated
+  
+  # Option 2: Reference existing Kubernetes secrets (PRODUCTION-SAFE)
+  # When method: "external", reference existing secrets by name
+  external:
+    database:
+      secretName: ""  # e.g., "postgresql-credentials"
+      passwordKey: "password"  # Key name in the secret
+      hostKey: "host"  # Optional, only if using external PostgreSQL
+      portKey: "port"  # Optional, only if using external PostgreSQL
+      databaseKey: "database"  # Optional, only if using external PostgreSQL
+      usernameKey: "username"  # Optional, only if using external PostgreSQL
+    questdb:
+      secretName: ""  # e.g., "questdb-credentials"
+      passwordKey: "password"
+    vault:
+      secretName: ""  # e.g., "vault-root-token"
+      rootTokenKey: "root-token"
+    ui:
+      secretName: ""  # e.g., "ui-auth-secret"
+      authSecretKey: "auth-secret"
+    oidcFederated:
+      secretName: ""  # e.g., "oidc-federated-secret"
+      clientSecretKey: "client-secret"
+    vaultApprole:
+      secretName: ""  # e.g., "vault-approle-credentials"
+      roleIdKey: "role-id"
+      secretIdKey: "secret-id"
+  
+  # Option 3: External Secrets Operator (PRODUCTION-SAFE)
+  # When method: "eso", creates ExternalSecret resources
+  # Requires External Secrets Operator to be installed
+  externalSecrets:
+    enabled: false
+    # Secret Store to use (must exist in cluster)
+    secretStore:
+      name: ""  # e.g., "aws-secrets-manager"
+      kind: SecretStore  # or ClusterSecretStore
+    # Secret references from your secret store
+    database:
+      secretKey: ""  # e.g., "vmxai/postgresql/password"
+      passwordKey: "password"
+      hostKey: "host"
+      portKey: "port"
+      databaseKey: "database"
+      usernameKey: "username"
+    questdb:
+      secretKey: ""  # e.g., "vmxai/questdb/password"
+      passwordKey: "password"
+    vault:
+      secretKey: ""  # e.g., "vmxai/vault/root-token"
+      rootTokenKey: "root-token"
+    ui:
+      secretKey: ""  # e.g., "vmxai/ui/auth-secret"
+      authSecretKey: "auth-secret"
+    oidcFederated:
+      # Only needed if api.oidcFederated.clientSecret is set
+      secretKey: ""  # e.g., "vmxai/oidc/client-secret"
+      clientSecretKey: "client-secret"
+    vaultApprole:
+      secretKey: ""  # e.g., "vmxai/vault/approle"
+      roleIdKey: "role-id"
+      secretIdKey: "secret-id"
+
+# Ingress Configuration
+# Choose between "nginx" (standard Kubernetes Ingress) or "istio" (Istio Gateway + VirtualService)
+ingress:
+  type: nginx  # nginx or istio
+  enabled: false
+  
+  # Nginx Ingress Configuration
+  nginx:
+    className: ""
+    annotations: {}
+    hosts:
+      - host: vm-x-ai.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+            service: ui
+          - path: /api
+            pathType: Prefix
+            service: api
+    tls: []
+    #  - secretName: vm-x-ai-tls
+    #    hosts:
+    #      - vm-x-ai.example.com
+  
+  # Istio Gateway and VirtualService Configuration
+  istio:
+    # Gateway configuration
+    gateway:
+      name: vm-x-ai-gateway
+      namespace: istio-system  # Usually deployed in istio-system
+      selector:
+        istio: ingressgateway
+      servers:
+        - port:
+            number: 80
+            name: http
+            protocol: HTTP
+          hosts:
+            - vm-x-ai.example.com
+        - port:
+            number: 443
+            name: https
+            protocol: HTTPS
+          tls:
+            mode: SIMPLE
+            credentialName: vm-x-ai-tls  # Secret in istio-system namespace
+          hosts:
+            - vm-x-ai.example.com
+    
+    # VirtualService configuration
+    virtualService:
+      hosts:
+        - vm-x-ai.example.com
+      gateways:
+        - istio-system/vm-x-ai-gateway
+      
+      # Optional: Traffic management features
+      # These apply to all routes unless overridden per-route
+      trafficPolicy:
+        # Load balancer settings
+        # Options: ROUND_ROBIN, LEAST_CONN, RANDOM, PASSTHROUGH
+        loadBalancer:
+          simple: LEAST_CONN
+        # Connection pool settings
+        connectionPool:
+          tcp:
+            maxConnections: 100
+          http:
+            http1MaxPendingRequests: 10
+            http2MaxRequests: 100
+            maxRequestsPerConnection: 2
+        # Circuit breaker
+        outlierDetection:
+          consecutiveErrors: 3
+          interval: 30s
+          baseEjectionTime: 30s
+          maxEjectionPercent: 50
+          minHealthPercent: 50
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod Security Context
+podSecurityContext:
+  fsGroup: 2000
+
+# Security Context
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Additional labels and annotations
+commonLabels: {}
+commonAnnotations: {}
+

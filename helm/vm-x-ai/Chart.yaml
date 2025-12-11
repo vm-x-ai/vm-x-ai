@@ -1,0 +1,13 @@
+apiVersion: v2
+name: vm-x-ai
+description: A Helm chart for VM-X AI Application
+type: application
+version: 0.2.1
+appVersion: "0.2.1"
+keywords:
+  - vm-x-ai
+  - ai
+  - virtual-machines
+maintainers:
+  - name: VM-X AI Team
+
