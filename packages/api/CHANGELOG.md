@@ -1,3 +1,13 @@
+# 2512.11.49fe280 (2025-12-11)
+
+### 🩹 Fixes
+
+- **api:** update docker entrypoint to support deployed environments ([0b4fcfe](https://github.com/vm-x-ai/open-vm-x-ai/commit/0b4fcfe))
+
+### ❤️ Thank You
+
+- Lucas Vieira @lucasvieirasilva
+
 ## 0.2.1 (2025-12-11)
 
 ### 🧱 Updated Dependencies

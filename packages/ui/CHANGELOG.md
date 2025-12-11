@@ -1,3 +1,7 @@
+# 2512.11.49fe280 (2025-12-11)
+
+This was a version bump only for ui to align it with other projects, there were no code changes.
+
 ## 0.2.1 (2025-12-11)
 
 ### 🧱 Updated Dependencies
