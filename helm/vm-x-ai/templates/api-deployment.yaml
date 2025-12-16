@@ -140,6 +140,8 @@ spec:
           value: {{ .Values.api.oidcFederated.defaultRole | quote }}
         {{- end }}
         {{- if .Values.otel.enabled }}
+        - name: OTEL_ENABLED
+          value: "true"
         {{- $otelEndpoint := include "vm-x-ai.otel.exporterEndpoint" . }}
         {{- if $otelEndpoint }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT

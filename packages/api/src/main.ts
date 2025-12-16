@@ -17,7 +17,9 @@ import '@fastify/view';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  await otelSDK.start();
+  if (process.env.OTEL_ENABLED === 'true') {
+    await otelSDK.start();
+  }
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
@@ -26,7 +28,7 @@ async function bootstrap() {
     })
   );
 
-  const basePath = app.get(ConfigService).getOrThrow<string>('BASE_PATH')
+  const basePath = app.get(ConfigService).getOrThrow<string>('BASE_PATH');
   if (basePath) {
     app.setGlobalPrefix(basePath);
   }

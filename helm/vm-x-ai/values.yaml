@@ -10,11 +10,11 @@ global:
 images:
   api:
     repository: vmxai/api
-    tag: "lts"
+    tag: "latest"
     pullPolicy: Always
   ui:
     repository: vmxai/ui
-    tag: "lts"
+    tag: "latest"
     pullPolicy: Always
 
 # API Configuration
