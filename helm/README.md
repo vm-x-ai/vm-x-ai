@@ -252,7 +252,7 @@ ingress:
 
 **⚠️ IMPORTANT: Never store secrets in values.yaml for production!**
 
-The chart supports three methods for secret management:
+The chart supports three methods for secret management, and **each secret can have its own method**. This allows you to, for example, use External Secrets Operator for the database while auto-generating the UI auth secret.
 
 #### Method 1: Auto-generate (Development Only)
 
@@ -260,7 +260,14 @@ For development/testing only. Secrets are auto-generated:
 
 ```yaml
 secrets:
-  method: create
+  database:
+    method: create
+  questdb:
+    method: create
+  ui:
+    method: create
+  libsodium:
+    method: create
 ```
 
 #### Method 2: External Secrets (Production-Safe)
@@ -269,21 +276,25 @@ Reference existing Kubernetes secrets that you manage separately:
 
 ```yaml
 secrets:
-  method: external
-  external:
-    database:
+  database:
+    method: external
+    external:
       secretName: "postgresql-credentials"  # Existing secret name
       passwordKey: "password"  # Key name in the secret
-    questdb:
+      hostKey: "host"  # Optional, only if using external PostgreSQL
+      portKey: "port"  # Optional, only if using external PostgreSQL
+      databaseKey: "database"  # Optional, only if using external PostgreSQL
+      usernameKey: "username"  # Optional, only if using external PostgreSQL
+  questdb:
+    method: external
+    external:
       secretName: "questdb-credentials"
       passwordKey: "password"
-    ui:
-      secretName: "ui-auth-secret"
-      authSecretKey: "auth-secret"
-    libsodium:
-      # Only needed if api.encryption.provider is libsodium
-      secretName: "libsodium-encryption-key"
-      encryptionKeyKey: "encryption-key"
+  ui:
+    method: create
+  libsodium:
+    # Only needed if api.encryption.provider is libsodium
+    method: create
 ```
 
 **Create secrets separately:**
@@ -301,21 +312,31 @@ Use External Secrets Operator to sync secrets from external systems (AWS Secrets
 
 ```yaml
 secrets:
-  method: eso
+  database:
+    method: eso
+    externalSecrets:
+      secretKey: "vmxai/production/postgresql"
+      passwordKey: "password"
+      hostKey: "host"
+      portKey: "port"
+      databaseKey: "database"
+      usernameKey: "username"
+  questdb:
+    method: eso
+    externalSecrets:
+      secretKey: "vmxai/production/questdb"
+      passwordKey: "password"
+  ui:
+    method: create
+    externalSecrets:
+  libsodium:
+    method: create
+  # External Secrets Operator configuration (shared for all secrets using method: "eso")
   externalSecrets:
-    enabled: true
+    enabled: true  # Set to true if any secret uses method: "eso"
     secretStore:
       name: "aws-secrets-manager"
       kind: SecretStore  # or ClusterSecretStore
-    database:
-      secretKey: "vmxai/production/postgresql"
-      passwordKey: "password"
-    questdb:
-      secretKey: "vmxai/production/questdb"
-      passwordKey: "password"
-    ui:
-      secretKey: "vmxai/production/ui"
-      authSecretKey: "auth-secret"
 ```
 
 **Prerequisites:**

@@ -135,40 +135,42 @@ postgresql:
     storageClass: "fast-ssd"
 
 # Security: Use external secrets in production
+# Each secret can have its own method: "create", "external", or "eso"
 # Option 1: Reference existing Kubernetes secrets
 secrets:
-  method: external
-  external:
-    database:
+  database:
+    method: external
+    external:
       secretName: "postgresql-credentials"  # Create this secret separately
       passwordKey: "password"
-    questdb:
+  questdb:
+    method: external
+    external:
       secretName: "questdb-credentials"
       passwordKey: "password"
-    ui:
-      secretName: "ui-auth-secret"
-      authSecretKey: "auth-secret"
-    # Libsodium encryption key (only needed if using libsodium provider)
-    # For production with AWS KMS, this section is not needed
-    libsodium:
-      secretName: "libsodium-encryption-key"
-      encryptionKeyKey: "encryption-key"
+  ui:
+    method: create
+  # Libsodium encryption key (only needed if using libsodium provider)
+  # For production with AWS KMS, this section is not needed
+  libsodium:
+    method: create
 
 # Option 2: Use External Secrets Operator (uncomment to use)
 # secrets:
-#   method: eso
+#   database:
+#     method: eso
+#     externalSecrets:
+#       secretKey: "vmxai/production/postgresql"
+#       passwordKey: "password"
+#   questdb:
+#     method: eso
+#     externalSecrets:
+#       secretKey: "vmxai/production/questdb"
+#       passwordKey: "password"
+#   ui:
+#     method: create
 #   externalSecrets:
 #     enabled: true
 #     secretStore:
 #       name: "aws-secrets-manager"
 #       kind: SecretStore
-#     database:
-#       secretKey: "vmxai/production/postgresql"
-#       passwordKey: "password"
-#     questdb:
-#       secretKey: "vmxai/production/questdb"
-#       passwordKey: "password"
-#     ui:
-#       secretKey: "vmxai/production/ui"
-#       authSecretKey: "auth-secret"
-

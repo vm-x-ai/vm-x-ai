@@ -113,9 +113,9 @@ Generate Redis connection details
 Get secret name for libsodium
 */}}
 {{- define "vm-x-ai.secrets.libsodium.name" -}}
-{{- if eq $.Values.secrets.method "external" }}
-{{- if $.Values.secrets.external.libsodium.secretName }}
-{{- $.Values.secrets.external.libsodium.secretName }}
+{{- if eq (default "create" $.Values.secrets.libsodium.method) "external" }}
+{{- if $.Values.secrets.libsodium.external.secretName }}
+{{- $.Values.secrets.libsodium.external.secretName }}
 {{- else }}
 {{- include "vm-x-ai.fullname" $ }}-libsodium
 {{- end }}
@@ -128,8 +128,8 @@ Get secret name for libsodium
 Get secret key for libsodium encryption key
 */}}
 {{- define "vm-x-ai.secrets.libsodium.keyKey" -}}
-{{- if eq $.Values.secrets.method "external" }}
-{{- $.Values.secrets.external.libsodium.encryptionKeyKey }}
+{{- if eq (default "create" $.Values.secrets.libsodium.method) "external" }}
+{{- $.Values.secrets.libsodium.external.encryptionKeyKey }}
 {{- else }}
 {{- "encryption-key" }}
 {{- end }}
@@ -280,9 +280,9 @@ Image reference helper
 Get secret name for database
 */}}
 {{- define "vm-x-ai.secrets.database.name" -}}
-{{- if eq $.Values.secrets.method "external" }}
-{{- if $.Values.secrets.external.database.secretName }}
-{{- $.Values.secrets.external.database.secretName }}
+{{- if eq (default "create" $.Values.secrets.database.method) "external" }}
+{{- if $.Values.secrets.database.external.secretName }}
+{{- $.Values.secrets.database.external.secretName }}
 {{- else }}
 {{- include "vm-x-ai.fullname" $ }}-database
 {{- end }}
@@ -295,8 +295,8 @@ Get secret name for database
 Get secret key for database password
 */}}
 {{- define "vm-x-ai.secrets.database.passwordKey" -}}
-{{- if eq $.Values.secrets.method "external" }}
-{{- $.Values.secrets.external.database.passwordKey }}
+{{- if eq (default "create" $.Values.secrets.database.method) "external" }}
+{{- $.Values.secrets.database.external.passwordKey }}
 {{- else }}
 {{- "password" }}
 {{- end }}
@@ -306,9 +306,9 @@ Get secret key for database password
 Get secret name for questdb
 */}}
 {{- define "vm-x-ai.secrets.questdb.name" -}}
-{{- if eq $.Values.secrets.method "external" }}
-{{- if $.Values.secrets.external.questdb.secretName }}
-{{- $.Values.secrets.external.questdb.secretName }}
+{{- if eq (default "create" $.Values.secrets.questdb.method) "external" }}
+{{- if $.Values.secrets.questdb.external.secretName }}
+{{- $.Values.secrets.questdb.external.secretName }}
 {{- else }}
 {{- include "vm-x-ai.fullname" $ }}-questdb
 {{- end }}
@@ -321,8 +321,8 @@ Get secret name for questdb
 Get secret key for questdb password
 */}}
 {{- define "vm-x-ai.secrets.questdb.passwordKey" -}}
-{{- if eq $.Values.secrets.method "external" }}
-{{- $.Values.secrets.external.questdb.passwordKey }}
+{{- if eq (default "create" $.Values.secrets.questdb.method) "external" }}
+{{- $.Values.secrets.questdb.external.passwordKey }}
 {{- else }}
 {{- "password" }}
 {{- end }}
@@ -332,9 +332,9 @@ Get secret key for questdb password
 Get secret name for ui
 */}}
 {{- define "vm-x-ai.secrets.ui.name" -}}
-{{- if eq $.Values.secrets.method "external" }}
-{{- if $.Values.secrets.external.ui.secretName }}
-{{- $.Values.secrets.external.ui.secretName }}
+{{- if eq (default "create" $.Values.secrets.ui.method) "external" }}
+{{- if $.Values.secrets.ui.external.secretName }}
+{{- $.Values.secrets.ui.external.secretName }}
 {{- else }}
 {{- include "vm-x-ai.fullname" $ }}-ui
 {{- end }}
@@ -347,8 +347,8 @@ Get secret name for ui
 Get secret key for ui auth secret
 */}}
 {{- define "vm-x-ai.secrets.ui.authSecretKey" -}}
-{{- if eq $.Values.secrets.method "external" }}
-{{- $.Values.secrets.external.ui.authSecretKey }}
+{{- if eq (default "create" $.Values.secrets.ui.method) "external" }}
+{{- $.Values.secrets.ui.external.authSecretKey }}
 {{- else }}
 {{- "auth-secret" }}
 {{- end }}

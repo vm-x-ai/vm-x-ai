@@ -514,67 +514,79 @@ otel:
 # 3. Reference existing Kubernetes secrets
 # 4. Use secret management systems (Vault, AWS Secrets Manager, etc.)
 secrets:
-  # Method: "create" (auto-generate), "external" (use existing), "eso" (External Secrets Operator)
-  # For production, use "external" or "eso"
-  method: create  # create, external, eso
-  
-  # Option 1: Auto-generate (DEVELOPMENT ONLY - NOT FOR PRODUCTION)
-  # When method: "create", secrets are always auto-generated
-  
-  # Option 2: Reference existing Kubernetes secrets (PRODUCTION-SAFE)
-  # When method: "external", reference existing secrets by name
-  external:
-    database:
+  # Each secret can have its own method: "create" (auto-generate), "external" (use existing), "eso" (External Secrets Operator)
+  # For production, use "external" or "eso" for sensitive secrets, "create" for non-sensitive ones
+  database:
+    method: create  # create, external, eso
+    # Option 1: Auto-generate (DEVELOPMENT ONLY - NOT FOR PRODUCTION)
+    # When method: "create", secret is auto-generated
+    
+    # Option 2: Reference existing Kubernetes secret (PRODUCTION-SAFE)
+    # When method: "external", reference existing secret by name
+    external:
       secretName: ""  # e.g., "postgresql-credentials"
       passwordKey: "password"  # Key name in the secret
       hostKey: "host"  # Optional, only if using external PostgreSQL
       portKey: "port"  # Optional, only if using external PostgreSQL
       databaseKey: "database"  # Optional, only if using external PostgreSQL
       usernameKey: "username"  # Optional, only if using external PostgreSQL
-    questdb:
-      secretName: ""  # e.g., "questdb-credentials"
-      passwordKey: "password"
-    libsodium:
-      # Only needed if api.encryption.provider is libsodium
-      secretName: ""  # e.g., "libsodium-encryption-key"
-      encryptionKeyKey: "encryption-key"
-    ui:
-      secretName: ""  # e.g., "ui-auth-secret"
-      authSecretKey: "auth-secret"
-    oidcFederated:
-      secretName: ""  # e.g., "oidc-federated-secret"
-      clientSecretKey: "client-secret"
-  
-  # Option 3: External Secrets Operator (PRODUCTION-SAFE)
-  # When method: "eso", creates ExternalSecret resources
-  # Requires External Secrets Operator to be installed
-  externalSecrets:
-    enabled: false
-    # Secret Store to use (must exist in cluster)
-    secretStore:
-      name: ""  # e.g., "aws-secrets-manager"
-      kind: SecretStore  # or ClusterSecretStore
-    # Secret references from your secret store
-    database:
+    
+    # Option 3: External Secrets Operator (PRODUCTION-SAFE)
+    # When method: "eso", creates ExternalSecret resource
+    # Requires External Secrets Operator to be installed
+    externalSecrets:
       secretKey: ""  # e.g., "vmxai/postgresql/password"
       passwordKey: "password"
       hostKey: "host"
       portKey: "port"
       databaseKey: "database"
       usernameKey: "username"
-    questdb:
+  
+  questdb:
+    method: create  # create, external, eso
+    external:
+      secretName: ""  # e.g., "questdb-credentials"
+      passwordKey: "password"
+    externalSecrets:
       secretKey: ""  # e.g., "vmxai/questdb/password"
       passwordKey: "password"
-    libsodium:
+  
+  libsodium:
+    # Only needed if api.encryption.provider is libsodium
+    method: create  # create, external, eso
+    external:
+      secretName: ""  # e.g., "libsodium-encryption-key"
+      encryptionKeyKey: "encryption-key"
+    externalSecrets:
       secretKey: ""  # e.g., "vmxai/encryption/libsodium-key"
       encryptionKeyKey: "encryption-key"
-    ui:
+  
+  ui:
+    method: create  # create, external, eso
+    external:
+      secretName: ""  # e.g., "ui-auth-secret"
+      authSecretKey: "auth-secret"
+    externalSecrets:
       secretKey: ""  # e.g., "vmxai/ui/auth-secret"
       authSecretKey: "auth-secret"
-    oidcFederated:
-      # Only needed if api.oidcFederated.clientSecret is set
+  
+  oidcFederated:
+    # Only needed if api.oidcFederated.clientSecret is set
+    method: create  # create, external, eso
+    external:
+      secretName: ""  # e.g., "oidc-federated-secret"
+      clientSecretKey: "client-secret"
+    externalSecrets:
       secretKey: ""  # e.g., "vmxai/oidc/client-secret"
       clientSecretKey: "client-secret"
+  
+  # External Secrets Operator configuration (shared for all secrets using method: "eso")
+  externalSecrets:
+    enabled: true  # Set to true if any secret uses method: "eso"
+    # Secret Store to use (must exist in cluster)
+    secretStore:
+      name: ""  # e.g., "aws-secrets-manager"
+      kind: SecretStore  # or ClusterSecretStore
 
 # Ingress Configuration
 # Uses Istio Gateway + VirtualService

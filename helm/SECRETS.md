@@ -41,21 +41,36 @@ spec:
 3. Configure the Helm chart:
 ```yaml
 secrets:
-  method: eso
+  database:
+    method: eso
+    externalSecrets:
+      secretKey: "vmxai/production/postgresql"
+      passwordKey: "password"
+      hostKey: "host"
+      portKey: "port"
+      databaseKey: "database"
+      usernameKey: "username"
+  questdb:
+    method: eso
+    externalSecrets:
+      secretKey: "vmxai/production/questdb"
+      passwordKey: "password"
+  ui:
+    method: eso
+    externalSecrets:
+      secretKey: "vmxai/production/ui"
+      authSecretKey: "auth-secret"
+  libsodium:
+    method: eso
+    externalSecrets:
+      secretKey: "vmxai/production/libsodium-key"
+      encryptionKeyKey: "encryption-key"
+  # External Secrets Operator configuration (shared for all secrets using method: "eso")
   externalSecrets:
     enabled: true
     secretStore:
       name: aws-secrets-manager
       kind: SecretStore
-    database:
-      secretKey: "vmxai/production/postgresql"
-      passwordKey: "password"
-    questdb:
-      secretKey: "vmxai/production/questdb"
-      passwordKey: "password"
-    ui:
-      secretKey: "vmxai/production/ui"
-      authSecretKey: "auth-secret"
 ```
 
 ### 2. Reference Existing Secrets
@@ -64,17 +79,30 @@ If you manage secrets separately (via CI/CD, manual creation, or other tools):
 
 ```yaml
 secrets:
-  method: external
-  external:
-    database:
+  database:
+    method: external
+    external:
       secretName: "postgresql-credentials"
       passwordKey: "password"
-    questdb:
+      hostKey: "host"  # Optional, only if using external PostgreSQL
+      portKey: "port"  # Optional, only if using external PostgreSQL
+      databaseKey: "database"  # Optional, only if using external PostgreSQL
+      usernameKey: "username"  # Optional, only if using external PostgreSQL
+  questdb:
+    method: external
+    external:
       secretName: "questdb-credentials"
       passwordKey: "password"
-    ui:
+  ui:
+    method: external
+    external:
       secretName: "ui-auth-secret"
       authSecretKey: "auth-secret"
+  libsodium:
+    method: external
+    external:
+      secretName: "libsodium-encryption-key"
+      encryptionKeyKey: "encryption-key"
 ```
 
 Create secrets separately:
@@ -112,9 +140,9 @@ kubectl apply -f postgresql-credentials-sealed.yaml
 3. Reference in values:
 ```yaml
 secrets:
-  method: external
-  external:
-    database:
+  database:
+    method: external
+    external:
       secretName: "postgresql-credentials"
       passwordKey: "password"
 ```
@@ -127,18 +155,36 @@ For development, auto-generation is acceptable:
 
 ```yaml
 secrets:
-  method: create
+  database:
+    method: create
+  questdb:
+    method: create
+  ui:
+    method: create
+  libsodium:
+    method: create
 ```
 
 ### Production
 
-**Always use external secrets or External Secrets Operator:**
+**Always use external secrets or External Secrets Operator for sensitive secrets:**
 
 ```yaml
 secrets:
-  method: eso  # or "external"
-  # ... configuration
+  database:
+    method: eso  # or "external"
+    # ... configuration
+  questdb:
+    method: eso  # or "external"
+    # ... configuration
+  ui:
+    method: create  # Less sensitive, can auto-generate
+  libsodium:
+    method: eso  # or "external" if using libsodium provider
+    # ... configuration
 ```
+
+**Note:** You can mix methods for different secrets. For example, use External Secrets Operator for the database while auto-generating the UI auth secret.
 
 ## Secret Rotation
 
