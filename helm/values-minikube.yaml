@@ -57,6 +57,7 @@ ingress:
 
   istio:
     # Gateway configuration
+    host: vm-x-ai.local
     gateway:
       name: vm-x-ai-gateway
       namespace: istio-system  # Usually deployed in istio-system
@@ -67,12 +68,8 @@ ingress:
             number: 80
             name: http
             protocol: HTTP
-          hosts:
-            - vm-x-ai.local
     
     # VirtualService configuration
     virtualService:
-      hosts:
-        - vm-x-ai.local
       gateways:
         - istio-system/vm-x-ai-gateway

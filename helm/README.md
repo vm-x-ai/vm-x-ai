@@ -17,10 +17,10 @@ kubectl create namespace vm-x-ai
 kubectl label namespace vm-x-ai istio-injection=enabled
 
 # Install with default values
-helm install vm-x-ai ./helm/vm-x-ai --namespace vm-x-ai
+helm install vm-x-ai ./helm --namespace vm-x-ai
 
 # Install with custom values
-helm install vm-x-ai ./helm/vm-x-ai -f my-values.yaml --namespace vm-x-ai
+helm install vm-x-ai ./helm -f my-values.yaml --namespace vm-x-ai
 ```
 
 ### Default Configuration

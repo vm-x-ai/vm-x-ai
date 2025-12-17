@@ -1,4 +1,16 @@
 {{- if .Values.ingress.enabled }}
+{{- $host := .Values.ingress.istio.host }}
+{{- if not $host }}
+{{- fail "ingress.istio.host must be set when ingress.enabled is true" }}
+{{- end }}
+{{- /* Build servers with host from ingress.istio.host */}}
+{{- $servers := list }}
+{{- range .Values.ingress.istio.gateway.servers }}
+{{- $server := deepCopy . }}
+{{- $_ := set $server "hosts" (list $host) }}
+{{- $servers = append $servers $server }}
+{{- end }}
+{{- $virtualServiceHosts := list $host }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
@@ -11,7 +23,7 @@ spec:
   selector:
     {{- toYaml .Values.ingress.istio.gateway.selector | nindent 4 }}
   servers:
-    {{- toYaml .Values.ingress.istio.gateway.servers | nindent 4 }}
+    {{- toYaml $servers | nindent 4 }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -21,7 +33,7 @@ metadata:
     {{- include "vm-x-ai.labels" . | nindent 4 }}
 spec:
   hosts:
-    {{- toYaml .Values.ingress.istio.virtualService.hosts | nindent 4 }}
+    {{- toYaml $virtualServiceHosts | nindent 4 }}
   gateways:
     {{- toYaml .Values.ingress.istio.virtualService.gateways | nindent 4 }}
     - mesh  # Apply to internal mesh traffic as well

@@ -163,7 +163,7 @@ BASE_URL should be the base host, BASE_PATH is separate
 */}}
 {{- define "vm-x-ai.api.baseUrl" -}}
 {{- if .Values.ingress.enabled }}
-{{- $host := (index .Values.ingress.istio.virtualService.hosts 0) }}
+{{- $host := .Values.ingress.istio.host }}
 {{- $tlsEnabled := include "vm-x-ai.ingress.tlsEnabled" . }}
 {{- $scheme := "http" }}
 {{- if $tlsEnabled }}
@@ -180,7 +180,7 @@ Generate UI base URL
 */}}
 {{- define "vm-x-ai.ui.baseUrl" -}}
 {{- if .Values.ingress.enabled }}
-{{- $host := (index .Values.ingress.istio.virtualService.hosts 0) }}
+{{- $host := .Values.ingress.istio.host }}
 {{- $tlsEnabled := include "vm-x-ai.ingress.tlsEnabled" . }}
 {{- if $tlsEnabled }}
 {{- printf "https://%s" $host }}

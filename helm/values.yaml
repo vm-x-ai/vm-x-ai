@@ -583,6 +583,8 @@ ingress:
   
   # Istio Gateway and VirtualService Configuration
   istio:
+    # Host configuration - defined once, used in Gateway servers and VirtualService
+    host: vm-x-ai.example.com
     # Gateway configuration
     gateway:
       name: vm-x-ai-gateway
@@ -594,8 +596,6 @@ ingress:
             number: 80
             name: http
             protocol: HTTP
-          hosts:
-            - vm-x-ai.example.com
         - port:
             number: 443
             name: https
@@ -603,13 +603,9 @@ ingress:
           tls:
             mode: SIMPLE
             credentialName: vm-x-ai-tls  # Secret in istio-system namespace
-          hosts:
-            - vm-x-ai.example.com
     
     # VirtualService configuration
     virtualService:
-      hosts:
-        - vm-x-ai.example.com
       gateways:
         - istio-system/vm-x-ai-gateway
       

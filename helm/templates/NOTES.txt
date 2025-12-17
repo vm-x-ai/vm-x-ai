@@ -1,6 +1,6 @@
 1. Get the application URLs by running these commands:
 {{- if .Values.ingress.enabled }}
-{{- $host := (index .Values.ingress.istio.virtualService.hosts 0) }}
+{{- $host := .Values.ingress.istio.host }}
 {{- $basePath := .Values.api.env.BASE_PATH }}
 {{- $tlsEnabled := include "vm-x-ai.ingress.tlsEnabled" . }}
 {{- $scheme := "http" }}

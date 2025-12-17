@@ -13,9 +13,7 @@ metadata:
     app.kubernetes.io/component: internal-dns
 spec:
   hosts:
-    {{- range .Values.ingress.istio.virtualService.hosts }}
-    - {{ . }}
-    {{- end }}
+    - {{ .Values.ingress.istio.host }}
   ports:
     - number: {{ .Values.ingress.istio.internalDns.port | default 80 }}
       name: http
