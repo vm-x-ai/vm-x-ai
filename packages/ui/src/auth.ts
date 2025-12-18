@@ -89,7 +89,8 @@ const result = NextAuth({
     session({ session, token, user }) {
       session.accessToken = token.accessToken;
       session.idToken = token.idToken;
-      session.expires = new Date(token.expiresAt).toISOString() as Date & string;
+      session.expires = new Date(token.expiresAt).toISOString() as Date &
+        string;
       if (token.error && typeof token.error === 'string') {
         session.user.error = token.error;
       }

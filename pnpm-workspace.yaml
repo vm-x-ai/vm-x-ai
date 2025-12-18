@@ -1,12 +1,19 @@
 packages:
   - packages/*
   - packages/libs/shared/*
+  - examples/*
 
 autoInstallPeers: true
 
 onlyBuiltDependencies:
   - '@nestjs/core'
+  - '@parcel/watcher'
   - '@scarf/scarf'
+  - '@swc/core'
   - argon2
+  - bcrypt
   - esbuild
+  - nx
+  - protobufjs
   - sharp
+  - unrs-resolver

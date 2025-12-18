@@ -11,6 +11,9 @@
     },
     {
       "path": "./packages/libs/shared/ai-provider"
+    },
+    {
+      "path": "./examples/aws-cdk-eks"
     }
   ]
 }

@@ -43,10 +43,10 @@ const otelSDK = new NodeSDK({
   contextManager: new AsyncLocalStorageContextManager(),
   textMapPropagator: new CompositePropagator({
     propagators: [
+      new B3Propagator(),
       new JaegerPropagator(),
       new W3CTraceContextPropagator(),
       new W3CBaggagePropagator(),
-      new B3Propagator(),
     ],
   }),
   instrumentations: [
