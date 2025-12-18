@@ -442,9 +442,10 @@ otel:
         memory: 1Gi
     
     # Ingress configuration for Jaeger UI
+    # When enabled, Jaeger will be configured with QUERY_BASE_PATH to serve from the subpath
     ingress:
       enabled: false  # Set to true to expose Jaeger UI via Istio ingress
-      path: /jaeger  # Path prefix for Jaeger UI (e.g., /jaeger)
+      path: /jaeger  # Path prefix for Jaeger UI (e.g., /jaeger) - also sets QUERY_BASE_PATH
   
   prometheus:
     enabled: false

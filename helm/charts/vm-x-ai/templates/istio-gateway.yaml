@@ -62,12 +62,11 @@ spec:
               number: {{ .Values.api.service.port }}
     {{- end }}
     {{- if and .Values.otel.enabled .Values.otel.jaeger.enabled .Values.otel.jaeger.ingress.enabled }}
-    # Jaeger UI route (must come before UI catch-all)
+    # Jaeger UI route (Jaeger handles subpaths natively with QUERY_BASE_PATH)
+    # No URI rewrite needed - Jaeger will handle the full path
     - match:
         - uri:
             prefix: {{ .Values.otel.jaeger.ingress.path }}
-      rewrite:
-        uri: /
       route:
         - destination:
             host: {{ include "vm-x-ai.fullname" . }}-jaeger
@@ -76,11 +75,10 @@ spec:
     {{- end }}
     {{- if and .Values.otel.enabled .Values.otel.grafana.enabled .Values.otel.grafana.ingress.enabled }}
     # Grafana UI route (must come before UI catch-all)
+    # Grafana handles subpaths natively, so we don't rewrite the URI
     - match:
         - uri:
             prefix: {{ .Values.otel.grafana.ingress.path }}
-      rewrite:
-        uri: /
       route:
         - destination:
             host: {{ include "vm-x-ai.fullname" . }}-grafana

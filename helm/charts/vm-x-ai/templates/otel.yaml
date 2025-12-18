@@ -176,6 +176,10 @@ spec:
         env:
         - name: COLLECTOR_OTLP_ENABLED
           value: "true"
+        {{- if and .Values.ingress.enabled .Values.otel.jaeger.ingress.enabled }}
+        - name: QUERY_BASE_PATH
+          value: {{ .Values.otel.jaeger.ingress.path }}
+        {{- end }}
         ports:
         {{- range .Values.otel.jaeger.service.ports }}
         - name: {{ .name }}
@@ -549,7 +553,7 @@ spec:
         - name: GF_SERVER_SERVE_FROM_SUB_PATH
           value: "true"
         - name: GF_SERVER_ROOT_URL
-          value: {{ .Values.otel.grafana.ingress.path }}
+          value: {{ include "vm-x-ai.grafana.rootUrl" . }}
         {{- end }}
         volumeMounts:
         - name: data

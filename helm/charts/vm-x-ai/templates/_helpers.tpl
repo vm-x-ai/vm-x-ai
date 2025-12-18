@@ -259,6 +259,23 @@ Generate OTEL Exporter Endpoint
 {{- end }}
 
 {{/*
+Generate Grafana Root URL (full URL with scheme and host)
+*/}}
+{{- define "vm-x-ai.grafana.rootUrl" -}}
+{{- if and .Values.ingress.enabled .Values.otel.grafana.ingress.enabled }}
+{{- $host := .Values.ingress.istio.host }}
+{{- $tlsEnabled := include "vm-x-ai.ingress.tlsEnabled" . }}
+{{- $scheme := "http" }}
+{{- if $tlsEnabled }}
+{{- $scheme = "https" }}
+{{- end }}
+{{- printf "%s://%s%s" $scheme $host .Values.otel.grafana.ingress.path }}
+{{- else }}
+{{- "" }}
+{{- end }}
+{{- end }}
+
+{{/*
 Generate random string
 */}}
 {{- define "vm-x-ai.randomString" -}}
