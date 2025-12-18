@@ -115,6 +115,8 @@ spec:
           value: {{ .Values.api.env.DATABASE_WRITER_POOL_MAX | toString | quote }}
         - name: DATABASE_READER_POOL_MAX
           value: {{ .Values.api.env.DATABASE_READER_POOL_MAX | toString | quote }}
+        - name: DATABASE_SSL
+          value: {{ if .Values.postgresql.enabled }}false{{ else }}{{ .Values.postgresql.external.ssl | toString | quote }}{{ end }}
         - name: REDIS_HOST
           value: {{ include "vm-x-ai.redis.host" . | quote }}
         - name: REDIS_PORT

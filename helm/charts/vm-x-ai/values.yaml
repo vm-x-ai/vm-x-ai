@@ -239,6 +239,8 @@ postgresql:
     password: "" # Will be set from secrets
     # For read replicas
     roHost: "" # If not set, uses host
+    # SSL/TLS configuration for external PostgreSQL (required for AWS RDS)
+    ssl: false
 
 # Redis Configuration
 redis:
