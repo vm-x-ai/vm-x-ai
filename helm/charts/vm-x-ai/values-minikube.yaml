@@ -45,12 +45,16 @@ otel:
     enabled: true
   jaeger:
     enabled: true
+    ingress:
+      enabled: true
   prometheus:
     enabled: true
   loki:
     enabled: true
   grafana:
     enabled: true
+    ingress:
+      enabled: true
 
 ingress:
   enabled: true

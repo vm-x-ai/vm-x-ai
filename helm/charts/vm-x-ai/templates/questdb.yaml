@@ -49,8 +49,8 @@ spec:
         - name: QDB_PG_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ include "vm-x-ai.fullname" . }}-questdb
-              key: password
+              name: {{ include "vm-x-ai.secrets.questdb.name" . }}
+              key: {{ include "vm-x-ai.secrets.questdb.passwordKey" . }}
         - name: QDB_PG_DATABASE
           value: {{ .Values.questdb.auth.database | quote }}
         volumeMounts:

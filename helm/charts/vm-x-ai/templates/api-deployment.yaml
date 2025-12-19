@@ -116,7 +116,7 @@ spec:
         - name: DATABASE_READER_POOL_MAX
           value: {{ .Values.api.env.DATABASE_READER_POOL_MAX | toString | quote }}
         - name: DATABASE_SSL
-          value: {{ if .Values.postgresql.enabled }}false{{ else }}{{ .Values.postgresql.external.ssl | toString | quote }}{{ end }}
+          value: {{ if .Values.postgresql.enabled }}{{ "false" | quote }}{{ else }}{{ .Values.postgresql.external.ssl | toString | quote }}{{ end }}
         - name: REDIS_HOST
           value: {{ include "vm-x-ai.redis.host" . | quote }}
         - name: REDIS_PORT
@@ -141,19 +141,46 @@ spec:
         - name: COMPLETION_USAGE_PROVIDER
           value: {{ .Values.api.timeseriesDb.provider | quote }}
         {{- if eq .Values.api.timeseriesDb.provider "questdb" }}
+        {{- $useSecretForConnection := include "vm-x-ai.secrets.questdb.useSecretForConnection" . }}
+        {{- if $useSecretForConnection }}
+        - name: QUESTDB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "vm-x-ai.secrets.questdb.name" . }}
+              key: {{ include "vm-x-ai.secrets.questdb.hostKey" . }}
+        - name: QUESTDB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "vm-x-ai.secrets.questdb.name" . }}
+              key: {{ include "vm-x-ai.secrets.questdb.portKey" . }}
+        - name: QUESTDB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "vm-x-ai.secrets.questdb.name" . }}
+              key: {{ include "vm-x-ai.secrets.questdb.usernameKey" . }}
+        {{- else }}
         - name: QUESTDB_HOST
           value: {{ include "vm-x-ai.questdb.host" . | quote }}
         - name: QUESTDB_PORT
-          value: {{ .Values.api.timeseriesDb.questdb.port | toString | quote }}
+          value: {{ if .Values.questdb.enabled }}{{ .Values.api.timeseriesDb.questdb.port | toString | quote }}{{ else }}{{ .Values.questdb.external.port | toString | quote }}{{ end }}
         - name: QUESTDB_USER
-          value: {{ .Values.api.timeseriesDb.questdb.user | quote }}
+          value: {{ if .Values.questdb.enabled }}{{ .Values.api.timeseriesDb.questdb.user | quote }}{{ else }}{{ .Values.questdb.external.username | quote }}{{ end }}
+        {{- end }}
         - name: QUESTDB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ include "vm-x-ai.secrets.questdb.name" . }}
               key: {{ include "vm-x-ai.secrets.questdb.passwordKey" . }}
+        {{- if $useSecretForConnection }}
         - name: QUESTDB_DB_NAME
-          value: {{ .Values.api.timeseriesDb.questdb.dbName | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "vm-x-ai.secrets.questdb.name" . }}
+              key: {{ include "vm-x-ai.secrets.questdb.databaseKey" . }}
+        {{- else }}
+        - name: QUESTDB_DB_NAME
+          value: {{ if .Values.questdb.enabled }}{{ .Values.api.timeseriesDb.questdb.dbName | quote }}{{ else }}{{ .Values.questdb.external.database | quote }}{{ end }}
+        {{- end }}
         {{- end }}
         {{- if eq .Values.api.timeseriesDb.provider "aws-timestream" }}
         - name: AWS_TIMESTREAM_DATABASE_NAME

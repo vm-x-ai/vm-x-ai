@@ -55,6 +55,10 @@ secrets:
     externalSecrets:
       secretKey: "vmxai/production/questdb"
       passwordKey: "password"
+      hostKey: "host"
+      portKey: "port"
+      databaseKey: "database"
+      usernameKey: "username"
   ui:
     method: eso
     externalSecrets:
@@ -93,6 +97,10 @@ secrets:
     external:
       secretName: "questdb-credentials"
       passwordKey: "password"
+      hostKey: "host"  # Optional, only if using external QuestDB
+      portKey: "port"  # Optional, only if using external QuestDB
+      databaseKey: "database"  # Optional, only if using external QuestDB
+      usernameKey: "username"  # Optional, only if using external QuestDB
   ui:
     method: external
     external:
@@ -113,6 +121,10 @@ kubectl create secret generic postgresql-credentials \
 
 kubectl create secret generic questdb-credentials \
   --from-literal=password='your-secure-password' \
+  --from-literal=host='questdb.example.com' \
+  --from-literal=port='8812' \
+  --from-literal=database='vmxai' \
+  --from-literal=username='admin' \
   --namespace vm-x-ai
 
 kubectl create secret generic ui-auth-secret \

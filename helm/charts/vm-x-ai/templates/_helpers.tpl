@@ -142,7 +142,7 @@ Generate QuestDB host
 {{- if .Values.questdb.enabled }}
 {{- printf "%s-questdb" (include "vm-x-ai.fullname" .) }}
 {{- else }}
-{{- "" }}
+{{- .Values.questdb.external.host }}
 {{- end }}
 {{- end }}
 
@@ -437,8 +437,111 @@ Get secret key for questdb password
 {{- define "vm-x-ai.secrets.questdb.passwordKey" -}}
 {{- if eq (default "create" $.Values.secrets.questdb.method) "external" }}
 {{- $.Values.secrets.questdb.external.passwordKey }}
+{{- else if eq (default "create" $.Values.secrets.questdb.method) "eso" }}
+{{- if $.Values.secrets.questdb.externalSecrets.passwordKey }}
+{{- $.Values.secrets.questdb.externalSecrets.passwordKey }}
 {{- else }}
 {{- "password" }}
+{{- end }}
+{{- else }}
+{{- "password" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get secret key for questdb host
+*/}}
+{{- define "vm-x-ai.secrets.questdb.hostKey" -}}
+{{- if eq (default "create" $.Values.secrets.questdb.method) "external" }}
+{{- if $.Values.secrets.questdb.external.hostKey }}
+{{- $.Values.secrets.questdb.external.hostKey }}
+{{- else }}
+{{- "host" }}
+{{- end }}
+{{- else if eq (default "create" $.Values.secrets.questdb.method) "eso" }}
+{{- if $.Values.secrets.questdb.externalSecrets.hostKey }}
+{{- $.Values.secrets.questdb.externalSecrets.hostKey }}
+{{- else }}
+{{- "host" }}
+{{- end }}
+{{- else }}
+{{- "host" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get secret key for questdb port
+*/}}
+{{- define "vm-x-ai.secrets.questdb.portKey" -}}
+{{- if eq (default "create" $.Values.secrets.questdb.method) "external" }}
+{{- if $.Values.secrets.questdb.external.portKey }}
+{{- $.Values.secrets.questdb.external.portKey }}
+{{- else }}
+{{- "port" }}
+{{- end }}
+{{- else if eq (default "create" $.Values.secrets.questdb.method) "eso" }}
+{{- if $.Values.secrets.questdb.externalSecrets.portKey }}
+{{- $.Values.secrets.questdb.externalSecrets.portKey }}
+{{- else }}
+{{- "port" }}
+{{- end }}
+{{- else }}
+{{- "port" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get secret key for questdb database
+*/}}
+{{- define "vm-x-ai.secrets.questdb.databaseKey" -}}
+{{- if eq (default "create" $.Values.secrets.questdb.method) "external" }}
+{{- if $.Values.secrets.questdb.external.databaseKey }}
+{{- $.Values.secrets.questdb.external.databaseKey }}
+{{- else }}
+{{- "database" }}
+{{- end }}
+{{- else if eq (default "create" $.Values.secrets.questdb.method) "eso" }}
+{{- if $.Values.secrets.questdb.externalSecrets.databaseKey }}
+{{- $.Values.secrets.questdb.externalSecrets.databaseKey }}
+{{- else }}
+{{- "database" }}
+{{- end }}
+{{- else }}
+{{- "database" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get secret key for questdb username
+*/}}
+{{- define "vm-x-ai.secrets.questdb.usernameKey" -}}
+{{- if eq (default "create" $.Values.secrets.questdb.method) "external" }}
+{{- if $.Values.secrets.questdb.external.usernameKey }}
+{{- $.Values.secrets.questdb.external.usernameKey }}
+{{- else }}
+{{- "username" }}
+{{- end }}
+{{- else if eq (default "create" $.Values.secrets.questdb.method) "eso" }}
+{{- if $.Values.secrets.questdb.externalSecrets.usernameKey }}
+{{- $.Values.secrets.questdb.externalSecrets.usernameKey }}
+{{- else }}
+{{- "username" }}
+{{- end }}
+{{- else }}
+{{- "username" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Check if QuestDB connection details should come from secrets
+Returns true if using external QuestDB and secret method supports it
+*/}}
+{{- define "vm-x-ai.secrets.questdb.useSecretForConnection" -}}
+{{- if not $.Values.questdb.enabled }}
+{{- $method := default "create" $.Values.secrets.questdb.method }}
+{{- if or (eq $method "create") (eq $method "eso") (eq $method "external") }}
+true
+{{- end }}
 {{- end }}
 {{- end }}
 
