@@ -26,6 +26,7 @@ const config: Config = {
   organizationName: 'vm-x-ai', // Usually your GitHub org/user name.
   projectName: 'vm-x-ai.github.io', // Usually your repo name.
   deploymentBranch: 'gh-pages',
+  trailingSlash: true,
 
   onBrokenLinks: 'throw',
 

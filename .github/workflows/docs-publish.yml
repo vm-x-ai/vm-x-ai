@@ -5,8 +5,13 @@ on:
     branches:
       - main
 
+permissions:
+  actions: write
+  id-token: write
+  contents: write
+
 jobs:
-  build:
+  publish:
     name: Publish Docs
     runs-on: ubuntu-latest
     steps:
@@ -25,11 +30,18 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Generate Release Token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SEMANTIC_RELEASE_APP_ID }}
+          private_key: ${{ secrets.SEMANTIC_RELEASE_PRIVATE_KEY }}
       
       - name: Publish Docs
         run: pnpm nx run docs:deploy
         env:
-          GIT_USER: "github-actions-bot"
-          GIT_PASS: ${{ secrets.GITHUB_TOKEN }}
-          GIT_USER_NAME: "github-actions-bot"
-          GIT_USER_EMAIL: "support+actions@github.com"
+          GIT_USER: "vm-x-ai-release[bot]"
+          GIT_PASS: ${{ steps.generate_token.outputs.token }}
+          GIT_USER_NAME: "vm-x-ai-release[bot]"
+          GIT_USER_EMAIL: "167465110+vm-x-ai-release[bot]@users.noreply.github.com"
