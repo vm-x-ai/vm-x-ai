@@ -5,7 +5,7 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useEnterSubmit } from '@/hooks/use-enter-submit';
 import ChatPanel from './ChatPanel';
 import ClearHistoryButton from './ClearHistoryButton';
@@ -36,24 +36,18 @@ export default function Chat({
   padding = 2,
   elevation = 3,
 }: ChatProps) {
-  const [resourceConfigOverrides, setResourceConfigOverrides] = useState<
-    Partial<AiResourceEntity>
-  >({
-    ...resource,
-    useFallback: true,
-  });
   const [input, setInput] = useState('');
   const { messages, sendMessage, error, setMessages, status } =
     useChat<ChatMessage>({
       transport: new DefaultChatTransport({
         api: '/api/chat',
-        prepareSendMessagesRequest: ({ messages }) => {
+        prepareSendMessagesRequest: ({ messages, body }) => {
           return {
             body: {
               messages: messages,
               workspaceId,
               environmentId,
-              resourceConfigOverrides,
+              ...body,
             },
           };
         },
@@ -70,17 +64,17 @@ export default function Chat({
     setInput('');
     if (!value) return;
 
-    sendMessage({
-      text: value,
-    });
+    sendMessage(
+      {
+        text: value,
+      },
+      {
+        body: {
+          resourceConfigOverrides: resource,
+        },
+      }
+    );
   }
-
-  useEffect(() => {
-    setResourceConfigOverrides({
-      ...resource,
-      useFallback: true,
-    });
-  }, [resource]);
 
   return (
     <Box
@@ -109,7 +103,7 @@ export default function Chat({
             >
               <ChatPanel
                 providersMap={providersMap}
-                overrides={resourceConfigOverrides}
+                overrides={resource}
                 messages={messages}
                 error={error}
                 width="100%"

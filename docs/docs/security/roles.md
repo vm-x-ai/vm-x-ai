@@ -2,80 +2,7 @@
 sidebar_position: 1
 ---
 
-# Users and Roles
-
-VM-X AI provides fine-grained access control through **Users** and **Roles**. This guide explains how to manage users and configure role-based permissions.
-
-## Users
-
-Users represent individuals who can access VM-X AI. Users can:
-
-- Be assigned to workspaces as members or owners
-- Have roles assigned for fine-grained permissions
-- Access resources based on their permissions
-
-### Creating a User
-
-#### Via UI
-
-1. Navigate to **Settings** → **Users**
-2. Click **Create User**
-3. Fill in user details:
-   - **Username**: Unique username
-   - **Email**: User email address
-   - **Password**: User password (or generate one)
-
-#### Via API
-
-```bash
-curl -X POST http://localhost:3000/api/v1/users \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "username": "john.doe",
-    "email": "john.doe@example.com",
-    "password": "secure-password"
-  }'
-```
-
-### Updating a User
-
-#### Via UI
-
-1. Navigate to **Settings** → **Users**
-2. Click on a user
-3. Click **Edit**
-4. Update user details
-5. Click **Save**
-
-#### Via API
-
-```bash
-curl -X PATCH http://localhost:3000/api/v1/users/{userId} \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "email": "new-email@example.com"
-  }'
-```
-
-### Deleting a User
-
-#### Via UI
-
-1. Navigate to **Settings** → **Users**
-2. Click on a user
-3. Click **Delete**
-4. Confirm deletion
-
-#### Via API
-
-```bash
-curl -X DELETE http://localhost:3000/api/v1/users/{userId} \
-  -H "Authorization: Bearer your-api-key"
-```
-
-## Roles
+# Roles
 
 Roles manage permissions using granular policies. Each role defines:
 
@@ -83,7 +10,7 @@ Roles manage permissions using granular policies. Each role defines:
 - **Resources**: What resources can be accessed
 - **Effect**: Whether to allow or deny the action
 
-### Role Policy Structure
+## Role Policy Structure
 
 A role policy consists of statements:
 
@@ -104,7 +31,7 @@ A role policy consists of statements:
 }
 ```
 
-### Wildcards
+## Wildcards
 
 Roles support wildcards for flexible permission management:
 
@@ -117,11 +44,11 @@ Examples:
 - `*:get` matches all "get" actions
 - `ai-connection:*` matches all AI connection actions
 
-### Default Roles
+## Default Roles
 
 VM-X AI includes three default roles:
 
-#### Admin
+### Admin
 
 Full access to everything:
 
@@ -137,7 +64,7 @@ Full access to everything:
 }
 ```
 
-#### Power User
+### Power User
 
 Can create workspaces, environments, connections, and resources, but cannot manage roles or users:
 
@@ -158,7 +85,7 @@ Can create workspaces, environments, connections, and resources, but cannot mana
 }
 ```
 
-#### Read Only
+### Read Only
 
 Can only read/list resources:
 
@@ -174,9 +101,7 @@ Can only read/list resources:
 }
 ```
 
-### Creating a Custom Role
-
-#### Via UI
+## Creating a Custom Role
 
 1. Navigate to **Settings** → **Roles**
 2. Click **Create Role**
@@ -190,43 +115,7 @@ Can only read/list resources:
    - **Actions**: List of actions (e.g., `ai-connection:create`)
    - **Resources**: List of resources (e.g., `workspace:*:environment:*:ai-connection:*`)
 
-#### Via API
-
-```bash
-curl -X POST http://localhost:3000/api/v1/roles \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "name": "developer",
-    "description": "Developer role with limited permissions",
-    "policy": {
-      "statements": [
-        {
-          "effect": "ALLOW",
-          "actions": [
-            "ai-connection:create",
-            "ai-connection:get",
-            "ai-connection:list",
-            "ai-resource:create",
-            "ai-resource:get",
-            "ai-resource:list"
-          ],
-          "resources": [
-            "workspace:*:environment:*:ai-connection:*",
-            "workspace:*:environment:*:ai-resource:*"
-          ]
-        },
-        {
-          "effect": "DENY",
-          "actions": ["workspace:delete", "environment:delete"],
-          "resources": ["*"]
-        }
-      ]
-    }
-  }'
-```
-
-### Available Actions
+## Available Actions
 
 Actions follow the pattern: `{module}:{operation}`
 
@@ -239,7 +128,7 @@ Common actions:
 - `user:create`, `user:get`, `user:list`, `user:update`, `user:delete`
 - `role:create`, `role:get`, `role:list`, `role:update`, `role:delete`
 
-### Resource Patterns
+## Resource Patterns
 
 Resources follow the pattern: `{module}:{identifier}:{submodule}:{identifier}:...`
 
@@ -253,25 +142,12 @@ Examples:
 
 ## Assigning Roles to Users
 
-### Via UI
-
 1. Navigate to **Settings** → **Users**
 2. Click on a user
 3. Click **Roles**
 4. Click **Assign Role**
 5. Select a role
 6. Click **Assign**
-
-### Via API
-
-```bash
-curl -X POST http://localhost:3000/api/v1/users/{userId}/roles \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "roleId": "role-id"
-  }'
-```
 
 ## Best Practices
 
@@ -308,15 +184,6 @@ Create roles for:
 
 ## Troubleshooting
 
-### User Cannot Perform Action
-
-If a user cannot perform an action:
-
-1. **Check Role Assignment**: Verify the user has a role assigned
-2. **Check Role Policy**: Verify the role policy allows the action
-3. **Check Resource Pattern**: Verify the resource pattern matches
-4. **Check DENY Statements**: Verify no DENY statement blocks the action
-
 ### Role Not Working
 
 If a role is not working:
@@ -328,7 +195,7 @@ If a role is not working:
 
 ## Next Steps
 
-- [Workspaces and Environments](./workspaces-environments.md) - Learn about workspace and environment isolation
-- [AI Connections](./ai-connections.md) - Create AI provider connections
-- [AI Resources](./ai-resources.md) - Create AI resources
+- [Policy Guide](./policy.md) - Detailed guide on creating role policies
+- [Users](./users.md) - Learn about user management
+- [Workspaces and Environments](../features/workspaces-environments.md) - Learn about workspace and environment isolation
 

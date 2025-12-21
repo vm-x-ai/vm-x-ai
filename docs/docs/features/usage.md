@@ -13,7 +13,6 @@ VM-X AI tracks:
 - **Audit Logs**: Complete record of every request
 - **Usage Metrics**: Time-series data for capacity planning
 - **Performance Metrics**: Latency, throughput, error rates
-- **Cost Metrics**: Token usage and provider costs
 
 ## Audit Logs
 
@@ -32,8 +31,6 @@ Each audit log entry includes:
 
 ### Accessing Audit Logs
 
-#### Via UI
-
 1. Navigate to **Audit** in the UI
 2. Use filters to find specific requests:
    - Date range
@@ -50,13 +47,6 @@ Each audit log entry includes:
    - Routing events
    - Capacity events
    - Error information
-
-#### Via API
-
-```bash
-curl "http://localhost:3000/api/v1/workspaces/{workspaceId}/environments/{environmentId}/completion-audit?limit=100&offset=0" \
-  -H "Authorization: Bearer your-api-key"
-```
 
 ### Audit Log Fields
 
@@ -101,8 +91,6 @@ Usage metrics are stored in a time-series database (QuestDB or AWS Timestream) f
 
 ### Accessing Usage Metrics
 
-#### Via UI
-
 Navigate to **Usage** in the UI to view:
 - Usage charts and graphs
 - Token usage over time
@@ -110,43 +98,8 @@ Navigate to **Usage** in the UI to view:
 - Error rates
 - Capacity utilization
 
-#### Via API
+![Usage Dashboard](/pages/usage-dashboard.png)
 
-Query usage metrics:
-
-```bash
-curl "http://localhost:3000/api/v1/workspaces/{workspaceId}/environments/{environmentId}/usage?startTime=2024-01-01T00:00:00Z&endTime=2024-01-02T00:00:00Z" \
-  -H "Authorization: Bearer your-api-key"
-```
-
-### Time-Series Queries
-
-Query usage metrics directly from the time-series database:
-
-#### QuestDB
-
-```sql
-SELECT 
-  timestamp,
-  resourceId,
-  provider,
-  model,
-  SUM(promptTokens) as totalPromptTokens,
-  SUM(completionTokens) as totalCompletionTokens,
-  SUM(totalTokens) as totalTokens,
-  COUNT(*) as requestCount
-FROM completion_usage
-WHERE timestamp >= '2024-01-01T00:00:00Z'
-  AND timestamp < '2024-01-02T00:00:00Z'
-  AND workspaceId = 'workspace-id'
-  AND environmentId = 'environment-id'
-SAMPLE BY 1h
-ORDER BY timestamp;
-```
-
-#### AWS Timestream
-
-Use AWS Timestream Query API or console to query metrics.
 
 ## OpenTelemetry Integration
 
@@ -221,12 +174,6 @@ Track capacity usage:
 - Capacity by resource
 - Capacity by connection
 
-### Cost Analysis
-
-Estimate costs:
-- Token usage by provider
-- Request counts by provider
-- Estimated costs (if provider pricing is known)
 
 ## Best Practices
 
@@ -244,12 +191,12 @@ Estimate costs:
 - Plan for peak usage
 - Adjust capacity based on trends
 
-### 3. Cost Optimization
+### 3. Performance Optimization
 
 - Analyze token usage by provider
-- Identify expensive operations
-- Optimize routing based on costs
-- Monitor cost trends
+- Identify performance bottlenecks
+- Optimize routing based on latency and throughput
+- Monitor performance trends
 
 ### 4. Performance Optimization
 
@@ -278,41 +225,5 @@ Export audit logs for:
 
 Export usage metrics to:
 - Business intelligence tools
-- Cost analysis tools
+- Performance analysis tools
 - Custom dashboards
-
-## Troubleshooting
-
-### Missing Metrics
-
-If metrics are missing:
-
-1. **Check Time-Series Database**: Verify database is running
-2. **Check Configuration**: Verify time-series provider is configured
-3. **Review Logs**: Check for errors in metric export
-4. **Verify Queries**: Ensure queries are correct
-
-### Slow Queries
-
-If queries are slow:
-
-1. **Add Indexes**: Ensure proper indexes exist
-2. **Optimize Queries**: Use appropriate time ranges
-3. **Use Aggregations**: Aggregate data when possible
-4. **Consider Sampling**: Use sampling for large time ranges
-
-### Missing Audit Logs
-
-If audit logs are missing:
-
-1. **Check Database**: Verify PostgreSQL is running
-2. **Review Logs**: Check for errors in audit logging
-3. **Verify Configuration**: Ensure audit logging is enabled
-4. **Check Filters**: Verify filters are not excluding logs
-
-## Next Steps
-
-- [AI Resources](./ai-resources.md) - Learn about AI Resources
-- [Prioritization](./prioritization.md) - Understand capacity prioritization
-- [AI Connections](./ai-connections.md) - Understand AI Connections
-

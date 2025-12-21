@@ -81,12 +81,13 @@ export default function ActionSelector({
           <Grid container spacing={3}>
             <Grid size={12}>
               <ConnectionModelSelector
+                key={route.then?.provider ?? ''}
                 value={route.then?.provider ? route.then : undefined}
                 onChange={(_, value) => {
                   onChange?.({
                     ...route,
                     then: value
-                      ? { ...value, ...(route.then ?? {}) }
+                      ? { ...(route.then ?? {}), ...value }
                       : undefined,
                   });
                 }}

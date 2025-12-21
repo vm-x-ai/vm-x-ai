@@ -1,118 +1,104 @@
-# OpenVmXAi
+# VM-X AI
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+**VM-X AI** is a comprehensive management layer for AI workloads, designed to centralize and optimize your interactions with multiple AI providers. Whether you're building applications that need to route requests intelligently, manage capacity across providers, or ensure high availability through fallback mechanisms, VM-X AI provides the infrastructure and tools you need.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## What is VM-X AI?
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/node?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+VM-X AI is a server and UI application that acts as a **routing and management layer** for AI workloads. It enables you to:
 
-## Run tasks
+- **Centralize AI Access**: Manage all your AI provider credentials and connections in one place
+- **Intelligent Routing**: Route requests to different providers based on dynamic conditions (token count, error rates, request characteristics)
+- **Automatic Fallback**: Ensure high availability by automatically falling back to alternative providers when primary ones fail
+- **Capacity Management**: Define and enforce custom capacity limits (RPM, TPM) per connection and resource
+- **Prioritization**: Allocate capacity across multiple resources using sophisticated prioritization algorithms
+- **Usage Analytics**: Track every request with comprehensive audit logs and time-series metrics
+- **OpenAI Compatibility**: Use the standard OpenAI SDK to connect to VM-X and access any supported provider
 
-To run the dev server for your app, use:
+## Key Features
 
-```sh
-npx nx serve api
-```
+- **Provider Abstraction**: Unified interface for OpenAI, Anthropic, Google Gemini, Groq, and AWS Bedrock
+- **Dynamic Routing**: Route requests based on token count, error rates, tool usage, and content analysis
+- **Automatic Fallback**: Seamless failover to backup providers when primary providers fail
+- **Capacity Prioritization**: Intelligent capacity allocation using adaptive token scaling
+- **Batch Processing**: Process thousands of requests with capacity-aware scheduling
+- **Workspace & Environment Isolation**: Multi-tenant architecture with fine-grained access control
+- **OpenTelemetry Support**: Export traces and metrics to any OpenTelemetry-compatible platform
 
-To create a production bundle:
+## Quick Start
 
-```sh
-npx nx build api
-```
-
-To see all available targets to run for a project, run:
-
-```sh
-npx nx show project api
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-Use the plugin's generator to create new projects.
-
-To generate a new application, use:
-
-```sh
-npx nx g @nx/node:app demo
-```
-
-To generate a new library, use:
-
-```sh
-npx nx g @nx/node:lib mylib
-```
-
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
-
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
-```
-
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/nx-api/node?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-
-## Linux NTP Issue
-
-When running the load test on a linux machine, you may encounter an issue where the `Date.now()` function returns the wrong time, like future dates, which can cause the load test to generate misleading results. To fix this issue, you need to stop the `ntp` service by running the following command:
+The fastest way to get started is using Docker Compose:
 
 ```bash
-sudo systemctl stop systemd-timesyncd
-sudo timedatectl set-ntp off
+# Clone the repository
+git clone https://github.com/vm-x-ai/open-vm-x-ai.git
+cd open-vm-x-ai
+
+# Start all services
+docker-compose -f examples/docker-compose/default.docker-compose.yml up -d
 ```
 
-**IMPORTANT**: Don't forget to start the `ntp` service after running the load test by running the following command:
+Access the UI at `http://localhost:3001` and the API at `http://localhost:3000`.
 
-```bash
-sudo timedatectl set-ntp on
-sudo syst
+For detailed setup instructions, see the [Getting Started Guide](https://vm-x-ai.github.io/docs/getting-started).
+
+## Documentation
+
+📚 **Complete documentation is available at [https://vm-x-ai.github.io/](https://vm-x-ai.github.io/)**
+
+The documentation includes:
+
+- **Introduction**: Overview of VM-X AI and its capabilities
+- **Architecture**: Technical stack and system design
+- **Getting Started**: Local deployment with Docker Compose
+- **Deployment Guides**: Kubernetes (Minikube, AWS EKS) and AWS ECS
+- **Features**: AI Connections, AI Resources, Routing, Fallback, Capacity, Prioritization, Batch Completion
+- **Security**: Users, Roles, and Policy management
+- **Integrations**: LangChain integration
+- **LLM Providers**: Supported providers and feature matrix
+
+## Supported Providers
+
+VM-X AI supports the following AI providers:
+
+- **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5
+- **Anthropic**: Claude Haiku, Sonnet, Opus
+- **Google Gemini**: Gemini Flash, Gemini Pro
+- **Groq**: Ultra-fast inference with open-source models
+- **AWS Bedrock**: Access to multiple models through AWS
+
+See the [Provider Documentation](https://vm-x-ai.github.io/docs/integrations/providers/) for details.
+
+## Tech Stack
+
+- **Backend**: NestJS (Node.js)
+- **Frontend**: Next.js (React)
+- **Database**: PostgreSQL
+- **Time-Series**: QuestDB / AWS Timestream
+- **Cache/Queue**: Redis
+- **Encryption**: AWS KMS / Libsodium
+- **Observability**: OpenTelemetry
+
+## Development
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and contribution guidelines.
+
+### Quick Development Setup
+
+1. Install dependencies: `pnpm install`
+2. Start services: `docker-compose up -d`
+3. Configure `.env.local` files (see [CONTRIBUTING.md](./CONTRIBUTING.md))
+4. Start dev servers: `pnpm nx serve api` and `pnpm nx serve ui`
+
+## License
+
+[MIT License](./LICENSE)
+
+## Links
+
+- **Documentation**: [https://vm-x-ai.github.io/](https://vm-x-ai.github.io/)
+- **GitHub**: [https://github.com/vm-x-ai/open-vm-x-ai](https://github.com/vm-x-ai/open-vm-x-ai)
+- **Helm Repository**: [https://vm-x-ai.github.io/open-vm-x-ai/helm/](https://vm-x-ai.github.io/open-vm-x-ai/helm/)
+
+---
+
+Built with [Nx](https://nx.dev) - Smart, Fast and Extensible Build System

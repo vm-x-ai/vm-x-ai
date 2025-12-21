@@ -19,8 +19,10 @@ import {
   AiConnectionEntity,
   AiProviderDto,
   AiResourceEntity,
+  AiResourceModelConfigEntity,
 } from '@/clients/api';
 import MultiConnectionModelSelector from '../../Common/MultiConnectionModelSelector';
+import { useAppStore } from '@/store/provider';
 
 export type AIResourceFallbackEditFormProps = {
   data: AiResourceEntity;
@@ -61,17 +63,27 @@ export default function AIResourceFallbackEditForm({
     }
   }, [state]);
 
-  const {
-    control,
-    handleSubmit,
-    setValue,
-  } = useForm<FormSchema>({
+  const setAiResourceChanges = useAppStore(
+    (state) => state.setAiResourceChanges
+  );
+
+  const { control, handleSubmit, setValue, watch } = useForm<FormSchema>({
     resolver: zodResolver(schema),
     defaultValues: {
       fallbackModels: data.fallbackModels ?? [],
       useFallback: data.useFallback ?? false,
     },
   });
+
+  const formData = watch();
+
+  useEffect(() => {
+    setAiResourceChanges(data.resourceId, {
+      fallbackModels: formData.fallbackModels as AiResourceModelConfigEntity[],
+      useFallback: formData.useFallback,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.resourceId, formData]);
 
   return (
     <Grid container spacing={3}>
@@ -81,9 +93,7 @@ export default function AIResourceFallbackEditForm({
         </Grid>
       )}
       <Grid size={12}>
-        <Typography variant="h6">
-          AI Resource Fallback - {data.name}
-        </Typography>
+        <Typography variant="h6">AI Resource Fallback - {data.name}</Typography>
         <Divider />
       </Grid>
       <Grid size={12}>

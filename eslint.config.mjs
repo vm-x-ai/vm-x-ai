@@ -75,6 +75,7 @@ export default [
             '@fastify/static',
             'tailwindcss',
             'tw-animate-css',
+            '@docusaurus/theme-mermaid'
           ],
         },
       ],

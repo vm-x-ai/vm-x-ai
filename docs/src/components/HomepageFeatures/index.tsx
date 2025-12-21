@@ -12,50 +12,51 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Abstraction',
+    title: 'Provider Abstraction',
     description: (
       <>
-        <strong>VM-X</strong> introduces an abstraction layer between your code
-        and your AI inference providers. Not only does this allow you to easily
-        swap one model for another, it also allows you to easily switch between
-        providers.
+        <strong>Unified API for all AI providers.</strong> VM-X AI introduces an abstraction layer
+        between your code and AI inference providers. Use the standard OpenAI SDK to connect to
+        any supported provider—OpenAI, Anthropic, Google Gemini, Groq, or AWS Bedrock—without
+        changing your code.
       </>
     ),
     link: '/docs/intro',
   },
-  // {
-  //   title: 'Fallback',
-  //   description: (
-  //     <>
-  //       <strong>Reduce error rates.</strong> Some model calls are too critical
-  //       to fail. With <strong>VM-X</strong>, define a resource which is always
-  //       available by providing a fall back model. This second resource will
-  //       respond if the first call fails.
-  //     </>
-  //   ),
-  //   link: '/docs/cloud-console/ai-resources/fallback',
-  // },
-  // {
-  //   title: 'Dynamic Routing',
-  //   description: (
-  //     <>
-  //       <strong>VM-X</strong> dynamic routing is fully configurable. Developers
-  //       don't like black boxes. We let you define which rules to use and when.
-  //     </>
-  //   ),
-  //   link: '/docs/cloud-console/ai-resources/dynamic-routing',
-  // },
-  // {
-  //   title: 'Resource and Capacity Allocation',
-  //   description: (
-  //     <>
-  //       We understand that some requests are more important than others. We also
-  //       know that resource prioritization across many applications gets
-  //       complicated very quickly.
-  //     </>
-  //   ),
-  //   link: '/docs/cloud-console/prioritization/concept',
-  // },
+  {
+    title: 'Dynamic Routing',
+    description: (
+      <>
+        <strong>Intelligent request routing.</strong> Automatically route requests to different
+        models based on token count, error rates, tool usage, or content analysis. Configure
+        complex routing rules with full control over when and how requests are distributed
+        across providers.
+      </>
+    ),
+    link: '/docs/features/ai-resources/routing',
+  },
+  {
+    title: 'Automatic Fallback',
+    description: (
+      <>
+        <strong>High availability guaranteed.</strong> Ensure your AI workloads never fail by
+        configuring automatic fallback chains. When a primary model fails, VM-X AI automatically
+        switches to alternative providers, protecting against outages and errors.
+      </>
+    ),
+    link: '/docs/features/ai-resources/fallback',
+  },
+  {
+    title: 'Capacity Prioritization',
+    description: (
+      <>
+        <strong>Intelligent capacity allocation.</strong> Allocate capacity across multiple resources
+        using adaptive token scaling. Define priority pools with min/max reservations and let
+        VM-X AI dynamically adjust allocation based on actual usage patterns.
+      </>
+    ),
+    link: '/docs/features/prioritization',
+  },
 ];
 
 function Feature({ title, link, description }: FeatureItem) {

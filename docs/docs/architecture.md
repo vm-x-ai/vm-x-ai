@@ -76,53 +76,74 @@ VM-X AI is built on a modern, scalable stack designed for production use. This p
 
 ## System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Internet                              │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Load Balancer / Ingress                   │
-│              (Istio Gateway / ALB / NLB)                     │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-         ┌───────────────┼───────────────┐
-         │               │               │
-         ▼               ▼               ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│   UI Pod     │ │   API Pod    │ │   API Pod    │
-│  (Next.js)   │ │  (NestJS)    │ │  (NestJS)    │
-│              │ │              │ │              │
-│  Port: 3001  │ │  Port: 3000  │ │  Port: 3000  │
-└──────────────┘ └──────┬───────┘ └──────┬───────┘
-                        │                 │
-                        └────────┬────────┘
-                                 │
-                    ┌────────────┼────────────┐
-                    │            │            │
-                    ▼            ▼            ▼
-            ┌──────────┐  ┌──────────┐  ┌──────────┐
-            │PostgreSQL│  │  Redis   │  │ QuestDB  │
-            │          │  │          │  │          │
-            │ Config   │  │ Capacity │  │ Metrics  │
-            │ Audit    │  │ Cache    │  │          │
-            └──────────┘  └──────────┘  └──────────┘
-                    │
-                    ▼
-            ┌──────────┐
-            │  AWS KMS │
-            │          │
-            │Encryption│
-            └──────────┘
+```mermaid
+graph TB
+    Internet[Internet]
+    LB[Load Balancer / Ingress<br/>Istio Gateway / ALB / NLB]
+    
+    UI1[UI Pod<br/>Next.js<br/>Port: 3001]
+    API1[API Pod<br/>NestJS<br/>Port: 3000]
+    API2[API Pod<br/>NestJS<br/>Port: 3000]
+    
+    PG[(PostgreSQL<br/>Config & Audit)]
+    Redis[(Redis<br/>Capacity & Cache)]
+    QuestDB[(QuestDB<br/>Metrics)]
+    KMS[AWS KMS<br/>Encryption]
+    
+    Internet --> LB
+    LB --> UI1
+    LB --> API1
+    LB --> API2
+    
+    API1 --> PG
+    API2 --> PG
+    API1 --> Redis
+    API2 --> Redis
+    API1 --> QuestDB
+    API2 --> QuestDB
+    API1 --> KMS
+    API2 --> KMS
+    
+    style Internet fill:#e3f2fd
+    style LB fill:#fff3e0
+    style UI1 fill:#e8f5e9
+    style API1 fill:#e8f5e9
+    style API2 fill:#e8f5e9
+    style PG fill:#f3e5f5
+    style Redis fill:#ffebee
+    style QuestDB fill:#e0f2f1
+    style KMS fill:#fff9c4
 ```
 
 ## Request Flow
 
 ### 1. Client Request
 
-```
-Application → VM-X AI API (OpenAI-compatible endpoint)
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant VMX as VM-X AI API
+    participant Auth as Auth Service
+    participant Resource as AI Resource
+    participant Gate as Gate Service
+    participant Routing as Routing Service
+    participant Connection as AI Connection
+    participant Provider as AI Provider
+    
+    App->>VMX: OpenAI SDK Request<br/>baseURL: /v1/completion/{workspaceId}/{environmentId}
+    VMX->>Auth: Validate API Key
+    Auth-->>VMX: API Key Valid
+    VMX->>Resource: Load AI Resource
+    Resource-->>VMX: Resource Config
+    VMX->>Gate: Check Capacity
+    Gate-->>VMX: Capacity OK
+    VMX->>Routing: Evaluate Routing
+    Routing-->>VMX: Selected Model
+    VMX->>Connection: Get Connection
+    Connection-->>VMX: Connection Config
+    VMX->>Provider: Make Request
+    Provider-->>VMX: Stream Response
+    VMX-->>App: Stream to Client
 ```
 
 The application uses the standard OpenAI SDK to make requests:
@@ -130,31 +151,85 @@ The application uses the standard OpenAI SDK to make requests:
 ```typescript
 import OpenAI from 'openai';
 
+const workspaceId = "6c41dc1b-910c-4358-beef-2c609d38db31";
+const environmentId = "6c1957ca-77ca-49b3-8fa1-0590281b8b44";
+
 const openai = new OpenAI({
   apiKey: 'vmx-api-key-here',
-  baseURL: 'https://vm-x-ai.example.com/api/v1', // VM-X AI endpoint
+  baseURL: `https://vm-x-ai.example.com/v1/completion/${workspaceId}/${environmentId}`,
 });
 
 const completion = await openai.chat.completions.create({
-  model: 'gpt-4o', // Resource name, not actual model
+  model: 'chat-completion', // Resource name, not actual model
   messages: [{ role: 'user', content: 'Hello!' }],
 });
 ```
 
 ### 2. Authentication & Authorization
 
-```
-API → Validate API Key → Check Resource Access
+VM-X AI supports multiple authentication methods:
+
+#### API Key Authentication
+
+```mermaid
+flowchart LR
+    A[API Request] --> B{Validate API Key}
+    B -->|Valid| C{Check Resource Access}
+    B -->|Invalid| D[401 Unauthorized]
+    C -->|Authorized| E[Establish User Context]
+    C -->|Unauthorized| F[403 Forbidden]
 ```
 
 - API key is validated
 - Resource access is checked
 - User context is established (if applicable)
 
+#### OIDC Federated Login (SSO)
+
+For UI access, VM-X AI supports OIDC federated login:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant API
+    participant OIDC as OIDC Provider
+    participant DB
+    
+    User->>UI: Click SSO Login
+    UI->>OIDC: Redirect to OIDC Provider
+    OIDC->>User: Authenticate
+    User->>OIDC: Provide Credentials
+    OIDC->>UI: Redirect with Authorization Code
+    UI->>API: Exchange Code for Token
+    API->>OIDC: Validate Token
+    OIDC-->>API: Token Valid + User Info
+    API->>DB: Create/Update User
+    DB-->>API: User Created/Updated
+    API->>UI: Session Created
+    UI-->>User: Logged In
+```
+
+**OIDC Configuration:**
+
+Configure via environment variables:
+- `OIDC_FEDERATED_ISSUER`: OIDC issuer URL (required)
+- `OIDC_FEDERATED_CLIENT_ID`: OIDC client ID (required)
+- `OIDC_FEDERATED_CLIENT_SECRET`: OIDC client secret (optional)
+- `OIDC_FEDERATED_SCOPE`: OIDC scopes (default: `openid profile email`)
+- `OIDC_FEDERATED_DEFAULT_ROLE`: Default role for federated users (default: `power-user`)
+
+When OIDC is configured, the login page displays an "SSO Login" button. After successful authentication, users are automatically created (if they don't exist) and assigned the default role.
+
 ### 3. Resource Resolution
 
-```
-API → Load AI Resource → Evaluate Routing Conditions
+```mermaid
+flowchart TD
+    A[Load AI Resource] --> B{Routing Enabled?}
+    B -->|Yes| C[Evaluate Routing Conditions]
+    B -->|No| D[Use Primary Model]
+    C -->|Match| E[Use Routed Model]
+    C -->|No Match| D
 ```
 
 - AI Resource is loaded from cache or database
@@ -163,8 +238,15 @@ API → Load AI Resource → Evaluate Routing Conditions
 
 ### 4. Capacity Check
 
-```
-API → Check Connection Capacity → Check Resource Capacity → Prioritization Gate
+```mermaid
+flowchart TD
+    A[Request Received] --> B{Connection Capacity OK?}
+    B -->|No| C[429 Too Many Requests]
+    B -->|Yes| D{Resource Capacity OK?}
+    D -->|No| C
+    D -->|Yes| E{Prioritization Gate}
+    E -->|Allowed| F[Proceed]
+    E -->|Denied| C
 ```
 
 - Connection-level capacity is checked (RPM, TPM)
@@ -173,8 +255,17 @@ API → Check Connection Capacity → Check Resource Capacity → Prioritization
 
 ### 5. Provider Request
 
-```
-API → Decrypt Credentials → Make Request to AI Provider
+```mermaid
+sequenceDiagram
+    participant API as VM-X AI API
+    participant Vault as Vault Service
+    participant Provider as AI Provider
+    
+    API->>Vault: Decrypt Credentials
+    Vault-->>API: Decrypted Credentials
+    API->>Provider: Make Request
+    Provider-->>API: Stream Response
+    API-->>API: Stream to Client
 ```
 
 - Credentials are decrypted (AWS KMS or Libsodium)
@@ -183,8 +274,14 @@ API → Decrypt Credentials → Make Request to AI Provider
 
 ### 6. Fallback (if needed)
 
-```
-Primary Fails → Try Fallback Model 1 → Try Fallback Model 2 → ...
+```mermaid
+flowchart TD
+    A[Primary Model Request] --> B{Success?}
+    B -->|Yes| C[Return Response]
+    B -->|No| D{More Fallbacks?}
+    D -->|Yes| E[Try Next Fallback]
+    D -->|No| F[Return Error]
+    E --> B
 ```
 
 - If primary model fails, fallback models are tried in order
@@ -193,8 +290,15 @@ Primary Fails → Try Fallback Model 1 → Try Fallback Model 2 → ...
 
 ### 7. Metrics & Audit
 
-```
-API → Update Capacity Counters → Store Usage Metrics → Store Audit Log
+```mermaid
+flowchart LR
+    A[Request Complete] --> B[Update Redis Counters]
+    A --> C[Push to QuestDB/Timestream]
+    A --> D[Store Audit Log in PostgreSQL]
+    
+    B --> E[Capacity Tracking]
+    C --> F[Usage Metrics]
+    D --> G[Audit Trail]
 ```
 
 - Capacity counters are updated in Redis
@@ -244,24 +348,34 @@ API → Update Capacity Counters → Store Usage Metrics → Store Audit Log
 
 #### Configuration Data
 
-```
-UI → API → PostgreSQL → Cache (Redis)
+```mermaid
+flowchart LR
+    UI[UI] --> API[API]
+    API --> PG[(PostgreSQL)]
+    PG --> Cache[(Redis Cache)]
+    Cache --> API
 ```
 
 Configuration changes flow from UI to API, are stored in PostgreSQL, and cached in Redis for fast access.
 
 #### Usage Metrics
 
-```
-API → QuestDB/Timestream → Dashboard/Export
+```mermaid
+flowchart LR
+    API[API] --> TS[(QuestDB/Timestream)]
+    TS --> Dashboard[Dashboard]
+    TS --> Export[OpenTelemetry Export]
 ```
 
 Usage metrics are written to time-series database and can be queried for dashboards or exported to OpenTelemetry.
 
 #### Audit Logs
 
-```
-API → PostgreSQL → UI (Audit Viewer)
+```mermaid
+flowchart LR
+    API[API] --> PG[(PostgreSQL)]
+    PG --> UI[UI Audit Viewer]
+    PG --> Export[Export]
 ```
 
 Audit logs are stored in PostgreSQL and can be viewed in the UI or exported.
@@ -342,11 +456,5 @@ VM-X AI can be deployed in various environments:
 - **AWS EKS**: Complete CDK stack with EKS
 - **AWS ECS**: Complete CDK stack with ECS Fargate
 
-See the [Deployment Guides](./deployment/) for detailed instructions.
-
-## Next Steps
-
-- [Getting Started](./getting-started.md) - Deploy VM-X AI locally
-- [Deployment Guides](./deployment/) - Deploy to production
-- [Features](./features/) - Learn about specific features
+See the [Deployment Guides](../deployment/minikube) for detailed instructions.
 

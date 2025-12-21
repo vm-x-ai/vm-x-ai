@@ -43,6 +43,7 @@ export default async function Layout({ children, params }: LayoutProps) {
   return (
     <AIResourceTabs
       tabs={tabs}
+      resourceId={resourceId}
       resourcePromise={getAiResourceById({
         path: {
           workspaceId,

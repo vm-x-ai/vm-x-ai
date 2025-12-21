@@ -23,25 +23,10 @@ Each workspace can have two types of members:
 
 ### Creating a Workspace
 
-#### Via UI
-
-1. Navigate to the workspace selector
-2. Click **Create new workspace**
-3. Fill in workspace details:
+1. Navigate to **Getting Started** from the sidebar
+2. Fill in workspace details:
    - **Name**: A descriptive name
    - **Description**: Optional description
-
-#### Via API
-
-```bash
-curl -X POST http://localhost:3000/api/v1/workspaces \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "name": "My Workspace",
-    "description": "Production workspace"
-  }'
-```
 
 ## Environments
 
@@ -53,25 +38,10 @@ An **Environment** is an isolation layer within a workspace that groups resource
 
 ### Creating an Environment
 
-#### Via UI
-
-1. Navigate to a workspace
-2. Click **Create new environment**
+1. Navigate to the **Workspaces** page from the sidebar
+2. Click on the plus icon next to the workspace
 3. Fill in environment details:
    - **Name**: A descriptive name (e.g., "production", "staging", "development")
-   - **Description**: Optional description
-
-#### Via API
-
-```bash
-curl -X POST http://localhost:3000/api/v1/workspaces/{workspaceId}/environments \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "name": "production",
-    "description": "Production environment"
-  }'
-```
 
 ## Workspace and Environment Isolation
 
@@ -156,59 +126,17 @@ Create separate AI Resources for:
 
 ### Adding Members
 
-#### Via UI
-
-1. Navigate to workspace settings
-2. Click **Members**
+1. Navigate to the **Workspaces** from the sidebar
+2. Click on the edit icon next to the workspace
 3. Click **Add Member**
 4. Select user and role (Owner or Member)
 
-#### Via API
-
-```bash
-curl -X POST http://localhost:3000/api/v1/workspaces/{workspaceId}/members \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "userId": "user-id",
-    "role": "member"  // or "owner"
-  }'
-```
-
 ### Removing Members
 
-#### Via UI
-
-1. Navigate to workspace settings
+1. Navigate to the **Workspaces** from the sidebar
+2. Click on the edit icon next to the workspace
 2. Click **Members**
-3. Click **Remove** next to the member
-
-#### Via API
-
-```bash
-curl -X DELETE http://localhost:3000/api/v1/workspaces/{workspaceId}/members/{userId} \
-  -H "Authorization: Bearer your-api-key"
-```
-
-## Viewing Workspace and Environment Details
-
-### Via UI
-
-Navigate to:
-- **Workspace**: View workspace details, members, and environments
-- **Environment**: View environment details and resources
-
-### Via API
-
-```bash
-# Get workspace
-curl http://localhost:3000/api/v1/workspaces/{workspaceId} \
-  -H "Authorization: Bearer your-api-key"
-
-# Get environment
-curl http://localhost:3000/api/v1/workspaces/{workspaceId}/environments/{environmentId} \
-  -H "Authorization: Bearer your-api-key"
-```
+3. Click on the remove icon next to the member
 
 ## Troubleshooting
 
@@ -235,10 +163,3 @@ If resources are not visible:
 1. **Check Environment**: Verify you are viewing the correct environment
 2. **Check Permissions**: Verify your role has read permissions
 3. **Check Resource Status**: Verify resources are enabled
-
-## Next Steps
-
-- [Users and Roles](./users-roles.md) - Learn about user and role management
-- [AI Connections](./ai-connections.md) - Create AI provider connections
-- [AI Resources](./ai-resources.md) - Create AI resources
-

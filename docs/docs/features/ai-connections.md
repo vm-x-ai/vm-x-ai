@@ -13,12 +13,9 @@ An AI Connection encapsulates:
 - **Provider**: The AI provider (OpenAI, Anthropic, Google Gemini, Groq, AWS Bedrock)
 - **Credentials**: Encrypted API keys or authentication tokens
 - **Capacity**: Custom capacity limits (e.g., 100 RPM, 100,000 TPM)
-- **Allowed Models**: Optional list of models that can be used through this connection
 - **Discovered Capacity**: Automatically discovered rate limits from the provider
 
 ## Creating an AI Connection
-
-### Via UI
 
 1. Navigate to **AI Connections** in the UI
 2. Click **Create Connection**
@@ -28,35 +25,11 @@ An AI Connection encapsulates:
    - **Provider**: Select the AI provider
    - **Configuration**: Provider-specific configuration (API keys, region, etc.)
    - **Capacity**: Define capacity limits (optional)
-   - **Allowed Models**: Restrict which models can be used (optional)
 
-### Via API
+You can also use the quick add feature for faster connection setup:
 
-```bash
-curl -X POST http://localhost:3000/api/v1/workspaces/{workspaceId}/environments/{environmentId}/ai-connections \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "name": "OpenAI Production",
-    "description": "OpenAI connection for production workloads",
-    "provider": "openai",
-    "config": {
-      "apiKey": "sk-..."
-    },
-    "capacity": [
-      {
-        "period": "minute",
-        "requests": 100,
-        "tokens": 100000
-      },
-      {
-        "period": "hour",
-        "requests": 5000,
-        "tokens": 5000000
-      }
-    ]
-  }'
-```
+![AI Connection Quick Add](/pages/ai-connection-quick-add.png)
+
 
 ## Provider-Specific Configuration
 
@@ -106,17 +79,25 @@ curl -X POST http://localhost:3000/api/v1/workspaces/{workspaceId}/environments/
 
 ### AWS Bedrock
 
+AWS Bedrock uses IAM roles for authentication. You need to create an IAM role in your AWS account and provide its ARN:
+
 ```json
 {
   "provider": "aws-bedrock",
   "config": {
     "region": "us-east-1",
-    "accessKeyId": "...",
-    "secretAccessKey": "...",
-    "sessionToken": "..." // Optional, for temporary credentials
+    "iamRoleArn": "arn:aws:iam::123456789012:role/vm-x-ai-bedrock-role"
   }
 }
 ```
+
+**IAM Role Setup:**
+
+1. Create an IAM role in your AWS account with Bedrock permissions
+2. Configure the role's trust policy to allow VM-X AI to assume it
+3. Use the role ARN in the connection configuration
+
+A CloudFormation template is available in the repository at [`packages/api/assets/aws/cfn/bedrock-iam-role.yaml`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/assets/aws/cfn/bedrock-iam-role.yaml) to help you create the required IAM role.
 
 ## Capacity Configuration
 
@@ -159,24 +140,6 @@ Capacity is enforced at the connection level. When a request exceeds capacity:
 - The request is rejected with a `429 Too Many Requests` status
 - An error message indicates which limit was exceeded
 - The client should retry after the rate limit window resets
-
-## Allowed Models
-
-Restrict which models can be used through a connection:
-
-```json
-{
-  "allowedModels": [
-    "gpt-4o",
-    "gpt-4o-mini"
-  ]
-}
-```
-
-If `allowedModels` is specified:
-- Only listed models can be used through this connection
-- Requests for other models will be rejected
-- Useful for cost control and preventing accidental use of expensive models
 
 ## Discovered Capacity
 
@@ -233,14 +196,7 @@ Base capacity limits on:
 
 Monitor discovered capacity to understand actual provider limits.
 
-### 3. Use Model Restrictions
-
-Use `allowedModels` to:
-- Prevent accidental use of expensive models
-- Control costs
-- Enforce model usage policies
-
-### 4. Monitor Usage
+### 3. Monitor Usage
 
 Regularly review:
 - Capacity utilization
@@ -256,47 +212,18 @@ Regularly review:
 
 ## Updating an AI Connection
 
-### Via UI
-
 1. Navigate to the connection
 2. Click **Edit**
 3. Update the desired fields
 4. Click **Save**
 
-### Via API
-
-```bash
-curl -X PATCH http://localhost:3000/api/v1/workspaces/{workspaceId}/environments/{environmentId}/ai-connections/{connectionId} \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "capacity": [
-      {
-        "period": "minute",
-        "requests": 200,
-        "tokens": 200000
-      }
-    ]
-  }'
-```
-
 ## Viewing Connection Details
-
-### Via UI
 
 Navigate to **AI Connections** and click on a connection to view:
 - Connection details
 - Capacity configuration
 - Discovered capacity
-- Allowed models
 - Usage statistics
-
-### Via API
-
-```bash
-curl http://localhost:3000/api/v1/workspaces/{workspaceId}/environments/{environmentId}/ai-connections/{connectionId} \
-  -H "Authorization: Bearer your-api-key"
-```
 
 ## Troubleshooting
 
@@ -319,10 +246,3 @@ curl http://localhost:3000/api/v1/workspaces/{workspaceId}/environments/{environ
 1. **Make Requests**: Discovered capacity is updated when requests are made
 2. **Check Provider Headers**: Verify provider returns rate limit headers
 3. **Review Logs**: Check for errors in capacity discovery
-
-## Next Steps
-
-- [AI Resources](./ai-resources.md) - Learn about AI Resources
-- [Prioritization](./prioritization.md) - Understand capacity prioritization
-- [Usage](./usage.md) - Monitor usage and metrics
-

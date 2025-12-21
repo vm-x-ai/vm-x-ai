@@ -2,6 +2,9 @@
 sidebar_position: 4
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Getting Started
 
 This guide will help you get VM-X AI up and running locally using Docker Compose. This is the fastest way to start exploring VM-X AI's features.
@@ -171,13 +174,13 @@ This will start:
 Wait a few moments for all services to start. You can check the status:
 
 ```bash
-docker compose -f default.docker-compose.yml ps
+docker compose ps
 ```
 
 Check the API logs to ensure it's ready:
 
 ```bash
-docker compose -f default.docker-compose.yml logs api | grep "Application is running"
+docker compose logs api | grep "Application is running"
 ```
 
 ### 5. Access the Application
@@ -193,6 +196,18 @@ The default credentials are:
 :::warning
 Change the default credentials immediately after first login!
 :::
+
+### API Documentation
+
+VM-X AI provides interactive API documentation via Swagger UI:
+
+**Swagger UI**: http://localhost:3000/docs
+
+The Swagger UI provides:
+- Complete API reference
+- Interactive API testing
+- Request/response schemas
+- Authentication testing
 
 ## What's Next?
 
@@ -211,10 +226,23 @@ VM-X AI uses workspace and environment isolation for the completion API. The API
 ### Getting Your Workspace and Environment IDs
 
 1. Log in to the UI at http://localhost:3001
-2. Navigate to your workspace and environment
-3. Copy the workspace ID and environment ID from the URL: `/workspaces/{workspaceId}/{environmentId}/...`
 
-### Python Example
+![Login Page](/pages/login-page.png)
+
+2. Navigate to your workspace and environment
+3. Click on the **SDK** tab in the UI
+4. The SDK tab provides all the details you need, including:
+   - Workspace ID
+   - Environment ID
+   - API Key
+   - Complete code examples for Python, Node.js, and other languages
+
+The SDK tab shows ready-to-use code snippets with your specific workspace and environment IDs pre-filled.
+
+### Code Examples
+
+<Tabs>
+  <TabItem value="python" label="Python">
 
 ```python
 from openai import OpenAI
@@ -238,7 +266,8 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
-### Node.js Example
+  </TabItem>
+  <TabItem value="nodejs" label="Node.js">
 
 ```javascript
 import OpenAI from 'openai';
@@ -260,7 +289,8 @@ const completion = await openai.chat.completions.create({
 console.log(completion.choices[0].message.content);
 ```
 
-### cURL Example
+  </TabItem>
+  <TabItem value="curl" label="cURL">
 
 ```bash
 curl http://localhost:3000/v1/completion/{workspaceId}/{environmentId}/chat/completions \
@@ -274,80 +304,37 @@ curl http://localhost:3000/v1/completion/{workspaceId}/{environmentId}/chat/comp
   }'
 ```
 
+  </TabItem>
+</Tabs>
+
 ## Additional Docker Compose Configurations
 
-For more advanced configurations, see the [examples/docker-compose](../../examples/docker-compose/README.md) directory which contains:
+For more advanced configurations, see the [examples/docker-compose](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/examples/docker-compose) directory in the repository, which contains several pre-configured setups:
 
-### Default Configuration
+### Available Configurations
 
-**File**: `default.docker-compose.yml`
+1. **Default Configuration** (`default.docker-compose.yml`)
+   - Basic setup with all core services
+   - PostgreSQL, Redis (single node), QuestDB
+   - Libsodium encryption
 
-Basic setup with all core services:
-- PostgreSQL
-- Redis (single node)
-- QuestDB
-- Libsodium encryption
+2. **OpenTelemetry Configuration** (`otel.docker-compose.yml`)
+   - Full observability stack
+   - OpenTelemetry Collector, Jaeger, Prometheus, Loki, Grafana
+   - See [README](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/examples/docker-compose/README.md) for access URLs
 
-**Usage**:
-```bash
-docker compose -f default.docker-compose.yml up
-```
+3. **AWS Services Configuration** (`aws.docker-compose.yml`)
+   - Production-like setup using AWS services
+   - AWS KMS for encryption
+   - AWS Timestream for time-series data
+   - Requires AWS credentials configured
 
-### OpenTelemetry Configuration
+4. **Redis Cluster Configuration** (`redis-cluster.docker-compose.yml`)
+   - Redis cluster mode for high availability
+   - 3-node Redis cluster
+   - QuestDB
 
-**File**: `otel.docker-compose.yml`
-
-Full observability stack:
-- All services from default
-- OpenTelemetry Collector
-- Jaeger (tracing)
-- Prometheus (metrics)
-- Loki (logs)
-- Grafana (dashboards)
-
-**Usage**:
-```bash
-docker compose -f otel.docker-compose.yml up
-```
-
-**Access URLs**:
-- Jaeger UI: http://localhost:16686
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3010
-- QuestDB Console: http://localhost:9000
-
-### AWS Services Configuration
-
-**File**: `aws.docker-compose.yml`
-
-Production-like setup using AWS services:
-- AWS KMS for encryption
-- AWS Timestream for time-series data
-- Requires AWS credentials configured
-
-**Usage**:
-```bash
-# Set AWS credentials
-export AWS_ACCESS_KEY_ID=your-access-key-id
-export AWS_SECRET_ACCESS_KEY=your-secret-access-key
-export AWS_REGION=us-east-1
-
-docker compose -f aws.docker-compose.yml up
-```
-
-### Redis Cluster Configuration
-
-**File**: `redis-cluster.docker-compose.yml`
-
-Redis cluster mode for high availability:
-- 3-node Redis cluster
-- QuestDB
-- Libsodium encryption
-
-**Usage**:
-```bash
-docker compose -f redis-cluster.docker-compose.yml up
-```
+For detailed information about all configurations, see the [Docker Compose Examples README](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/examples/docker-compose/README.md).
 
 ## Configuration
 
@@ -388,13 +375,13 @@ Default credentials (change in production!):
 To stop all services:
 
 ```bash
-docker compose -f default.docker-compose.yml down
+docker compose down
 ```
 
 To stop and remove volumes (⚠️ deletes data):
 
 ```bash
-docker compose -f default.docker-compose.yml down -v
+docker compose down -v
 ```
 
 ## Troubleshooting
@@ -414,11 +401,11 @@ Check service logs:
 
 ```bash
 # Check all logs
-docker compose -f default.docker-compose.yml logs
+docker compose logs
 
 # Check specific service
-docker compose -f default.docker-compose.yml logs api
-docker compose -f default.docker-compose.yml logs ui
+docker compose logs api
+docker compose logs ui
 ```
 
 ### Database Connection Issues
@@ -427,33 +414,24 @@ Ensure PostgreSQL is ready before the API starts:
 
 ```bash
 # Check PostgreSQL status
-docker compose -f default.docker-compose.yml ps postgres
+docker compose ps postgres
 
 # Check PostgreSQL logs
-docker compose -f default.docker-compose.yml logs postgres
-```
-
-### Redis Connection Issues
-
-For Redis cluster mode, ensure the cluster is initialized:
-
-```bash
-# Check cluster init logs
-docker compose -f redis-cluster.docker-compose.yml logs redis-cluster-init
+docker compose logs postgres
 ```
 
 ## Next Steps
 
 Now that you have VM-X AI running locally:
 
-1. **[Create Your First AI Connection](./features/ai-connections.md)** - Add an AI provider
-2. **[Create Your First AI Resource](./features/ai-resources.md)** - Configure routing and fallback
-3. **[Explore Features](./features/)** - Learn about all available features
-4. **[Deploy to Production](./deployment/)** - Deploy to Kubernetes or AWS
+1. **[Create Your First AI Connection](../features/ai-connections)** - Add an AI provider
+2. **[Create Your First AI Resource](../features/ai-resources/)** - Configure routing and fallback
+3. **[Explore Features](../features/workspaces-environments)** - Learn about all available features
+4. **[Deploy to Production](../deployment/minikube)** - Deploy to Kubernetes or AWS
 
 ## Additional Resources
 
-- [Docker Compose Examples README](../../examples/docker-compose/README.md) - Detailed information about all configurations
+- [Docker Compose Examples README](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/examples/docker-compose/README.md) - Detailed information about all configurations
 - [Core Components](./core-components.md) - Understand AI Connections and Resources
 - [Architecture](./architecture.md) - Learn about the technical stack
 

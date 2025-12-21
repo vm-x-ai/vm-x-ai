@@ -35,6 +35,12 @@ Each workspace can have two types of members:
 
 ## Users and Roles
 
+VM-X AI provides fine-grained access control through **Users** and **Roles**. For detailed information, see the Security section:
+
+- [Roles](../security/roles) - Role management and default roles
+- [Policy](../security/policy) - Comprehensive policy guide
+- [Users](../security/users) - User management
+
 ### Users
 
 Users represent individuals who can access VM-X AI. Users can:
@@ -42,6 +48,23 @@ Users represent individuals who can access VM-X AI. Users can:
 - Be assigned to workspaces as members or owners
 - Have roles assigned for fine-grained permissions
 - Access resources based on their permissions
+- Authenticate via local credentials or OIDC federated login (SSO)
+
+### OIDC Federated Login
+
+VM-X AI supports OIDC (OpenID Connect) federated login for enterprise single sign-on (SSO). This allows users to authenticate using their organization's identity provider (e.g., Okta, Azure AD, Google Workspace).
+
+**Configuration:**
+
+Set the following environment variables to enable OIDC:
+
+- `OIDC_FEDERATED_ISSUER`: The OIDC issuer URL (required)
+- `OIDC_FEDERATED_CLIENT_ID`: The OIDC client ID (required)
+- `OIDC_FEDERATED_CLIENT_SECRET`: The OIDC client secret (optional, depending on provider)
+- `OIDC_FEDERATED_SCOPE`: OIDC scopes (default: `openid profile email`)
+- `OIDC_FEDERATED_DEFAULT_ROLE`: Default role assigned to federated users (default: `power-user`)
+
+When OIDC is configured, the login page displays an "SSO Login" button that redirects users to the identity provider for authentication. After successful authentication, users are automatically created in VM-X AI (if they don't exist) and assigned the default role.
 
 ### Roles
 
@@ -78,7 +101,6 @@ An AI Connection encapsulates:
 - **Provider**: The AI provider (OpenAI, Anthropic, Google Gemini, Groq, AWS Bedrock)
 - **Credentials**: Encrypted API keys or authentication tokens
 - **Capacity**: Custom capacity limits (e.g., 100 RPM, 100,000 TPM)
-- **Allowed Models**: Optional list of models that can be used through this connection
 - **Discovered Capacity**: Automatically discovered rate limits from the provider
 
 ### Key Features
@@ -95,32 +117,32 @@ Credentials are never exposed in API responses or logs.
 
 Define custom capacity limits per connection:
 
-```yaml
-capacity:
-  - period: minute
-    requests: 100      # Requests per minute
-    tokens: 100000     # Tokens per minute
-  - period: hour
-    requests: 5000
-    tokens: 5000000
-  - period: day
-    requests: 100000
-    tokens: 100000000
+```json
+{
+  "capacity": [
+    {
+      "period": "minute",
+      "requests": 100,
+      "tokens": 100000
+    },
+    {
+      "period": "hour",
+      "requests": 5000,
+      "tokens": 5000000
+    },
+    {
+      "period": "day",
+      "requests": 100000,
+      "tokens": 100000000
+    }
+  ]
+}
 ```
 
 #### 🔍 **Discovered Capacity**
 
 VM-X AI automatically discovers rate limits from provider responses and stores them as "discovered capacity". This helps you understand actual provider limits and optimize your usage.
 
-#### 🎯 **Model Restrictions**
-
-Optionally restrict which models can be used through a connection:
-
-```yaml
-allowedModels:
-  - gpt-4o
-  - gpt-4o-mini
-```
 
 ## AI Resources
 
@@ -140,80 +162,169 @@ An AI Resource is the abstraction your applications interact with. It includes:
 
 #### 🎯 **Dynamic Routing**
 
-Route requests to different models based on conditions:
+Route requests to different models based on conditions. VM-X AI provides a comprehensive set of routing conditions:
+
+**Available Routing Expressions:**
+- `tokens.input` - Number of input tokens in the request
+- `request.allMessagesContent.length` - Total character length of all messages
+- `request.lastMessage.content` - Content of the last user message
+- `request.allMessagesContent` - Combined content of all messages
+- `request.toolsCount` - Number of tools in the request
+- `errorRate(5)` - Error rate in the last 5 minutes
+- `errorRate(10)` - Error rate in the last 10 minutes
+
+**Available Comparators:**
+- `LESS_THAN` - Field is less than value
+- `GREATER_THAN` - Field is greater than value
+- `CONTAINS` - Field contains value (for strings)
+- `PATTERN` - Field matches regex pattern (for strings)
 
 **Example: Route based on input token count**
-```yaml
-routing:
-  enabled: true
-  conditions:
-    - description: "Use Groq for small requests"
-      if:
-        - field: requestTokens
-          operator: lessThan
-          value: 100
-      then:
-        provider: groq
-        model: llama-3.1-70b-versatile
+```json
+{
+  "routing": {
+    "enabled": true,
+    "conditions": [
+      {
+        "description": "Use Groq for small requests",
+        "expression": "tokens.input",
+        "comparator": "LESS_THAN",
+        "value": {
+          "type": "NUMBER",
+          "value": 100
+        },
+        "then": {
+          "provider": "groq",
+          "connectionId": "groq-connection-id",
+          "model": "llama-3.1-70b-versatile"
+        }
+      }
+    ]
+  }
+}
 ```
 
 **Example: Route based on error rate**
-```yaml
-routing:
-  enabled: true
-  conditions:
-    - description: "Switch to Anthropic if error rate is high"
-      if:
-        - field: errorRate
-          operator: greaterThan
-          value: 10
-          window: 10  # minutes
-      then:
-        provider: anthropic
-        model: claude-3-5-sonnet-20241022
+```json
+{
+  "routing": {
+    "enabled": true,
+    "conditions": [
+      {
+        "description": "Switch to Anthropic if error rate is high",
+        "expression": "errorRate(10)",
+        "comparator": "GREATER_THAN",
+        "value": {
+          "type": "NUMBER",
+          "value": 10
+        },
+        "then": {
+          "provider": "anthropic",
+          "connectionId": "anthropic-connection-id",
+          "model": "claude-3-5-sonnet-20241022"
+        }
+      }
+    ]
+  }
+}
 ```
 
 **Example: Route based on tools usage**
-```yaml
-routing:
-  enabled: true
-  conditions:
-    - description: "Use GPT-4 for requests with tools"
-      if:
-        - field: hasTools
-          operator: equals
-          value: true
-      then:
-        provider: openai
-        model: gpt-4o
+```json
+{
+  "routing": {
+    "enabled": true,
+    "conditions": [
+      {
+        "description": "Use GPT-4 for requests with tools",
+        "expression": "request.toolsCount",
+        "comparator": "GREATER_THAN",
+        "value": {
+          "type": "NUMBER",
+          "value": 0,
+          "readOnly": true
+        },
+        "then": {
+          "provider": "openai",
+          "connectionId": "openai-connection-id",
+          "model": "gpt-4o"
+        }
+      }
+    ]
+  }
+}
 ```
 
-**Example: Advanced routing with expressions**
-```yaml
-routing:
-  enabled: true
-  mode: advanced
-  conditions:
-    - description: "Complex routing logic"
-      expression: |
-        requestTokens < 100 && errorRate(10, 'any') < 5
-      then:
-        provider: groq
-        model: llama-3.1-70b-versatile
-        traffic: 50  # 50% of matching requests
+**Example: Route based on message content**
+```json
+{
+  "routing": {
+    "enabled": true,
+    "conditions": [
+      {
+        "description": "Route urgent requests to GPT-4",
+        "expression": "request.lastMessage.content",
+        "comparator": "CONTAINS",
+        "value": {
+          "type": "STRING",
+          "value": "urgent"
+        },
+        "then": {
+          "provider": "openai",
+          "connectionId": "openai-connection-id",
+          "model": "gpt-4o"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Example: Route based on character length**
+```json
+{
+  "routing": {
+    "enabled": true,
+    "conditions": [
+      {
+        "description": "Use Groq for short prompts",
+        "expression": "request.allMessagesContent.length",
+        "comparator": "LESS_THAN",
+        "value": {
+          "type": "NUMBER",
+          "value": 500
+        },
+        "then": {
+          "provider": "groq",
+          "connectionId": "groq-connection-id",
+          "model": "llama-3.1-70b-versatile"
+        }
+      }
+    ]
+  }
+}
 ```
 
 #### 🔄 **Automatic Fallback**
 
 Configure fallback models that are automatically used if the primary model fails:
 
-```yaml
-useFallback: true
-fallbackModels:
-  - provider: bedrock
-    model: anthropic.claude-3-5-sonnet-20241022-v2:0
-  - provider: openai
-    model: gpt-4o-mini
+```json
+{
+  "useFallback": true,
+  "fallbackModels": [
+    {
+      "provider": "bedrock",
+      "connectionId": "bedrock-connection-id",
+      "model": "anthropic.claude-3-5-sonnet-20241022-v2:0"
+    },
+    {
+      "provider": "openai",
+      "connectionId": "openai-connection-id",
+      "model": "gpt-4o-mini"
+    }
+  ]
+}
 ```
 
 Fallback happens automatically on:
@@ -226,12 +337,17 @@ Fallback happens automatically on:
 
 Define capacity limits specific to a resource:
 
-```yaml
-capacity:
-  - period: minute
-    requests: 50
-    tokens: 50000
-enforceCapacity: true
+```json
+{
+  "capacity": [
+    {
+      "period": "minute",
+      "requests": 50,
+      "tokens": 50000
+    }
+  ],
+  "enforceCapacity": true
+}
 ```
 
 This allows you to:
@@ -243,44 +359,71 @@ This allows you to:
 
 Assign API keys to resources to control access:
 
-```yaml
-assignApiKeys:
-  - api-key-id-1
-  - api-key-id-2
+```json
+{
+  "assignApiKeys": [
+    "api-key-id-1",
+    "api-key-id-2"
+  ]
+}
 ```
 
 Only requests with assigned API keys can access the resource.
 
 ## Relationship Between Components
 
+```mermaid
+graph TB
+    W[Workspace]
+    E1[Environment: Production]
+    E2[Environment: Development]
+    
+    AR1[AI Resource]
+    AC1[AI Connection OpenAI]
+    AC2[AI Connection Groq]
+    AC3[AI Connection Bedrock]
+    
+    R1[admin Role]
+    R2[power-user Role]
+    R3[read-only Role]
+    
+    U1[User 1]
+    U2[User 2]
+    
+    W --> E1
+    W --> E2
+    
+    E1 --> AR1
+    AR1 --> AC1
+    AR1 --> AC2
+    AR1 --> AC3
+    
+    W -.->|Members| M1[Owner]
+    W -.->|Members| M2[Member]
+    
+    U1 -.->|Has| R1
+    U2 -.->|Has| R2
+    
+    R1 -.->|Global| System[System-wide Permissions]
+    R2 -.->|Global| System
+    R3 -.->|Global| System
+    
+    style W fill:#e1f5ff
+    style E1 fill:#fff4e1
+    style E2 fill:#fff4e1
+    style AR1 fill:#e8f5e9
+    style AC1 fill:#fce4ec
+    style AC2 fill:#fce4ec
+    style AC3 fill:#fce4ec
+    style R1 fill:#f3e5f5
+    style R2 fill:#f3e5f5
+    style R3 fill:#f3e5f5
+    style System fill:#e0f2f1
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Workspace                             │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │  Environment: Production                          │ │
-│  │  ┌─────────────────────────────────────────────┐ │ │
-│  │  │  AI Resource                                  │ │ │
-│  │  │  ┌─────────────────────────────────────────┐ │ │ │
-│  │  │  │  Primary Model: OpenAI GPT-4o           │ │ │ │
-│  │  │  │  Routing: If tokens < 100 → Groq         │ │ │ │
-│  │  │  │  Fallback: Bedrock Claude                 │ │ │ │
-│  │  │  └─────────────────────────────────────────┘ │ │ │
-│  │  │  ┌─────────────────────────────────────────┐ │ │ │
-│  │  │  │  AI Connection (OpenAI)                 │ │ │ │
-│  │  │  │  AI Connection (Groq)                   │ │ │ │
-│  │  │  │  AI Connection (Bedrock)                │ │ │ │
-│  │  │  └─────────────────────────────────────────┘ │ │ │
-│  │  └─────────────────────────────────────────────┘ │ │
-│  │  ┌─────────────────────────────────────────────┐ │ │
-│  │  │  Environment: Development                    │ │ │
-│  │  │  (Separate resources and connections)        │ │ │
-│  │  └─────────────────────────────────────────────┘ │ │
-│  └───────────────────────────────────────────────────┘ │
-│                                                          │
-│  Members: Owner, Member                                 │
-│  Roles: admin, power-user, read-only                    │
-└─────────────────────────────────────────────────────────┘
-```
+
+:::info Roles are Global
+Roles are **global** and not scoped to workspaces or environments. A role's permissions apply across all workspaces and environments in the system. Users are assigned roles globally, and those roles determine what actions they can perform throughout the entire VM-X AI instance.
+:::
 
 ### How They Work Together
 
@@ -298,7 +441,6 @@ Only requests with assigned API keys can access the resource.
 - **One connection per provider account**: Create separate connections for different provider accounts or regions
 - **Set realistic capacity**: Base capacity limits on provider quotas and your usage patterns
 - **Use discovered capacity**: Monitor discovered capacity to understand actual provider limits
-- **Restrict models when needed**: Use `allowedModels` to prevent accidental use of expensive models
 
 ### AI Resources
 
@@ -307,10 +449,3 @@ Only requests with assigned API keys can access the resource.
 - **Configure fallback chains**: Always have at least one fallback model for critical resources
 - **Set resource capacity**: Use resource-level capacity to control costs and ensure fair usage
 - **Use API keys for access control**: Assign API keys to resources to implement access control
-
-## Next Steps
-
-- [Architecture](./architecture.md) - Learn about the technical stack
-- [Features: AI Connections](./features/ai-connections.md) - Detailed guide on AI Connections
-- [Features: AI Resources](./features/ai-resources.md) - Detailed guide on AI Resources
-

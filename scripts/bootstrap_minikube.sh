@@ -45,6 +45,8 @@ if pgrep -f "minikube tunnel" > /dev/null; then
 fi
 
 log_info "Starting minikube tunnel"
+# The Minikube tunnel needs to be running while installing Istiom
+# so, the ingress gateway can generate the external IP address
 MINIKUBE_TUNNEL_PID=$(minikube tunnel &>/dev/null & echo $!)
 log_info "Minikube tunnel started successfully"
 

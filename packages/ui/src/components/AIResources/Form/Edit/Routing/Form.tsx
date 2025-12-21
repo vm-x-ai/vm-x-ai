@@ -20,8 +20,11 @@ import {
   AiConnectionEntity,
   AiProviderDto,
   AiResourceEntity,
+  AiResourceModelConfigEntity,
+  AiResourceModelRoutingEntity,
   AiRoutingConditionGroup,
 } from '@/clients/api';
+import { useAppStore } from '@/store/provider';
 
 export type AIResourceRoutingEditFormProps = {
   data: AiResourceEntity;
@@ -56,6 +59,10 @@ export default function AIResourceRoutingEditForm({
     },
   });
 
+  const setAiResourceChanges = useAppStore(
+    (state) => state.setAiResourceChanges
+  );
+
   useEffect(() => {
     if (state.success) {
       toast.success(state.message);
@@ -77,6 +84,16 @@ export default function AIResourceRoutingEditForm({
       },
     },
   });
+
+  const formData = watch();
+
+  useEffect(() => {
+    setAiResourceChanges(data.resourceId, {
+      routing: formData.routing as AiResourceModelRoutingEntity,
+      model: formData.model as AiResourceModelConfigEntity,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.resourceId, formData]);
 
   return (
     <Grid container spacing={3}>

@@ -4,13 +4,13 @@ sidebar_position: 1
 
 # Deploying to Minikube
 
-This guide shows you how to deploy VM-X AI to a local Minikube cluster using Helm.
+This guide shows you how to deploy VM-X AI to a local Minikube cluster using Helm with Istio ingress.
 
 ## Prerequisites
 
 Before you begin, ensure you have:
 
-- **Minikube** installed and running
+- **Minikube** installed
 - **kubectl** configured to access your Minikube cluster
 - **Helm** 3.0+ installed
 - **Docker images** available:
@@ -21,48 +21,82 @@ Before you begin, ensure you have:
 
 ### 1. Start Minikube
 
+Start Minikube with sufficient resources:
+
 ```bash
-minikube start
+minikube start --cpus=8 --memory=8192 --driver=docker
 ```
 
-### 2. Enable Required Add-ons
+### 2. Enable Metrics Server
+
+Enable the metrics server (required for HPA):
 
 ```bash
-# Enable ingress (optional, for external access)
-minikube addons enable ingress
-
-# Enable metrics server (required for HPA)
 minikube addons enable metrics-server
 ```
 
-### 3. Configure Docker to Use Minikube
+### 3. Install Istio
 
-If you built images locally, configure Docker to use Minikube's Docker daemon:
+VM-X AI uses Istio for ingress. You can use the provided [bootstrap script](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/scripts/bootstrap_minikube.sh) to install Istio.
 
+:::important Minikube Tunnel Requirement
+The Istio Gateway requires a **minikube tunnel** to be running to generate an external IP address. The bootstrap script automatically starts the tunnel, but you must keep it running while using Istio ingress.
+
+If the tunnel stops, restart it manually:
 ```bash
-eval $(minikube docker-env)
+minikube tunnel
 ```
 
-Then build or pull the images:
+Keep this command running in a separate terminal.
+:::
+
+The bootstrap script will:
+- Start Minikube if not running
+- Enable metrics-server
+- Start minikube tunnel (required for Istio Gateway)
+- Install Istio Base, Istiod, Istio CNI, and Istio Gateway
+- Configure Istio for VM-X AI
+
+Alternatively, you can install Istio manually:
 
 ```bash
-docker pull vmxai/api:latest
-docker pull vmxai/ui:latest
+# Add Istio Helm repository
+helm repo add istio https://istio-release.storage.googleapis.com/charts
+helm repo update
+
+# Install Istio Base
+helm install istio-base istio/base -n istio-system --create-namespace --version=1.26.1
+
+# Install Istiod (control plane)
+helm install istiod istio/istiod \
+  -n istio-system \
+  --version=1.26.1 \
+  --set cni.enabled=true \
+  --set meshConfig.defaultConfig.proxyMetadata.ISTIO_META_DNS_CAPTURE="true" \
+  --set meshConfig.defaultConfig.proxyMetadata.ISTIO_META_DNS_AUTO_ALLOCATE="true" \
+  --wait
+
+# Install Istio CNI
+helm install istio-cni istio/cni -n istio-system --version=1.26.1 --set operator.enabled=true --wait
+
+# Install Istio Gateway (ingress)
+helm install ingressgateway istio/gateway \
+  -n istio-system \
+  --version=1.26.1 \
+  --set service.type=LoadBalancer \
+  --wait
 ```
 
-Or build from source:
-
-```bash
-docker build -t vmxai/api:latest -f packages/api/Dockerfile .
-docker build -t vmxai/ui:latest -f packages/ui/Dockerfile .
-```
 
 ## Deploy VM-X AI
 
 ### 1. Create Namespace
 
+Create the namespace and enable Istio injection:
+
 ```bash
 kubectl create namespace vm-x-ai
+kubectl label namespace vm-x-ai istio-injection=enabled
 ```
 
 ### 2. Add Helm Repository
@@ -76,21 +110,93 @@ helm repo update
 
 ### 3. Install Helm Chart
 
-Install with default values:
-
-```bash
-helm install vm-x-ai vm-x-ai/vm-x-ai --namespace vm-x-ai
-```
-
-Or use custom values:
+Install with Minikube-specific values:
 
 ```bash
 helm install vm-x-ai vm-x-ai/vm-x-ai \
   --namespace vm-x-ai \
-  -f my-values.yaml
+  -f https://raw.githubusercontent.com/vm-x-ai/open-vm-x-ai/main/helm/charts/vm-x-ai/values-minikube.yaml
 ```
 
-### 4. Wait for Deployment
+Or download the values file and customize it:
+
+```bash
+# Download the values file
+curl -O https://raw.githubusercontent.com/vm-x-ai/open-vm-x-ai/main/helm/charts/vm-x-ai/values-minikube.yaml
+
+# Edit values-minikube.yaml if needed
+# Then install
+helm install vm-x-ai vm-x-ai/vm-x-ai \
+  --namespace vm-x-ai \
+  -f values-minikube.yaml
+```
+
+### 4. Default Minikube Values
+
+The `values-minikube.yaml` file includes optimized settings for Minikube:
+
+```yaml
+# Example values for Minikube/development environment
+api:
+  encryption:
+    provider: libsodium  # libsodium is fine for local testing
+  env:
+    # Avoid conflicts with Next.js API routes when both are deployed to same host
+    BASE_PATH: "/_api"
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+ui:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+redis:
+  mode: single
+
+otel:
+  enabled: true
+  collector:
+    enabled: true
+  jaeger:
+    enabled: true
+    ingress:
+      enabled: true
+  prometheus:
+    enabled: true
+  loki:
+    enabled: true
+  grafana:
+    enabled: true
+    ingress:
+      enabled: true
+
+ingress:
+  enabled: true
+  istio:
+    host: vm-x-ai.local
+    gateway:
+      name: vm-x-ai-gateway
+      namespace: istio-system
+      selector:
+        istio: ingressgateway
+    virtualService:
+      gateways:
+        - istio-system/vm-x-ai-gateway
+```
+
+### 5. Wait for Deployment
 
 Check the deployment status:
 
@@ -109,9 +215,34 @@ kubectl wait --for=condition=ready pod \
 
 ## Access the Application
 
-### Option 1: Port Forwarding
+### Configure Host File
 
-Forward ports to access the services:
+The Minikube values configure the ingress host as `vm-x-ai.local`. Since minikube tunnel is running, you can use `127.0.0.1` as the IP address.
+
+**On Linux/macOS:**
+
+```bash
+# Add to /etc/hosts (requires sudo)
+echo "127.0.0.1 vm-x-ai.local" | sudo tee -a /etc/hosts
+```
+
+**On Windows:**
+
+1. Open Notepad as Administrator
+2. Open `C:\Windows\System32\drivers\etc\hosts`
+3. Add the line: `127.0.0.1 vm-x-ai.local`
+4. Save the file
+
+### Access via Istio Ingress
+
+Once the host is configured, access the application:
+
+- **UI**: http://vm-x-ai.local
+- **API**: http://vm-x-ai.local/_api
+
+### Alternative: Port Forwarding
+
+If you prefer not to configure the hosts file, you can use port forwarding:
 
 ```bash
 # Forward UI port
@@ -125,33 +256,11 @@ Then access:
 - **UI**: http://localhost:3001
 - **API**: http://localhost:3000
 
-### Option 2: Minikube Service
-
-Expose services using Minikube:
-
-```bash
-# Expose UI
-minikube service vm-x-ai-ui -n vm-x-ai
-
-# Expose API
-minikube service vm-x-ai-api -n vm-x-ai
-```
-
-### Option 3: Ingress (if enabled)
-
-If you enabled ingress, get the ingress URL:
-
-```bash
-minikube service ingress-nginx-controller -n ingress-nginx
-```
-
-Then access the application via the ingress URL.
-
 ## Configuration
 
 ### Using Custom Values
 
-Create a `my-values.yaml` file:
+Create a `my-values.yaml` file to override specific settings:
 
 ```yaml
 api:
@@ -171,47 +280,15 @@ ui:
     limits:
       cpu: 1000m
       memory: 1Gi
-
-postgresql:
-  persistence:
-    enabled: true
-    size: 10Gi
-
-redis:
-  single:
-    persistence:
-      enabled: true
-      size: 5Gi
-
-questdb:
-  persistence:
-    enabled: true
-    size: 20Gi
 ```
 
 Install with custom values:
 
 ```bash
-helm install vm-x-ai . \
+helm install vm-x-ai vm-x-ai/vm-x-ai \
   --namespace vm-x-ai \
-  -f values-minikube.yaml \
+  -f https://raw.githubusercontent.com/vm-x-ai/open-vm-x-ai/main/helm/charts/vm-x-ai/values-minikube.yaml \
   -f my-values.yaml
-```
-
-### Image Configuration
-
-If using images from a different registry:
-
-```yaml
-images:
-  api:
-    repository: your-registry/vmxai/api
-    tag: latest
-    pullPolicy: Always
-  ui:
-    repository: your-registry/vmxai/ui
-    tag: latest
-    pullPolicy: Always
 ```
 
 ## Monitoring
@@ -236,18 +313,13 @@ kubectl top pods -n vm-x-ai
 kubectl top nodes
 ```
 
-### Check Service Status
+### Access Observability Tools
 
-```bash
-# Services
-kubectl get svc -n vm-x-ai
+With the default Minikube values, observability tools are enabled:
 
-# Deployments
-kubectl get deployments -n vm-x-ai
-
-# StatefulSets
-kubectl get statefulsets -n vm-x-ai
-```
+- **Grafana**: http://vm-x-ai.local/grafana (if ingress enabled)
+- **Jaeger**: http://vm-x-ai.local/jaeger (if ingress enabled)
+- **Prometheus**: Access via port-forward: `kubectl port-forward -n vm-x-ai svc/prometheus 9090:9090`
 
 ## Troubleshooting
 
@@ -266,6 +338,33 @@ kubectl describe pod <pod-name> -n vm-x-ai
 kubectl logs <pod-name> -n vm-x-ai
 ```
 
+### Istio Sidecar Issues
+
+If pods have issues with Istio sidecars:
+
+```bash
+# Check Istio injection
+kubectl get namespace vm-x-ai -o jsonpath='{.metadata.labels.istio-injection}'
+
+# Check sidecar status
+kubectl get pods -n vm-x-ai -o jsonpath='{.items[*].spec.containers[*].name}'
+```
+
+### Ingress Not Working
+
+If ingress is not working:
+
+```bash
+# Check Istio Gateway
+kubectl get gateway -n istio-system
+
+# Check VirtualService
+kubectl get virtualservice -n vm-x-ai
+
+# Check ingress gateway service
+kubectl get svc -n istio-system istio-ingressgateway
+```
+
 ### Database Connection Issues
 
 Check PostgreSQL:
@@ -278,37 +377,6 @@ kubectl get pods -n vm-x-ai -l app.kubernetes.io/component=postgresql
 kubectl logs -n vm-x-ai -l app.kubernetes.io/component=postgresql
 ```
 
-### Redis Connection Issues
-
-Check Redis:
-
-```bash
-# Redis pod
-kubectl get pods -n vm-x-ai -l app.kubernetes.io/component=redis
-
-# Redis logs
-kubectl logs -n vm-x-ai -l app.kubernetes.io/component=redis
-```
-
-### Image Pull Errors
-
-If images can't be pulled:
-
-1. Ensure images are available in Minikube's Docker daemon:
-
-```bash
-eval $(minikube docker-env)
-docker images | grep vmxai
-```
-
-2. Or configure image pull secrets if using a registry:
-
-```yaml
-global:
-  imagePullSecrets:
-    - name: my-registry-secret
-```
-
 ## Upgrading
 
 To upgrade the deployment:
@@ -317,7 +385,7 @@ To upgrade the deployment:
 helm repo update
 helm upgrade vm-x-ai vm-x-ai/vm-x-ai \
   --namespace vm-x-ai \
-  -f my-values.yaml
+  -f values-minikube.yaml
 ```
 
 ## Uninstalling
@@ -343,5 +411,4 @@ kubectl delete pvc -n vm-x-ai --all
 
 - [AWS EKS Deployment](./aws-eks.md) - Deploy to AWS EKS
 - [AWS ECS Deployment](./aws-ecs.md) - Deploy to AWS ECS
-- [Helm Chart Documentation](../../../helm/charts/vm-x-ai/README.md) - Detailed Helm chart reference
-
+- [Helm Chart Documentation](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/helm/charts/vm-x-ai) - Detailed Helm chart reference

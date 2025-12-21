@@ -81,6 +81,7 @@ Understanding AI usage patterns requires:
 - AWS KMS or Libsodium encryption for credentials
 - API key management with resource-level access control
 - Complete audit trail for all requests
+- OIDC Federated Login support for enterprise SSO
 
 ### 📈 **Observability**
 - Every request stored in audit logs
@@ -169,4 +170,4 @@ Ready to get started? Check out:
 - [Core Components](./core-components.md) - Learn about AI Connections and AI Resources
 - [Architecture](./architecture.md) - Understand the technical stack
 - [Getting Started](./getting-started.md) - Deploy VM-X AI locally with Docker Compose
-- [Deployment Guides](./deployment/) - Deploy to Kubernetes or AWS
+- [Deployment Guides](../deployment/minikube) - Deploy to Kubernetes or AWS

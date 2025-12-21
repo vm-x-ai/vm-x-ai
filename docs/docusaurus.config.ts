@@ -38,6 +38,10 @@ const config: Config = {
     locales: ['en'],
   },
 
+  markdown: {
+    mermaid: true,
+  },
+
   presets: [
     [
       'classic',
@@ -123,6 +127,8 @@ const config: Config = {
   } satisfies Preset.ThemeConfig,
 
   plugins: [require.resolve('docusaurus-lunr-search')],
+
+  themes: ['@docusaurus/theme-mermaid'],
 };
 
 export default config;

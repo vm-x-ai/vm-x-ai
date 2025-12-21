@@ -11,13 +11,15 @@ import IconButton from '@mui/material/IconButton';
 import Switch from '@mui/material/Switch';
 import Chat from '@/components/Chat/Chat';
 import type { ApiResponse } from '@/clients/types';
-import { use, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import { AiResourceEntity, AiProviderDto } from '@/clients/api';
 import { mapProviders } from '@/utils/provider';
+import { useAppStore } from '@/store/provider';
 
 export type AIResourcePlaygroundProps = {
   workspaceId: string;
   environmentId: string;
+  resourceId: string;
   resourcePromise: Promise<ApiResponse<AiResourceEntity>>;
   providersPromise: Promise<ApiResponse<AiProviderDto[]>>;
   open: boolean;
@@ -29,12 +31,30 @@ export default function AIResourcePlayground({
   providersPromise,
   workspaceId,
   environmentId,
+  resourceId,
   open,
   onClose,
 }: AIResourcePlaygroundProps) {
   const resource = use(resourcePromise);
   const providers = use(providersPromise);
   const [stream, setStream] = useState<boolean>(true);
+  const aiResourceChanges = useAppStore(
+    (state) => state.aiResource?.changes?.[resourceId]
+  );
+  const setAiResourceChanges = useAppStore(
+    (state) => state.setAiResourceChanges
+  );
+
+  const resourceData = useMemo(
+    () => ({ ...resource.data, ...aiResourceChanges } as AiResourceEntity),
+    [resource.data, aiResourceChanges]
+  );
+
+  useEffect(() => {
+    // Reset the changes when the component unmounts
+    setAiResourceChanges(resourceId, {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resourceId]);
 
   return (
     <>
@@ -107,7 +127,7 @@ export default function AIResourcePlayground({
             )}
             {resource.data && providers.data && (
               <Chat
-                resource={resource.data}
+                resource={resourceData}
                 providersMap={mapProviders(providers.data)}
                 workspaceId={workspaceId}
                 environmentId={environmentId}

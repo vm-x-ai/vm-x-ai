@@ -27,14 +27,39 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Security',
+      items: [
+        'security/roles',
+        'security/policy',
+        'security/users',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Features',
       items: [
         'features/workspaces-environments',
-        'features/users-roles',
         'features/ai-connections',
-        'features/ai-resources',
+        {
+          type: 'category',
+          label: 'AI Resources',
+          items: [
+            'features/ai-resources/index',
+            'features/ai-resources/routing',
+            'features/ai-resources/fallback',
+            'features/ai-resources/capacity',
+          ],
+        },
         'features/prioritization',
         'features/usage',
+        'features/batch-completion',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Integrations',
+      items: [
+        'integrations/providers/index',
         'features/langchain',
       ],
     },

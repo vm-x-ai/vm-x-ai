@@ -22,13 +22,6 @@ Install LangChain with OpenAI support:
 pip install langchain[openai]>=0.3.27
 ```
 
-Or using the example project:
-
-```bash
-cd examples/langchain
-pip install -e .
-```
-
 ## Basic Usage
 
 ### Simple Chat
@@ -229,17 +222,21 @@ for chunk in model.stream("Tell me a story"):
 
 ## Example Project
 
-A complete example is available in the repository:
-
-```bash
-cd examples/langchain
-```
+A complete example is available in the [examples/langchain](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/examples/langchain) directory.
 
 The example includes:
 - Agent creation with tools
 - Streaming support
 - Resource configuration overrides
 - Error handling
+
+To get started with the example:
+
+```bash
+cd examples/langchain
+pip install -e .
+python -m langchain_vmx_example
+```
 
 ## Troubleshooting
 
@@ -266,10 +263,3 @@ If you get "model not found" errors:
 1. **Check Resource Name**: Verify the resource name matches exactly
 2. **Check Environment**: Ensure you're using the correct environment ID
 3. **Check Resource Status**: Verify the resource is enabled and configured correctly
-
-## Next Steps
-
-- [AI Resources](./ai-resources.md) - Learn about configuring AI Resources
-- [Getting Started](../getting-started.md) - Set up VM-X AI
-- [Usage](./usage.md) - Monitor usage and analytics
-

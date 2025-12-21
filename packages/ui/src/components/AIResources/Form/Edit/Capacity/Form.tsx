@@ -16,6 +16,7 @@ import { toast } from 'react-toastify';
 import { schema } from './schema';
 import type { FormSchema, FormAction } from './schema';
 import { AiResourceEntity, CapacityEntity } from '@/clients/api';
+import { useAppStore } from '@/store/provider';
 
 export type AIResourceCapacityEditFormProps = {
   data: AiResourceEntity;
@@ -50,6 +51,10 @@ export default function AIResourceCapacityEditForm({
     }
   }, [state]);
 
+  const setAiResourceChanges = useAppStore(
+    (state) => state.setAiResourceChanges
+  );
+
   const { control, handleSubmit, watch } = useForm<FormSchema>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -57,6 +62,15 @@ export default function AIResourceCapacityEditForm({
       capacity: data.capacity ?? DEFAULT_CAPACITY,
     },
   });
+
+  const formData = watch();
+  useEffect(() => {
+    setAiResourceChanges(data.resourceId, {
+      enforceCapacity: formData.enforceCapacity as boolean,
+      capacity: formData.capacity as CapacityEntity[],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.resourceId, formData]);
 
   return (
     <Grid container spacing={3}>
@@ -66,9 +80,7 @@ export default function AIResourceCapacityEditForm({
         </Grid>
       )}
       <Grid size={12}>
-        <Typography variant="h6">
-          AI Resource Capacity - {data.name}
-        </Typography>
+        <Typography variant="h6">AI Resource Capacity - {data.name}</Typography>
         <Divider />
         <Typography variant="caption">
           You can specifically enforce a limit for requests / tokens for this

@@ -40,11 +40,17 @@ Before you begin, ensure you have:
 
 ## Quick Start
 
-### 1. Navigate to EKS Example
+### 1. Get the EKS Example
+
+The EKS example is available in the [examples/aws-cdk-eks](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/examples/aws-cdk-eks) directory.
+
+If you have the repository cloned, navigate to:
 
 ```bash
 cd examples/aws-cdk-eks
 ```
+
+Otherwise, download or clone the repository to access the example.
 
 ### 2. Install Dependencies
 
@@ -61,6 +67,18 @@ const adminRoleArn = `arn:aws:iam::${this.account}:role/your-admin-role`;
 ```
 
 Replace with your IAM role ARN that should have admin access to the cluster.
+
+:::tip AWS SSO Users
+If you're using AWS SSO, your role ARN will typically look like:
+```typescript
+const adminRoleArn = `arn:aws:iam::${this.account}:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AWSAdministratorAccess_<unique-id>`;
+```
+
+You can find your SSO role ARN in the AWS Console under IAM → Roles, or by running:
+```bash
+aws sts get-caller-identity
+```
+:::
 
 ### 4. Bootstrap CDK (First Time Only)
 
@@ -119,40 +137,440 @@ kubectl get pods -n vm-x-ai
 
 The stack creates:
 
+```mermaid
+graph TB
+    Internet[Internet]
+    NLB[AWS Network Load Balancer<br/>Istio Ingress Gateway]
+    EKS[EKS Cluster]
+    
+    subgraph EKS["EKS Cluster"]
+        Istio[Istio Service Mesh]
+        UI[VM-X AI UI]
+        API[VM-X AI API]
+        Redis[Redis Cluster]
+        OTEL[OTEL Stack]
+    end
+    
+    Aurora[(Aurora PostgreSQL)]
+    Timestream[(Timestream Database)]
+    KMS[AWS KMS Key]
+    
+    Internet --> NLB
+    NLB --> Istio
+    Istio --> UI
+    Istio --> API
+    API --> Redis
+    API --> OTEL
+    API --> Aurora
+    API --> Timestream
+    API --> KMS
+    
+    style Internet fill:#e3f2fd
+    style NLB fill:#fff3e0
+    style EKS fill:#e8f5e9
+    style Aurora fill:#f3e5f5
+    style Timestream fill:#e0f2f1
+    style KMS fill:#fff9c4
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Internet                              │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│              AWS Network Load Balancer (NLB)                 │
-│              (Istio Ingress Gateway)                        │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    EKS Cluster                               │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  Istio Service Mesh                                  │  │
-│  │  ┌──────────────┐  ┌──────────────┐                │  │
-│  │  │  VM-X AI UI  │  │  VM-X AI API │                │  │
-│  │  └──────────────┘  └──────────────┘                │  │
-│  │  ┌──────────────┐  ┌──────────────┐                │  │
-│  │  │   Redis      │  │  OTEL Stack  │                │  │
-│  │  │   Cluster    │  │              │                │  │
-│  │  └──────────────┘  └──────────────┘                │  │
-│  └──────────────────────────────────────────────────────┘  │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-         ┌───────────────┼───────────────┐
-         │               │               │
-         ▼               ▼               ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│   Aurora     │ │  Timestream  │ │     KMS      │
-│  PostgreSQL  │ │   Database   │ │     Key      │
-└──────────────┘ └──────────────┘ └──────────────┘
+
+## CDK Stack Overview
+
+The EKS stack is defined in [`examples/aws-cdk-eks/lib/eks-stack.ts`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/examples/aws-cdk-eks/lib/eks-stack.ts). Here's a breakdown of the key components:
+
+### VPC Configuration
+
+The stack creates a VPC with public and private subnets across 3 availability zones:
+
+```typescript
+const vpc = new Vpc(this, 'VPC', {
+  vpcName: 'vm-x-ai-example-vpc',
+  ipAddresses: IpAddresses.cidr('10.0.0.0/16'),
+  maxAzs: 3,
+  natGateways: 1,
+  subnetConfiguration: [
+    {
+      cidrMask: 24,
+      name: 'Public',
+      subnetType: SubnetType.PUBLIC,
+    },
+    {
+      cidrMask: 24,
+      name: 'Private',
+      subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+    },
+  ],
+});
 ```
+
+**Key Points:**
+- **CIDR**: `10.0.0.0/16` provides 65,536 IP addresses
+- **Availability Zones**: 3 AZs for high availability
+- **NAT Gateway**: 1 NAT gateway for private subnet egress
+- **Subnets**: Public subnets for load balancers, private subnets for worker nodes
+
+### Aurora PostgreSQL Database
+
+The stack creates an Aurora PostgreSQL cluster:
+
+```typescript
+const database = new DatabaseCluster(this, 'Database', {
+  engine: DatabaseClusterEngine.auroraPostgres({
+    version: AuroraPostgresEngineVersion.VER_17_6,
+  }),
+  vpc,
+  clusterIdentifier: 'vm-x-ai-rds-cluster',
+  vpcSubnets: {
+    subnetType: SubnetType.PUBLIC,  // Production: Use PRIVATE_WITH_EGRESS
+  },
+  writer: ClusterInstance.provisioned('writer', {
+    publiclyAccessible: true,  // Production: Set to false
+    instanceType: InstanceType.of(
+      InstanceClass.BURSTABLE3,
+      InstanceSize.MEDIUM
+    ),
+  }),
+  credentials: Credentials.fromGeneratedSecret('vmxai', {
+    secretName: 'vm-x-ai-database-secret',
+  }),
+  defaultDatabaseName: 'vmxai',
+});
+```
+
+**Key Points:**
+- **Engine**: Aurora PostgreSQL 17.6
+- **Instance Type**: `db.t3.medium` (burstable performance)
+- **Credentials**: Auto-generated and stored in AWS Secrets Manager
+- **Network**: Publicly accessible for development (use private subnets in production)
+
+### EKS Cluster with Add-ons
+
+The stack creates an EKS cluster with essential add-ons:
+
+```typescript
+const addOns: blueprints.ClusterAddOn[] = [
+  new blueprints.addons.MetricsServerAddOn(),
+  new blueprints.addons.AwsLoadBalancerControllerAddOn(),
+  new blueprints.addons.VpcCniAddOn(),
+  new blueprints.addons.CoreDnsAddOn(),
+  new blueprints.addons.KubeProxyAddOn(),
+  new blueprints.addons.IstioBaseAddOn(),
+  new blueprints.addons.IstioControlPlaneAddOn({
+    values: {
+      meshConfig: {
+        enableTracing: true,
+        defaultProviders: {
+          tracing: ['otel'],
+        },
+        // Enable OpenTelemetry tracing
+        extensionProviders: [
+          {
+            name: 'otel',
+            opentelemetry: {
+              service: 'vm-x-ai-otel-collector.vm-x-ai.svc.cluster.local',
+              port: 4317, // OTLP gRPC
+            },
+          },
+        ],
+        // Ensure trace context headers are preserved
+        defaultConfig: {
+          tracing: {
+            sampling: 100,
+          },
+          proxyMetadata: {
+            ISTIO_META_DNS_CAPTURE: 'true',
+          },
+        },
+        // Enable access logging for debugging
+        accessLogFile: '/dev/stdout',
+        accessLogEncoding: 'JSON',
+      },
+    },
+  }),
+  new blueprints.addons.IstioCniAddon(),
+  new blueprints.addons.IstioIngressGatewayAddon({
+    values: {
+      service: {
+        annotations: {
+          'service.beta.kubernetes.io/aws-load-balancer-type': 'nlb',
+          'service.beta.kubernetes.io/aws-load-balancer-scheme': 'internet-facing',
+          'service.beta.kubernetes.io/aws-load-balancer-subnets': vpc
+            .selectSubnets({
+              subnetType: SubnetType.PUBLIC,
+            })
+            .subnetIds.join(','),
+        },
+      },
+    },
+  }),
+  new blueprints.addons.ExternalsSecretsAddOn({}),
+  new blueprints.addons.EbsCsiDefaultStorageClassAddOn(),
+  new blueprints.addons.EbsCsiDriverAddOn(),
+];
+```
+
+**Key Add-ons:**
+- **Metrics Server**: Required for HPA and resource metrics
+- **AWS Load Balancer Controller**: Manages NLB/ALB integration
+- **Istio**: Service mesh for traffic management and observability
+- **External Secrets Operator**: Syncs secrets from AWS Secrets Manager
+- **EBS CSI Driver**: Enables persistent volumes
+
+### EKS Cluster Builder
+
+The cluster is built using EKS Blueprints:
+
+```typescript
+const clusterBuilder = blueprints.EksBlueprint.builder()
+  .account(this.account)
+  .region(this.region)
+  .addOns(...addOns)
+  .version(KubernetesVersion.V1_34)
+  .resourceProvider(
+    blueprints.GlobalResources.Vpc,
+    new blueprints.DirectVpcProvider(vpc)
+  )
+  .clusterProvider(
+    new blueprints.AutomodeClusterProvider({
+      version: KubernetesVersion.V1_34,
+      vpcSubnets: [{
+        subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+      }],
+      nodePools: ['system', 'general-purpose'],
+      securityGroup: clusterSecurityGroup,
+    })
+  )
+  .teams(
+    new blueprints.teams.PlatformTeam({
+      name: 'admin',
+      userRoleArn: adminRoleArn,
+    })
+  );
+```
+
+**Key Points:**
+- **Kubernetes Version**: 1.34
+- **Node Pools**: System and general-purpose pools
+- **Subnets**: Worker nodes in private subnets
+- **Platform Team**: Admin access for cluster management
+
+### Helm Chart Deployment
+
+The VM-X AI Helm chart is deployed from the published repository with complete configuration:
+
+```typescript
+const helmChart = new HelmChart(cluster.stack, 'VmXAiHelmChart', {
+  cluster: cluster,
+  chart: 'vm-x-ai',
+  repository: 'https://vm-x-ai.github.io/open-vm-x-ai/helm/',
+  namespace: 'vm-x-ai',
+  release: 'vm-x-ai',
+  values: {
+    // API configuration with minimal resources
+    api: {
+      replicaCount: 1,
+      resources: {
+        requests: {
+          cpu: '200m',
+          memory: '256Mi',
+        },
+        limits: {
+          cpu: '1000m',
+          memory: '1Gi',
+        },
+      },
+      // Avoid conflicts with Next.js API routes when both are deployed to same host
+      env: {
+        BASE_PATH: '/_api',
+        OTEL_TRACES_SAMPLER: 'always_on',
+      },
+      encryption: {
+        provider: 'aws-kms',
+        awsKms: {
+          keyId: encryptionKeyArn,
+        },
+      },
+      aws: {
+        region: this.region,
+      },
+      timeseriesDb: {
+        provider: 'aws-timestream',
+        awsTimestream: {
+          databaseName: timestreamDatabaseName,
+        },
+      },
+    },
+
+    // UI configuration with minimal resources
+    ui: {
+      replicaCount: 1,
+      env: {
+        OTEL_TRACES_SAMPLER: 'always_on',
+      },
+      resources: {
+        requests: {
+          cpu: '100m',
+          memory: '128Mi',
+        },
+        limits: {
+          cpu: '500m',
+          memory: '512Mi',
+        },
+      },
+    },
+
+    // Disable PostgreSQL (using external RDS)
+    postgresql: {
+      enabled: false,
+      external: {
+        roHost: database.clusterReadEndpoint.hostname,
+        ssl: true, // Enable SSL for AWS RDS connections
+      },
+    },
+
+    // Enable Redis cluster
+    redis: {
+      enabled: true,
+      mode: 'cluster',
+      cluster: {
+        nodes: 3,
+        replicas: 1,
+        persistence: {
+          enabled: true,
+          size: '10Gi',
+          storageClass: 'auto-ebs-sc',
+        },
+        resources: {
+          requests: {
+            cpu: '200m',
+            memory: '256Mi',
+          },
+          limits: {
+            cpu: '500m',
+            memory: '512Mi',
+          },
+        },
+      },
+    },
+
+    // Disable QuestDB (using AWS Timestream)
+    questdb: {
+      enabled: false,
+    },
+
+    // OpenTelemetry configuration
+    otel: {
+      enabled: true,
+      collector: {
+        enabled: true,
+      },
+      jaeger: {
+        enabled: true,
+        ingress: {
+          enabled: true,
+        },
+      },
+      prometheus: {
+        enabled: true,
+        persistence: {
+          enabled: true,
+          size: '10Gi',
+          storageClass: 'auto-ebs-sc',
+        },
+      },
+      loki: {
+        enabled: true,
+        persistence: {
+          enabled: true,
+          size: '20Gi',
+          storageClass: 'auto-ebs-sc',
+        },
+      },
+      grafana: {
+        enabled: true,
+        ingress: {
+          enabled: true,
+        },
+        persistence: {
+          enabled: true,
+          size: '10Gi',
+          storageClass: 'auto-ebs-sc',
+        },
+      },
+    },
+
+    // Service account configuration (use the IRSA-enabled service account)
+    serviceAccount: {
+      create: false, // Don't create, we're using the one with IRSA
+      name: apiServiceAccountName,
+    },
+
+    // Secrets configuration
+    secrets: {
+      database: {
+        method: 'eso',
+        externalSecrets: {
+          secretKey: 'vm-x-ai-database-secret',
+          passwordKey: 'password',
+          hostKey: 'host',
+          portKey: 'port',
+          databaseKey: 'dbname',
+          usernameKey: 'username',
+        },
+      },
+      ui: {
+        method: 'create', // Auto-generate UI auth secret
+      },
+      externalSecrets: {
+        enabled: true,
+        secretStore: {
+          name: 'default',
+          kind: 'ClusterSecretStore',
+        },
+      },
+    },
+
+    // Ingress configuration with resolved ELB DNS
+    ingress: {
+      enabled: true,
+      istio: {
+        host: ingressGatewayAddress.value,
+        gateway: {
+          name: 'vm-x-ai-gateway',
+          namespace: 'istio-system',
+          selector: {
+            istio: 'ingressgateway',
+          },
+          servers: [
+            {
+              port: {
+                number: 80,
+                name: 'http',
+                protocol: 'HTTP',
+              },
+            },
+          ],
+        },
+        virtualService: {
+          gateways: ['istio-system/vm-x-ai-gateway'],
+        },
+      },
+    },
+  },
+  wait: true,
+  timeout: cdk.Duration.minutes(10),
+});
+```
+
+**Key Configuration Points:**
+- **Repository**: Uses published Helm chart from GitHub Pages
+- **Encryption**: AWS KMS for production-grade encryption
+- **Time-series**: AWS Timestream for metrics storage (QuestDB disabled)
+- **Database**: External Aurora PostgreSQL with SSL enabled
+- **Redis**: 3-node cluster with persistence
+- **Service Account**: IRSA (IAM Roles for Service Accounts) for secure AWS access
+- **Secrets**: External Secrets Operator for database credentials
+- **Ingress**: Istio Gateway with resolved ELB DNS
+- **OpenTelemetry**: Full observability stack enabled
 
 ## Configuration
 
@@ -327,9 +745,20 @@ For production deployments:
 7. **Monitoring**: Set up CloudWatch alarms
 8. **Access Control**: Use least-privilege IAM policies
 
+## Complete Example
+
+For the complete CDK stack implementation, see the [EKS example directory](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/examples/aws-cdk-eks).
+
+The example includes:
+- Complete CDK stack code
+- All infrastructure components
+- IAM roles and policies
+- Service account configuration
+- Helm chart values
+
 ## Next Steps
 
 - [AWS ECS Deployment](./aws-ecs.md) - Alternative AWS deployment option
 - [Minikube Deployment](./minikube.md) - Local Kubernetes deployment
-- [EKS Example README](../../../examples/aws-cdk-eks/README.md) - Detailed example documentation
+- [EKS Example README](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/examples/aws-cdk-eks/README.md) - Detailed example documentation
 

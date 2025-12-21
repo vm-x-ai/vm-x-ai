@@ -149,6 +149,14 @@ export class CompletionService {
         unit: 'ms',
       }
     );
+    this.completionRoutingDurationHistogram = this.metricService.getHistogram(
+      'completion.routing.duration',
+      {
+        description: 'Routing duration',
+        valueType: ValueType.INT,
+        unit: 'ms',
+      }
+    );
   }
 
   public async completion(

@@ -18,6 +18,7 @@ export type AIResourceTabsProps = {
   }[];
   workspaceId: string;
   environmentId: string;
+  resourceId: string;
   children: React.ReactNode;
   resourcePromise: Promise<ApiResponse<AiResourceEntity>>;
   providersPromise: Promise<ApiResponse<AiProviderDto[]>>;
@@ -29,6 +30,7 @@ export default function AIResourceTabs({
   providersPromise,
   workspaceId,
   environmentId,
+  resourceId,
   children,
 }: AIResourceTabsProps) {
   const [open, setOpen] = useState(false);
@@ -70,6 +72,7 @@ export default function AIResourceTabs({
         }}
         workspaceId={workspaceId}
         environmentId={environmentId}
+        resourceId={resourceId}
         resourcePromise={resourcePromise}
         providersPromise={providersPromise}
       />

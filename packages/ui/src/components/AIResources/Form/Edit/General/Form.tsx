@@ -27,7 +27,9 @@ import {
   AiConnectionEntity,
   AiProviderDto,
   AiResourceEntity,
+  AiResourceModelConfigEntity,
 } from '@/clients/api';
+import { useAppStore } from '@/store/provider';
 
 export type AIResourceGeneralEditFormProps = {
   data: AiResourceEntity;
@@ -71,10 +73,15 @@ export default function AIResourceGeneralEditForm({
     }
   }, [state]);
 
+  const setAiResourceChanges = useAppStore(
+    (state) => state.setAiResourceChanges
+  );
+
   const {
     control,
     handleSubmit,
     formState: { errors, isDirty },
+    watch,
   } = useForm<FormSchema>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -83,6 +90,15 @@ export default function AIResourceGeneralEditForm({
       model: data.model,
     },
   });
+
+  const formData = watch();
+
+  useEffect(() => {
+    setAiResourceChanges(data.resourceId, {
+      model: formData.model as AiResourceModelConfigEntity,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.resourceId, formData]);
 
   const actionMenuItems: ActionMenuItem[] = [
     {

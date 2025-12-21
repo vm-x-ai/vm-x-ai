@@ -42,11 +42,17 @@ Before you begin, ensure you have:
 
 ## Quick Start
 
-### 1. Navigate to ECS Example
+### 1. Get the ECS Example
+
+The ECS example is available in the [examples/aws-cdk-ecs](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/examples/aws-cdk-ecs) directory.
+
+If you have the repository cloned, navigate to:
 
 ```bash
 cd examples/aws-cdk-ecs
 ```
+
+Otherwise, download or clone the repository to access the example.
 
 ### 2. Install Dependencies
 
@@ -100,46 +106,321 @@ Or check the AWS Console for the Load Balancer DNS names:
 
 The stack creates:
 
+```mermaid
+graph TB
+    Internet[Internet]
+    API_ALB[API ALB<br/>Port 80]
+    UI_ALB[UI ALB<br/>Port 80]
+    
+    subgraph ECS["ECS Fargate Cluster"]
+        API_Service[API Service]
+        UI_Service[UI Service]
+        
+        subgraph API_Task["API Task"]
+            API_Container[API Container]
+            API_OTEL[OTEL Collector]
+        end
+        
+        subgraph UI_Task["UI Task"]
+            UI_Container[UI Container]
+            UI_OTEL[OTEL Collector]
+        end
+    end
+    
+    Aurora[(Aurora PostgreSQL)]
+    ElastiCache[(ElastiCache<br/>Valkey)]
+    Timestream[(Timestream Database)]
+    
+    Internet --> API_ALB
+    Internet --> UI_ALB
+    API_ALB --> API_Service
+    UI_ALB --> UI_Service
+    API_Service --> API_Task
+    UI_Service --> UI_Task
+    API_Container --> API_OTEL
+    UI_Container --> UI_OTEL
+    API_Container --> Aurora
+    API_Container --> ElastiCache
+    API_Container --> Timestream
+    
+    style Internet fill:#e3f2fd
+    style API_ALB fill:#fff3e0
+    style UI_ALB fill:#fff3e0
+    style ECS fill:#e8f5e9
+    style Aurora fill:#f3e5f5
+    style ElastiCache fill:#ffebee
+    style Timestream fill:#e0f2f1
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Internet                              │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-         ┌───────────────┼───────────────┐
-         │               │               │
-         ▼               ▼               ▼
-┌──────────────┐ ┌──────────────┐
-│  API ALB     │ │   UI ALB     │
-│  (Port 80)   │ │  (Port 80)   │
-└──────┬───────┘ └──────┬───────┘
-       │                │
-       ▼                ▼
-┌──────────────────────────────────────────────────────┐
-│              ECS Fargate Cluster                     │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  API Service                                  │  │
-│  │  ┌──────────────┐  ┌──────────────┐         │  │
-│  │  │  API         │  │  OTEL        │         │  │
-│  │  │  Container   │  │  Collector   │         │  │
-│  │  └──────────────┘  └──────────────┘         │  │
-│  └──────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  UI Service                                   │  │
-│  │  ┌──────────────┐  ┌──────────────┐         │  │
-│  │  │  UI          │  │  OTEL        │         │  │
-│  │  │  Container   │  │  Collector   │         │  │
-│  │  └──────────────┘  └──────────────┘         │  │
-│  └──────────────────────────────────────────────┘  │
-└────────────────────────┬─────────────────────────────┘
-                         │
-         ┌───────────────┼───────────────┐
-         │               │               │
-         ▼               ▼               ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│   Aurora     │ │  ElastiCache │ │  Timestream  │
-│  PostgreSQL  │ │  (Valkey)    │ │   Database   │
-└──────────────┘ └──────────────┘ └──────────────┘
+
+## CDK Stack Overview
+
+The ECS stack is defined in [`examples/aws-cdk-ecs/lib/ecs-stack.ts`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/examples/aws-cdk-ecs/lib/ecs-stack.ts). Here's a breakdown of the key components:
+
+### VPC Configuration
+
+The stack creates a VPC with public subnets:
+
+```typescript
+const vpc = new Vpc(this, 'VPC', {
+  vpcName: 'vm-x-ai-example-vpc',
+  ipAddresses: IpAddresses.cidr('10.0.0.0/16'),
+  maxAzs: 3,
+  subnetConfiguration: [
+    {
+      cidrMask: 24,
+      name: 'Public',
+      subnetType: SubnetType.PUBLIC,
+    },
+  ],
+});
 ```
+
+**Key Points:**
+- **CIDR**: `10.0.0.0/16` provides 65,536 IP addresses
+- **Availability Zones**: 3 AZs for high availability
+- **Subnets**: Public subnets only (add private subnets with NAT Gateway for production)
+
+### Aurora PostgreSQL Database
+
+The stack creates an Aurora PostgreSQL cluster:
+
+```typescript
+const database = new DatabaseCluster(this, 'Database', {
+  engine: DatabaseClusterEngine.auroraPostgres({
+    version: AuroraPostgresEngineVersion.VER_17_6,
+  }),
+  vpc,
+  clusterIdentifier: 'vm-x-ai-rds-cluster',
+  vpcSubnets: {
+    subnetType: SubnetType.PUBLIC,  // Production: Use PRIVATE_WITH_EGRESS
+  },
+  writer: ClusterInstance.provisioned('writer', {
+    publiclyAccessible: true,  // Production: Set to false
+    instanceType: InstanceType.of(
+      InstanceClass.BURSTABLE3,
+      InstanceSize.MEDIUM
+    ),
+  }),
+  credentials: Credentials.fromGeneratedSecret('vmxai', {
+    secretName: 'vm-x-ai-database-secret',
+  }),
+  defaultDatabaseName: 'vmxai',
+});
+```
+
+**Key Points:**
+- **Engine**: Aurora PostgreSQL 17.6
+- **Instance Type**: `db.t3.medium` (burstable performance)
+- **Credentials**: Auto-generated and stored in AWS Secrets Manager
+- **Network**: Publicly accessible for development (use private subnets in production)
+
+### ElastiCache Serverless (Valkey)
+
+The stack creates a serverless Valkey (Redis-compatible) cache:
+
+```typescript
+const redisSecurityGroup = new SecurityGroup(
+  this,
+  'ElastiCacheSecurityGroup',
+  {
+    vpc,
+    allowAllOutbound: true,
+    description: 'ElastiCache Security Group',
+  }
+);
+
+const redisCluster = new CfnServerlessCache(this, 'ServerlessCache', {
+  engine: 'valkey',
+  serverlessCacheName: 'vm-x-ai-valkey-serverless-cache',
+  securityGroupIds: [redisSecurityGroup.securityGroupId],
+  subnetIds: vpc.publicSubnets.map((subnet) => subnet.subnetId),
+  majorEngineVersion: '7',
+});
+```
+
+**Key Points:**
+- **Engine**: Valkey (Redis-compatible)
+- **Mode**: Serverless (auto-scaling)
+- **Network**: Public subnets (use private subnets in production)
+
+### ECS Fargate Cluster
+
+The stack creates an ECS Fargate cluster:
+
+```typescript
+const cluster = new Cluster(this, 'Cluster', {
+  clusterName: 'vm-x-ai-cluster',
+  vpc,
+});
+```
+
+**Key Points:**
+- **Launch Type**: Fargate (serverless containers)
+- **No EC2 Management**: Fargate handles infrastructure
+
+### Application Load Balancers
+
+The stack creates separate ALBs for API and UI:
+
+```typescript
+const apiLoadBalancer = new ApplicationLoadBalancer(
+  this,
+  'API/LoadBalancer',
+  {
+    vpc,
+    loadBalancerName: 'vm-x-ai-api',
+    internetFacing: true,
+    vpcSubnets: {
+      subnetType: SubnetType.PUBLIC,
+    },
+    http2Enabled: true,
+  }
+);
+
+const uiLoadBalancer = new ApplicationLoadBalancer(
+  this,
+  'UI/LoadBalancer',
+  {
+    vpc,
+    loadBalancerName: 'vm-x-ai-ui',
+    internetFacing: true,
+    vpcSubnets: {
+      subnetType: SubnetType.PUBLIC,
+    },
+    http2Enabled: true,
+  }
+);
+```
+
+**Key Points:**
+- **Separate ALBs**: One for API, one for UI
+- **HTTP/2**: Enabled for better performance
+- **Internet-facing**: Public access (use internal ALBs in production)
+
+### Fargate Task Definitions
+
+The stack creates task definitions for API and UI:
+
+```typescript
+const apiTaskDefinition = new FargateTaskDefinition(this, 'API/TaskDef', {
+  memoryLimitMiB: 1024,
+  cpu: 512,
+  family: 'vm-x-ai-api-task-definition',
+});
+
+const uiTaskDefinition = new FargateTaskDefinition(this, 'UI/TaskDef', {
+  memoryLimitMiB: 1024,
+  cpu: 512,
+  family: 'vm-x-ai-ui-task-definition',
+});
+```
+
+**Key Points:**
+- **Memory**: 1024 MiB per task
+- **CPU**: 512 CPU units (0.5 vCPU)
+- **Containers**: Each task includes application container and OTEL collector sidecar
+
+### Container Configuration
+
+The API container is configured with environment variables and secrets:
+
+```typescript
+apiTaskDefinition.addContainer('API/Container', {
+  image: ContainerImage.fromRegistry('vmxai/api:latest'),
+  portMappings: [{ containerPort: 3000 }],
+  containerName: 'api',
+  environment: {
+    LOG_LEVEL: 'info',
+    NODE_ENV: 'production',
+    PORT: '3000',
+    BASE_URL: `http://${apiLoadBalancer.loadBalancerDnsName}`,
+    UI_BASE_URL: `http://${uiLoadBalancer.loadBalancerDnsName}`,
+    REDIS_HOST: redisCluster.attrEndpointAddress,
+    REDIS_PORT: redisCluster.attrEndpointPort,
+    REDIS_MODE: 'cluster',
+    ENCRYPTION_PROVIDER: 'aws-kms',
+    AWS_KMS_KEY_ID: encryptionKey.keyArn,
+    COMPLETION_USAGE_PROVIDER: 'aws-timestream',
+    AWS_TIMESTREAM_DATABASE_NAME: timestreamDatabase.databaseName!,
+    OTEL_ENABLED: 'true',
+    OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
+  },
+  secrets: {
+    DATABASE_HOST: ECSSecret.fromSecretsManager(database.secret!, 'host'),
+    DATABASE_PORT: ECSSecret.fromSecretsManager(database.secret!, 'port'),
+    DATABASE_DB_NAME: ECSSecret.fromSecretsManager(database.secret!, 'dbname'),
+    DATABASE_USER: ECSSecret.fromSecretsManager(database.secret!, 'username'),
+    DATABASE_PASSWORD: ECSSecret.fromSecretsManager(database.secret!, 'password'),
+  },
+});
+```
+
+**Key Points:**
+- **Image**: Uses published `vmxai/api:latest` image
+- **Secrets**: Retrieved from AWS Secrets Manager
+- **OpenTelemetry**: Enabled with sidecar collector
+- **AWS Services**: KMS for encryption, Timestream for metrics
+
+### Fargate Services
+
+The stack creates Fargate services:
+
+```typescript
+const apiService = new FargateService(this, 'API/Service', {
+  cluster,
+  serviceName: 'vm-x-ai-api',
+  enableExecuteCommand: true,
+  desiredCount: 1,
+  vpcSubnets: {
+    subnetType: SubnetType.PUBLIC,  // Production: Use PRIVATE_WITH_EGRESS
+  },
+  taskDefinition: apiTaskDefinition,
+  assignPublicIp: true,  // Production: Set to false
+});
+```
+
+**Key Points:**
+- **Desired Count**: 1 task (can be scaled)
+- **Public IP**: Enabled for development (disable in production)
+- **Execute Command**: Enabled for debugging
+
+### Load Balancer Targets
+
+The stack configures ALB target groups:
+
+```typescript
+apiListener.addTargets('API/Target', {
+  targetGroupName: 'vm-x-ai-api-target-group',
+  port: 3000,
+  targets: [
+    apiService.loadBalancerTarget({
+      containerName: 'api',
+      containerPort: 3000,
+    }),
+  ],
+  healthCheck: {
+    path: '/healthcheck',
+    interval: cdk.Duration.seconds(30),
+    healthyHttpCodes: '200',
+  },
+});
+```
+
+**Key Points:**
+- **Health Checks**: Configured on `/healthcheck` endpoint
+- **Port**: 3000 for API, 3001 for UI
+- **Protocol**: HTTP (add HTTPS in production)
+
+## Complete Example
+
+For the complete CDK stack implementation, see the [ECS example directory](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/examples/aws-cdk-ecs).
+
+The example includes:
+- Complete CDK stack code
+- All infrastructure components
+- IAM roles and policies
+- Task definitions and services
+- Load balancer configuration
 
 ## Configuration
 
@@ -174,7 +455,79 @@ const apiService = new FargateService(this, 'API/Service', {
 
 ### OpenTelemetry Configuration
 
-The OpenTelemetry collector configuration is stored in `ecs-otel-config.yaml` and uploaded to SSM Parameter Store. Customize by editing the file.
+The OpenTelemetry collector configuration is stored in [`ecs-otel-config.yaml`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/examples/aws-cdk-ecs/ecs-otel-config.yaml) and uploaded to SSM Parameter Store. Customize by editing the file.
+
+The configuration file defines receivers, processors, and exporters for traces and metrics:
+
+```yaml
+extensions:
+  health_check:
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  awsxray:
+    endpoint: 0.0.0.0:2000
+    transport: udp
+  statsd:
+    endpoint: 0.0.0.0:8125
+    aggregation_interval: 60s
+
+processors:
+  batch/traces:
+    timeout: 1s
+    send_batch_size: 50
+  batch/metrics:
+    timeout: 60s
+
+exporters:
+  awsxray:
+  awsemf:
+    namespace: ECS/OTEL/VM-X-AI
+    log_group_name: '/aws/ecs/application/metrics'
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp, awsxray]
+      processors: [batch/traces]
+      exporters: [awsxray]
+    metrics:
+      receivers: [otlp, statsd]
+      processors: [batch/metrics]
+      exporters: [awsemf]
+
+  extensions: [health_check]
+```
+
+**Key Configuration Points:**
+- **Receivers**: OTLP (gRPC and HTTP), AWS X-Ray, and StatsD
+- **Processors**: Batch processing for traces and metrics
+- **Exporters**: AWS X-Ray for traces, CloudWatch EMF for metrics
+- **Namespace**: Metrics exported to `ECS/OTEL/VM-X-AI` namespace in CloudWatch
+
+:::warning CloudWatch Metric Costs
+OpenTelemetry can generate a large number of metrics with multiple dimensions (labels/tags). CloudWatch charges **$0.30 per metric per month**, and each unique combination of metric name and dimension values counts as a separate metric.
+
+**High-cardinality metrics** (metrics with many unique dimension combinations) can quickly become expensive. For example:
+- A metric with 3 dimensions, each with 10 possible values = up to 1,000 unique metrics
+- At $0.30/metric/month, this could cost $300/month for a single metric type
+
+**Recommendations:**
+- Monitor your CloudWatch metric count regularly
+- Consider reducing metric dimensions if costs become high
+- Use metric filtering or aggregation to reduce cardinality
+- Review and disable unnecessary metrics in your OpenTelemetry configuration
+- Set up CloudWatch billing alarms to track metric costs
+
+You can check your current metric count:
+```bash
+aws cloudwatch list-metrics --namespace ECS/OTEL/VM-X-AI --query 'length(Metrics)'
+```
+:::
 
 ## Accessing Services
 
@@ -235,12 +588,22 @@ The stack includes:
 - **CloudWatch Metrics**: Custom metrics via OpenTelemetry EMF exporter
 - **Health Checks**: ALB health checks on `/healthcheck` endpoints
 
+:::warning CloudWatch Metric Costs
+OpenTelemetry metrics exported to CloudWatch can generate high costs due to metric cardinality. Each unique combination of metric name and dimension values is billed as a separate metric at **$0.30 per metric per month**. Monitor your metric count and consider reducing dimensions if costs become high.
+:::
+
 ### Viewing Metrics
 
 Metrics are exported to CloudWatch under namespace `ECS/OTEL/VM-X-AI`:
 
 ```bash
 aws cloudwatch list-metrics --namespace ECS/OTEL/VM-X-AI
+```
+
+To check the total number of metrics (which affects billing):
+
+```bash
+aws cloudwatch list-metrics --namespace ECS/OTEL/VM-X-AI --query 'length(Metrics)'
 ```
 
 ## Cost Considerations
@@ -254,8 +617,22 @@ Estimated monthly costs for minimal production setup:
 - **Timestream**: $10-50/month (pay-per-use)
 - **Data Transfer**: ~$0.09/GB for outbound
 - **CloudWatch Logs**: ~$0.50/GB ingested, $0.03/GB stored
+- **CloudWatch Metrics**: **$0.30 per metric per month** (can be significant with high-cardinality OpenTelemetry metrics)
 
-**Total**: $200-400/month
+**Total**: $200-400/month (excluding CloudWatch metrics, which can add $50-500+ depending on metric cardinality)
+
+:::important CloudWatch Metrics Cost
+CloudWatch metrics can become a significant cost driver, especially with OpenTelemetry. Each unique combination of metric name and dimension values is billed separately. For example:
+- 100 unique metrics = $30/month
+- 1,000 unique metrics = $300/month
+- 10,000 unique metrics = $3,000/month
+
+Monitor your metric count and consider:
+- Reducing metric dimensions
+- Filtering or aggregating metrics
+- Disabling unnecessary metrics
+- Setting up CloudWatch billing alarms
+:::
 
 To reduce costs:
 - Use smaller task sizes (reduce CPU/memory)
@@ -386,5 +763,5 @@ Before deploying to production:
 
 - [AWS EKS Deployment](./aws-eks.md) - Alternative AWS deployment option
 - [Minikube Deployment](./minikube.md) - Local Kubernetes deployment
-- [ECS Example README](../../../examples/aws-cdk-ecs/README.md) - Detailed example documentation
+- [ECS Example README](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/examples/aws-cdk-ecs/README.md) - Detailed example documentation
 
