@@ -9,6 +9,20 @@
       }
     },
     "targets": {
+      "docker:publish:latest": {
+        "executor": "nx:run-commands",
+        "options": {
+          "commands": [
+            "docker tag packages-api docker.io/vmxai/api:latest",
+            "docker push docker.io/vmxai/api:latest"
+          ],
+          "parallel": false,
+          "cwd": "{projectRoot}"
+        },
+        "dependsOn": [
+          "docker:build"
+        ]
+      },
       "tailwind:build": {
         "executor": "nx:run-commands",
         "options": {
@@ -95,13 +109,6 @@
         "executor": "nx:run-commands",
         "options": {
           "command": "ts-node -P tsconfig.app.json src/migrate.ts --reset",
-          "cwd": "{projectRoot}"
-        }
-      },
-      "bootstrap": {
-        "executor": "nx:run-commands",
-        "options": {
-          "command": "bash script/bootstrap.sh",
           "cwd": "{projectRoot}"
         }
       }
