@@ -51,17 +51,7 @@ jobs:
         run: |
           echo "${{ secrets.DOCKER_HUB_PAT }}" | docker login -u vmxai --password-stdin
 
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 10.14.0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install
+      - uses: ./.github/actions/setup-monorepo
 
       - uses: oNaiPs/secrets-to-env-action@v1.5
         with:
@@ -69,7 +59,7 @@ jobs:
 
       - name: Release
         run: |
-          pnpm nx release --yes
+          pnpm nx release --yes --verbose
           git push --follow-tags
         env:
           GITHUB_TOKEN: ${{ steps.setup_release.outputs.token }}

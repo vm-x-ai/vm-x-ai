@@ -1,0 +1,17 @@
+name: Code Quality
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup-monorepo
+
+      - name: Run code quality
+        run: |
+          pnpm nx affected -t lint test build
