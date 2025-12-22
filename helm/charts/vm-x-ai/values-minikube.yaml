@@ -5,10 +5,10 @@
 # Use smaller resource requests for Minikube
 api:
   encryption:
-    provider: libsodium  # libsodium is fine for local testing
+    provider: libsodium # libsodium is fine for local testing
   env:
     # Avoid conflicts with Next.js API routes when both are deployed to same host
-    BASE_PATH: "/_api"
+    BASE_PATH: '/_api'
   replicaCount: 1
   resources:
     requests:
@@ -64,7 +64,7 @@ ingress:
     host: vm-x-ai.local
     gateway:
       name: vm-x-ai-gateway
-      namespace: istio-system  # Usually deployed in istio-system
+      namespace: istio-system # Usually deployed in istio-system
       selector:
         istio: ingressgateway
       servers:
@@ -72,7 +72,7 @@ ingress:
             number: 80
             name: http
             protocol: HTTP
-    
+
     # VirtualService configuration
     virtualService:
       gateways:

@@ -21,7 +21,7 @@ export class AIResourceModelConfigEntity {
   @ApiProperty({
     description: 'The AI connection ID of the AI resource model',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()

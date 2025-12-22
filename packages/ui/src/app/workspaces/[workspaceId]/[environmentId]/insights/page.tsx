@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 export type PageProps = {
   params: Promise<{
     workspaceId: string;
-      environmentId: string;
-    }>;
+    environmentId: string;
+  }>;
 };
 
 export default async function Page({ params }: PageProps) {

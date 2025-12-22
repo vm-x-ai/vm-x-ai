@@ -60,11 +60,7 @@ export default function AIResourceSecondaryModelsEditForm({
     }
   }, [state]);
 
-  const {
-    control,
-    handleSubmit,
-    watch,
-  } = useForm<FormSchema>({
+  const { control, handleSubmit, watch } = useForm<FormSchema>({
     resolver: zodResolver(schema),
     defaultValues: {
       secondaryModels: data.secondaryModels ?? [],

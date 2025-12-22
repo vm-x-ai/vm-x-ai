@@ -20,9 +20,10 @@ export default function ConfirmDeleteWorkspaceDialog({
   onClose,
 }: ConfirmDeleteWorkspaceDialogProps) {
   const [open, setOpen] = useState(true);
-  const { mutateAsync: deleteWorkspace, isPending: deletingWorkspace } = useMutation({
-    ...deleteWorkspaceMutation({}),
-  });
+  const { mutateAsync: deleteWorkspace, isPending: deletingWorkspace } =
+    useMutation({
+      ...deleteWorkspaceMutation({}),
+    });
 
   const handleClose = () => {
     setOpen(false);
@@ -58,7 +59,8 @@ export default function ConfirmDeleteWorkspaceDialog({
         maxWidth="md"
       >
         <DialogTitle id="confirm-delete-workspace-title">
-          Are you sure you want to delete <strong>{workspace.name}</strong> workspace?
+          Are you sure you want to delete <strong>{workspace.name}</strong>{' '}
+          workspace?
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="confirm-delete-workspace-description">

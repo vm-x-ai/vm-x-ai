@@ -34,8 +34,7 @@ export class GeminiProvider extends OpenAIProvider {
                 type: 'string',
                 format: 'secret',
                 title: 'Gemini API Key',
-                placeholder:
-                  'e.g. AIzaSyA-1234567890abcdef1234567890abcdef',
+                placeholder: 'e.g. AIzaSyA-1234567890abcdef1234567890abcdef',
                 description:
                   'Go to [Google AI studio](https://aistudio.google.com/app/apikey) to create a Gemini API Key',
               },

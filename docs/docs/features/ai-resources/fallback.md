@@ -47,13 +47,13 @@ Fallback is automatically triggered on:
 
 ### Error Types That Trigger Fallback
 
-| Error Type | Status Code | Description |
-|------------|------------|-------------|
-| Server Error | 5xx | Provider server errors |
-| Rate Limit | 429 | Too many requests |
-| Timeout | - | Request timeout |
-| Network Error | - | Connection failures |
-| Invalid Response | - | Malformed responses |
+| Error Type       | Status Code | Description            |
+| ---------------- | ----------- | ---------------------- |
+| Server Error     | 5xx         | Provider server errors |
+| Rate Limit       | 429         | Too many requests      |
+| Timeout          | -           | Request timeout        |
+| Network Error    | -           | Connection failures    |
+| Invalid Response | -           | Malformed responses    |
 
 ## Fallback Chain Example
 
@@ -94,6 +94,7 @@ Consider a resource with the following configuration:
 ### 1. Use Multiple Fallback Models
 
 Always configure multiple fallback models:
+
 - Different providers (avoid single points of failure)
 - Different cost profiles (balance cost and availability)
 - Different performance characteristics (optimize for different scenarios)
@@ -101,6 +102,7 @@ Always configure multiple fallback models:
 ### 2. Order Fallback Models Strategically
 
 Order fallback models by:
+
 - **Reliability**: Most reliable models first
 - **Cost**: Cheaper models for non-critical fallbacks
 - **Performance**: Faster models for time-sensitive requests
@@ -109,6 +111,7 @@ Order fallback models by:
 ### 3. Test Fallback Chains
 
 Before deploying:
+
 - Test fallback chains with simulated failures
 - Verify fallback models are accessible and configured correctly
 - Monitor fallback usage in production
@@ -116,6 +119,7 @@ Before deploying:
 ### 4. Monitor Fallback Usage
 
 Regularly review:
+
 - How often fallback is triggered
 - Which fallback models are used most
 - Error patterns that trigger fallback
@@ -200,4 +204,3 @@ If all models (primary + fallbacks) are failing:
 - [Dynamic Routing](./routing.md) - Learn about dynamic routing rules
 - [Capacity](./capacity.md) - Set resource-level capacity limits
 - [AI Resources Overview](./index.md) - Return to AI Resources overview
-

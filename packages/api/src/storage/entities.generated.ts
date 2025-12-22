@@ -3,41 +3,41 @@
  * Please do not edit it manually.
  */
 
-import type { ColumnType } from "kysely";
+import type { ColumnType } from 'kysely';
 
 export enum PublicCompletionAuditType {
-  COMPLETION = "COMPLETION",
-  COMPLETION_BATCH = "COMPLETION_BATCH",
+  COMPLETION = 'COMPLETION',
+  COMPLETION_BATCH = 'COMPLETION_BATCH',
 }
 
 export enum PublicCompletionBatchRequestStatus {
-  CANCELLED = "CANCELLED",
-  COMPLETED = "COMPLETED",
-  FAILED = "FAILED",
-  PENDING = "PENDING",
-  RUNNING = "RUNNING",
+  CANCELLED = 'CANCELLED',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  PENDING = 'PENDING',
+  RUNNING = 'RUNNING',
 }
 
 export enum PublicCompletionBatchRequestType {
-  ASYNC = "ASYNC",
-  CALLBACK = "CALLBACK",
-  SYNC = "SYNC",
+  ASYNC = 'ASYNC',
+  CALLBACK = 'CALLBACK',
+  SYNC = 'SYNC',
 }
 
 export enum PublicProviderType {
-  LOCAL = "LOCAL",
-  OIDC = "OIDC",
+  LOCAL = 'LOCAL',
+  OIDC = 'OIDC',
 }
 
 export enum PublicUserState {
-  ACTIVE = "ACTIVE",
-  CHANGE_PASSWORD = "CHANGE_PASSWORD",
-  INACTIVE = "INACTIVE",
+  ACTIVE = 'ACTIVE',
+  CHANGE_PASSWORD = 'CHANGE_PASSWORD',
+  INACTIVE = 'INACTIVE',
 }
 
 export enum PublicWorkspaceUserRole {
-  MEMBER = "MEMBER",
-  OWNER = "OWNER",
+  MEMBER = 'MEMBER',
+  OWNER = 'OWNER',
 }
 
 export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>

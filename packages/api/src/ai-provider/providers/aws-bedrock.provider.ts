@@ -470,7 +470,7 @@ export class AWSBedrockProvider implements CompletionProvider {
                   function: {
                     arguments: item.contentBlockDelta.delta.toolUse.input ?? '',
                   },
-                }
+                },
               ],
             },
             finish_reason: null,

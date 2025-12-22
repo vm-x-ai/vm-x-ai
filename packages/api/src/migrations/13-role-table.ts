@@ -51,7 +51,7 @@ export const migration: Migration = {
           name: 'admin',
           description: 'Administrator role',
           policy: JSON.stringify({
-            $schema: 'https://vm-x.ai/schema/role-policy.json', 
+            $schema: 'https://vm-x.ai/schema/role-policy.json',
             statements: [
               {
                 effect: RolePolicyEffect.ALLOW,

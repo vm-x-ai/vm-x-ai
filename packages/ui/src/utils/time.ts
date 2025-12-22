@@ -28,7 +28,7 @@ export function toUtc(value: Date): Date {
       value.getHours(),
       value.getMinutes(),
       value.getSeconds(),
-      value.getMilliseconds(),
-    ),
+      value.getMilliseconds()
+    )
   );
 }

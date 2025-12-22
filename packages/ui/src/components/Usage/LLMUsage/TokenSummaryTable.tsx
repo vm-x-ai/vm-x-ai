@@ -10,7 +10,9 @@ export type LLMTokenSummaryTableProps = {
   data: CompletionUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<CompletionUsageQueryResultDto[] | undefined>;
+  autoRefreshAction?: () => Promise<
+    CompletionUsageQueryResultDto[] | undefined
+  >;
 };
 
 export function LLMTokenSummaryTable({
@@ -39,17 +41,20 @@ export function LLMTokenSummaryTable({
     {
       accessorKey: 'completionTokens',
       header: 'Completion Tokens',
-      Cell: ({ row: { original: row } }) => numberWithCommas((row.completionTokens as number) ?? 0),
+      Cell: ({ row: { original: row } }) =>
+        numberWithCommas((row.completionTokens as number) ?? 0),
     },
     {
       accessorKey: 'promptTokens',
       header: 'Prompt Tokens',
-      Cell: ({ row: { original: row } }) => numberWithCommas((row.promptTokens as number) ?? 0),
+      Cell: ({ row: { original: row } }) =>
+        numberWithCommas((row.promptTokens as number) ?? 0),
     },
     {
       accessorKey: 'totalTokens',
       header: 'Total Tokens',
-      Cell: ({ row: { original: row } }) => numberWithCommas((row.totalTokens as number) ?? 0),
+      Cell: ({ row: { original: row } }) =>
+        numberWithCommas((row.totalTokens as number) ?? 0),
     },
   ];
 

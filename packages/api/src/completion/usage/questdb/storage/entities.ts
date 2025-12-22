@@ -13,7 +13,7 @@ export interface Completion {
   requestCount: number | null;
   errorCount: number | null;
   successCount: number | null;
-  
+
   requestDuration: number | null;
   providerDuration: number | null;
   gateDuration: number | null;

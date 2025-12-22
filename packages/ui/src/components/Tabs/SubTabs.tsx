@@ -23,12 +23,24 @@ export type SubTabsProps = {
   height?: number | string;
 };
 
-export default function SubTabs({ children, tabs, pathPattern, height }: SubTabsProps) {
+export default function SubTabs({
+  children,
+  tabs,
+  pathPattern,
+  height,
+}: SubTabsProps) {
   const theme = useTheme();
   const isSm = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
-    <Box sx={{ flexGrow: 1, display: 'flex', width: '100%', flexDirection: isSm ? 'column' : 'row' }}>
+    <Box
+      sx={{
+        flexGrow: 1,
+        display: 'flex',
+        width: '100%',
+        flexDirection: isSm ? 'column' : 'row',
+      }}
+    >
       <Box
         width={isSm ? '100%' : '17%'}
         height="100%"
@@ -55,7 +67,10 @@ export default function SubTabs({ children, tabs, pathPattern, height }: SubTabs
                   maxWidth: 'none',
                   backgroundColor: 'background.paper',
                   borderLeft: '.1rem solid var(--mui-palette-divider)',
-                  borderTop: index === 0 ? '.1rem solid var(--mui-palette-divider)' : 'none',
+                  borderTop:
+                    index === 0
+                      ? '.1rem solid var(--mui-palette-divider)'
+                      : 'none',
                   ...(index !== tabs.length || children?.length
                     ? { borderBottom: '.1rem solid var(--mui-palette-divider)' }
                     : {}),
@@ -87,7 +102,7 @@ export default function SubTabs({ children, tabs, pathPattern, height }: SubTabs
                       }}
                     />
                   ))}
-                </VerticalTabContext>,
+                </VerticalTabContext>
               );
             }
 

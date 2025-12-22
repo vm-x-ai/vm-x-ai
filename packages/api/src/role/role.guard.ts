@@ -43,7 +43,7 @@ export const RoleGuard = (
         auth: {
           user: user?.user,
           apiKey: apiKey,
-        }
+        },
       };
 
       if (params.workspaceId) {

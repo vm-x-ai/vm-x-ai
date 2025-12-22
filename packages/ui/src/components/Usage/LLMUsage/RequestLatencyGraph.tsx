@@ -169,7 +169,12 @@ export async function LLMRequestLatencyGraph({
                   workspaceId,
                   environmentId,
                 },
-                body: getUsageBody(aggregations, granularity, filters, datePickerValue),
+                body: getUsageBody(
+                  aggregations,
+                  granularity,
+                  filters,
+                  datePickerValue
+                ),
               });
               if (result.error) {
                 return undefined;
@@ -210,7 +215,11 @@ export async function LLMRequestLatencyGraph({
                     workspaceId,
                     environmentId,
                   },
-                  body: getTableUsageBody(aggregations, filters, datePickerValue),
+                  body: getTableUsageBody(
+                    aggregations,
+                    filters,
+                    datePickerValue
+                  ),
                 });
                 if (result.error) {
                   return undefined;

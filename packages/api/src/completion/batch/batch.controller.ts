@@ -55,7 +55,10 @@ import { CompletionBatchItemService } from './batch-item-service';
 import { CapacityPeriod } from '../../capacity/capacity.entity';
 import { ServiceError } from '../../types';
 import { RoleGuard } from '../../role/role.guard';
-import { COMPLETION_BATCH_BASE_RESOURCE, CompletionBatchActions } from './permissions/actions';
+import {
+  COMPLETION_BATCH_BASE_RESOURCE,
+  CompletionBatchActions,
+} from './permissions/actions';
 
 export function ApiBatchIdParam() {
   return applyDecorators(
@@ -99,10 +102,7 @@ export class CompletionBatchController {
     description: 'Get a completion batch by its ID',
   })
   @UseGuards(
-    RoleGuard(
-      CompletionBatchActions.GET,
-      COMPLETION_BATCH_BASE_RESOURCE
-    )
+    RoleGuard(CompletionBatchActions.GET, COMPLETION_BATCH_BASE_RESOURCE)
   )
   @ApiOkResponse({
     type: CompletionBatchDto,
@@ -147,10 +147,7 @@ export class CompletionBatchController {
     description: 'Get a completion batch item by its ID',
   })
   @UseGuards(
-    RoleGuard(
-      CompletionBatchActions.GET,
-      COMPLETION_BATCH_BASE_RESOURCE
-    )
+    RoleGuard(CompletionBatchActions.GET, COMPLETION_BATCH_BASE_RESOURCE)
   )
   @ApiOkResponse({
     type: CompletionBatchItemEntity,
@@ -243,10 +240,7 @@ export class CompletionBatchController {
     },
   })
   @UseGuards(
-    RoleGuard(
-      CompletionBatchActions.CREATE,
-      COMPLETION_BATCH_BASE_RESOURCE
-    )
+    RoleGuard(CompletionBatchActions.CREATE, COMPLETION_BATCH_BASE_RESOURCE)
   )
   @ApiOkResponse({
     type: CompletionBatchDto,
@@ -321,10 +315,7 @@ export class CompletionBatchController {
     description: 'Cancel a completion batch by its ID',
   })
   @UseGuards(
-    RoleGuard(
-      CompletionBatchActions.CANCEL,
-      COMPLETION_BATCH_BASE_RESOURCE
-    )
+    RoleGuard(CompletionBatchActions.CANCEL, COMPLETION_BATCH_BASE_RESOURCE)
   )
   @ApiOkResponse({
     type: Object,

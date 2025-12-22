@@ -101,7 +101,7 @@ export class CompletionUsageDto {
   @ApiProperty({
     description: 'Workspace Identifier',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -110,7 +110,7 @@ export class CompletionUsageDto {
   @ApiProperty({
     description: 'Environment Identifier',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -119,7 +119,7 @@ export class CompletionUsageDto {
   @ApiProperty({
     description: 'AI Connection Identifier',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsOptional()
   @IsUUID('4')
@@ -128,7 +128,7 @@ export class CompletionUsageDto {
   @ApiProperty({
     description: 'AI Resource Identifier',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsOptional()
   @IsUUID('4')
@@ -192,7 +192,7 @@ export class CompletionUsageDto {
   @ApiProperty({
     description: 'API key identifier used for the request',
     example: 'api_key_123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsOptional()
   @IsUUID('4')
@@ -209,7 +209,7 @@ export class CompletionUsageDto {
   @ApiProperty({
     description: 'User Identifier',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsOptional()
   @IsUUID('4')

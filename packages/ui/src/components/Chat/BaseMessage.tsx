@@ -13,7 +13,11 @@ export type BaseMessageProps = {
   secondaryContent?: string | React.ReactNode;
 };
 
-export default function BaseMessage({ avatar, content, secondaryContent }: BaseMessageProps) {
+export default function BaseMessage({
+  avatar,
+  content,
+  secondaryContent,
+}: BaseMessageProps) {
   return (
     <ListItem>
       <ListItemAvatar

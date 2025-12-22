@@ -46,7 +46,9 @@ export default function ConfirmDeleteResourceDialog({
         },
       });
 
-      router.push(`/workspaces/${workspaceId}/${environmentId}/ai-resources/overview`);
+      router.push(
+        `/workspaces/${workspaceId}/${environmentId}/ai-resources/overview`
+      );
       toast.success(`Resource ${resource.name} has been deleted.`);
       handleClose();
     } catch (error) {

@@ -48,8 +48,8 @@ export type CompletionResponseInternalData = {
 
 export type CompletionResponse = {
   data:
-    | CompletionStreamingResponse['data'] & CompletionResponseInternalData
-    | CompletionNonStreamingResponse['data'] & CompletionResponseInternalData;
+    | (CompletionStreamingResponse['data'] & CompletionResponseInternalData)
+    | (CompletionNonStreamingResponse['data'] & CompletionResponseInternalData);
   headers: CompletionHeaders;
 };
 

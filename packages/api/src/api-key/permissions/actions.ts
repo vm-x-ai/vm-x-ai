@@ -8,5 +8,6 @@ export enum APIKeyActions {
   DELETE = `${API_KEY_MODULE_NAME}:delete`,
 }
 
-export const API_KEY_BASE_RESOURCE = 'workspace:${workspace.name}:environment:${environment.name}:api-key'
-export const API_KEY_RESOURCE_ITEM = `${API_KEY_BASE_RESOURCE}:\${apiKey.name}`
+export const API_KEY_BASE_RESOURCE =
+  'workspace:${workspace.name}:environment:${environment.name}:api-key';
+export const API_KEY_RESOURCE_ITEM = `${API_KEY_BASE_RESOURCE}:\${apiKey.name}`;

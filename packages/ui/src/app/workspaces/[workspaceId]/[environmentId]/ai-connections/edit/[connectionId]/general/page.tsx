@@ -1,8 +1,6 @@
 import Alert from '@mui/material/Alert';
 import AIConnectionGeneralEditForm from '@/components/AIConnection/Form/Edit/General';
-import {
-  getAiConnectionById,
-} from '@/clients/api';
+import { getAiConnectionById } from '@/clients/api';
 import { submitForm } from './actions';
 
 export type PageProps = {

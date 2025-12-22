@@ -32,7 +32,7 @@ export class CompletionBatchEntity {
   @ApiProperty({
     description: 'The unique identifier for the workspace (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -41,7 +41,7 @@ export class CompletionBatchEntity {
   @ApiProperty({
     description: 'The unique identifier for the environment (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -58,7 +58,7 @@ export class CompletionBatchEntity {
   @ApiProperty({
     description: 'The unique identifier for the batch request (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -152,7 +152,8 @@ export class CompletionBatchEntity {
   status: PublicCompletionBatchRequestStatus;
 
   @ApiProperty({
-    description: 'The total estimated number of prompt tokens in the batch request',
+    description:
+      'The total estimated number of prompt tokens in the batch request',
     example: 1000,
   })
   @IsInt()
@@ -211,7 +212,8 @@ export class CompletionBatchEntity {
   createdAt: Date;
 
   @ApiProperty({
-    description: 'The unique identifier for the API key that created the batch request',
+    description:
+      'The unique identifier for the API key that created the batch request',
     example: '123e4567-e89b-12d3-a456-426614174000',
     format: 'uuid',
     nullable: true,
@@ -234,7 +236,8 @@ export class CompletionBatchEntity {
   createdByApiKey?: ApiKeyRelationDto | null;
 
   @ApiProperty({
-    description: 'The unique identifier for the user that created the batch request',
+    description:
+      'The unique identifier for the user that created the batch request',
     example: '123e4567-e89b-12d3-a456-426614174000',
     format: 'uuid',
     nullable: true,

@@ -3,30 +3,30 @@
 
 # Global settings
 global:
-  imageRegistry: ""
+  imageRegistry: ''
   imagePullSecrets: []
 
 # Application images
 images:
   api:
     repository: vmxai/api
-    tag: "latest"
+    tag: 'latest'
     pullPolicy: Always
   ui:
     repository: vmxai/ui
-    tag: "latest"
+    tag: 'latest'
     pullPolicy: Always
 
 # API Configuration
 api:
   enabled: true
   replicaCount: 1
-  
+
   service:
     type: ClusterIP
     port: 3000
     targetPort: 3000
-  
+
   resources:
     requests:
       cpu: 500m
@@ -34,20 +34,20 @@ api:
     limits:
       cpu: 2000m
       memory: 2Gi
-  
+
   env:
     LOG_LEVEL: info
     NODE_ENV: production
     PORT: 3000
-    BASE_URL: "" # Will be set based on ingress or service
-    BASE_PATH: "" # API base path prefix (e.g., "/v1" or "/api/v1")
-    UI_BASE_URL: "" # Will be set based on ingress or service
-    OIDC_PROVIDER_ISSUER: "" # Will be set based on BASE_URL
+    BASE_URL: '' # Will be set based on ingress or service
+    BASE_PATH: '' # API base path prefix (e.g., "/v1" or "/api/v1")
+    UI_BASE_URL: '' # Will be set based on ingress or service
+    OIDC_PROVIDER_ISSUER: '' # Will be set based on BASE_URL
     DATABASE_WRITER_POOL_MAX: 25
     DATABASE_READER_POOL_MAX: 50
     BATCH_QUEUE_VISIBILITY_TIMEOUT: 120000
     OTEL_TRACES_SAMPLER: always_on
-  
+
   # Encryption Provider Configuration
   # Options: libsodium (default, for local/small deployments) or aws-kms (for production)
   encryption:
@@ -55,52 +55,52 @@ api:
     libsodium:
       # Encryption key for libsodium (base64 encoded, 32 bytes)
       # Will be auto-generated if not provided via secrets
-      encryptionKey: "" # Will be set from secrets
+      encryptionKey: '' # Will be set from secrets
     awsKms:
-      keyId: "" # Required if using aws-kms (e.g., "arn:aws:kms:region:account:key/key-id")
-  
+      keyId: '' # Required if using aws-kms (e.g., "arn:aws:kms:region:account:key/key-id")
+
   # AWS Configuration (required for AWS services like KMS or Timestream)
   aws:
-    region: "" # Required if using aws-kms or aws-timestream (e.g., "us-east-1")
-  
+    region: '' # Required if using aws-kms or aws-timestream (e.g., "us-east-1")
+
   # Timeseries DB Configuration
   timeseriesDb:
     provider: questdb # questdb or aws-timestream
     questdb:
-      host: "" # Will be set automatically if questdb is enabled
+      host: '' # Will be set automatically if questdb is enabled
       port: 8812
       user: admin
-      password: "" # Will be set from secrets
+      password: '' # Will be set from secrets
       dbName: vmxai
     awsTimestream:
-      databaseName: "" # Required if using aws-timestream
-  
+      databaseName: '' # Required if using aws-timestream
+
   # OIDC Federated Login (optional)
   oidcFederated:
     enabled: false
-    issuer: ""
-    clientId: ""
+    issuer: ''
+    clientId: ''
     # clientSecret is optional - only set if your OIDC provider requires it
     # If set, a secret will be created/referenced for the client secret
-    clientSecret: "" # Optional - set to enable client secret authentication
-    scope: "openid profile email"
-    defaultRole: "power-user"
-  
+    clientSecret: '' # Optional - set to enable client secret authentication
+    scope: 'openid profile email'
+    defaultRole: 'power-user'
+
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  
+
   # Istio sidecar injection
   # Set to false to disable sidecar injection (useful if namespace has istio-injection=enabled)
   istio:
     sidecar:
-      enabled: true  # API should have sidecars for mTLS and observability
-  
+      enabled: true # API should have sidecars for mTLS and observability
+
   # Pod disruption budget
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
-  
+
   # Healthcheck configuration
   healthcheck:
     enabled: true
@@ -128,14 +128,14 @@ api:
       timeoutSeconds: 3
       successThreshold: 1
       failureThreshold: 30
-  
+
   # Autoscaling configuration
   autoscaling:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: null  # Optional: set to enable memory-based scaling
+    targetMemoryUtilizationPercentage: null # Optional: set to enable memory-based scaling
     # Optional: Custom scaling behavior
     # behavior:
     #   scaleDown:
@@ -155,12 +155,12 @@ api:
 ui:
   enabled: true
   replicaCount: 1
-  
+
   service:
     type: ClusterIP
     port: 3001
     targetPort: 3001
-  
+
   resources:
     requests:
       cpu: 200m
@@ -168,28 +168,28 @@ ui:
     limits:
       cpu: 1000m
       memory: 1Gi
-  
+
   env:
-    AUTH_URL: "" # Will be set based on ingress or service
-    AUTH_SECRET: "" # Will be set from secrets
-    AUTH_OIDC_ISSUER: "" # Will be set based on API BASE_URL
+    AUTH_URL: '' # Will be set based on ingress or service
+    AUTH_SECRET: '' # Will be set from secrets
+    AUTH_OIDC_ISSUER: '' # Will be set based on API BASE_URL
     AUTH_OIDC_CLIENT_ID: ui
     AUTH_OIDC_CLIENT_SECRET: ui
-    AUTH_REDIRECT_PROXY_URL: "" # Will be set based on ingress or service
-    API_BASE_URL: "" # Will be set based on API service
-    NEXT_AUTH_DEBUG: "false" # Set to "true" for debugging
+    AUTH_REDIRECT_PROXY_URL: '' # Will be set based on ingress or service
+    API_BASE_URL: '' # Will be set based on API service
+    NEXT_AUTH_DEBUG: 'false' # Set to "true" for debugging
     OTEL_TRACES_SAMPLER: always_on
-  
+
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  
+
   # Istio sidecar injection
   # Set to false to disable sidecar injection (useful if namespace has istio-injection=enabled)
   istio:
     sidecar:
-      enabled: true  # UI should have sidecars for mTLS and observability
-  
+      enabled: true # UI should have sidecars for mTLS and observability
+
   # Healthcheck configuration
   healthcheck:
     enabled: true
@@ -217,14 +217,14 @@ ui:
       timeoutSeconds: 3
       successThreshold: 1
       failureThreshold: 30
-  
+
   # Autoscaling configuration
   autoscaling:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: null  # Optional: set to enable memory-based scaling
+    targetMemoryUtilizationPercentage: null # Optional: set to enable memory-based scaling
     # Optional: Custom scaling behavior
     # behavior:
     #   scaleDown:
@@ -244,23 +244,23 @@ ui:
 postgresql:
   # Set to false to use external PostgreSQL
   enabled: true
-  
+
   # If enabled, these values are used
   image:
     repository: postgres
-    tag: "15"
+    tag: '15'
     pullPolicy: IfNotPresent
-  
+
   auth:
-    postgresPassword: "" # Will be generated if not set
+    postgresPassword: '' # Will be generated if not set
     database: vmxai
     username: admin
-  
+
   persistence:
     enabled: true
     size: 20Gi
-    storageClass: ""
-  
+    storageClass: ''
+
   resources:
     requests:
       cpu: 500m
@@ -268,27 +268,27 @@ postgresql:
     limits:
       cpu: 2000m
       memory: 2Gi
-  
+
   service:
     type: ClusterIP
     port: 5432
-  
+
   # Istio sidecar injection
   # PostgreSQL typically doesn't need sidecars (internal service, latency-sensitive)
   # Enable only if you need mTLS between API and PostgreSQL
   istio:
     sidecar:
-      enabled: false  # Usually disabled for internal databases
-  
+      enabled: false # Usually disabled for internal databases
+
   # If disabled, provide external connection details
   external:
-    host: ""
+    host: ''
     port: 5432
-    database: ""
-    username: ""
-    password: "" # Will be set from secrets
+    database: ''
+    username: ''
+    password: '' # Will be set from secrets
     # For read replicas
-    roHost: "" # If not set, uses host
+    roHost: '' # If not set, uses host
     # SSL/TLS configuration for external PostgreSQL (required for AWS RDS)
     ssl: false
 
@@ -296,33 +296,33 @@ postgresql:
 redis:
   # Set to false to use external Redis
   enabled: true
-  
+
   # Mode: single or cluster
   mode: single # single or cluster
 
   # TLS
   tls:
     enabled: false
-  
+
   # Istio sidecar injection
   # Redis typically doesn't need sidecars (internal service, latency-sensitive)
   # Enable only if you need mTLS between API and Redis
   istio:
     sidecar:
-      enabled: false  # Usually disabled for internal caches
-  
+      enabled: false # Usually disabled for internal caches
+
   # Single node configuration
   single:
     image:
       repository: redis
-      tag: "7"
+      tag: '7'
       pullPolicy: IfNotPresent
-    
+
     persistence:
       enabled: true
       size: 10Gi
-      storageClass: ""
-    
+      storageClass: ''
+
     resources:
       requests:
         cpu: 200m
@@ -330,26 +330,26 @@ redis:
       limits:
         cpu: 1000m
         memory: 1Gi
-    
+
     service:
       type: ClusterIP
       port: 6379
-  
+
   # Cluster configuration
   cluster:
     nodes: 3
     replicas: 0 # Number of replicas per master
-    
+
     image:
       repository: redis
-      tag: "7"
+      tag: '7'
       pullPolicy: IfNotPresent
-    
+
     persistence:
       enabled: true
       size: 10Gi
-      storageClass: ""
-    
+      storageClass: ''
+
     resources:
       requests:
         cpu: 200m
@@ -357,7 +357,7 @@ redis:
       limits:
         cpu: 1000m
         memory: 1Gi
-    
+
     service:
       type: ClusterIP
       ports:
@@ -365,10 +365,10 @@ redis:
           port: 6379
         - name: cluster
           port: 16379
-  
+
   # If disabled, provide external connection details
   external:
-    host: ""
+    host: ''
     port: 6379
     # For cluster mode, provide all nodes
     nodes: [] # Array of {host: "", port: 6379}
@@ -377,29 +377,29 @@ redis:
 questdb:
   # Set to false if using aws-timestream
   enabled: true
-  
+
   image:
     repository: questdb/questdb
-    tag: "9.1.1"
+    tag: '9.1.1'
     pullPolicy: IfNotPresent
-  
+
   auth:
     user: admin
-    password: "" # Will be generated if not set
+    password: '' # Will be generated if not set
     database: vmxai
-  
+
   # Istio sidecar injection
   # QuestDB typically doesn't need sidecars (internal service, latency-sensitive)
   # Enable only if you need mTLS between API and QuestDB
   istio:
     sidecar:
-      enabled: false  # Usually disabled for internal databases
-  
+      enabled: false # Usually disabled for internal databases
+
   persistence:
     enabled: true
     size: 50Gi
-    storageClass: ""
-  
+    storageClass: ''
+
   resources:
     requests:
       cpu: 500m
@@ -407,7 +407,7 @@ questdb:
     limits:
       cpu: 2000m
       memory: 4Gi
-  
+
   service:
     type: ClusterIP
     ports:
@@ -415,39 +415,38 @@ questdb:
         port: 9000
       - name: tcp-postgres
         port: 8812
-  
+
   # If disabled, provide external connection details
   external:
-    host: ""
+    host: ''
     port: 8812
-    database: ""
-    username: ""
-    password: "" # Will be set from secrets
-
+    database: ''
+    username: ''
+    password: '' # Will be set from secrets
 
 # OpenTelemetry Services
 otel:
   enabled: false
-  
+
   # Istio sidecar injection
   # OTEL services typically don't need sidecars (they're observability tools themselves)
   istio:
     sidecar:
-      enabled: false  # Usually disabled for observability services
-  
+      enabled: false # Usually disabled for observability services
+
   # OTEL Exporter Endpoint
   # If empty, will auto-generate based on collector service (if collector is enabled)
   # Otherwise, specify a custom endpoint (e.g., "http://external-otel-collector:4318")
   # For external collectors, use HTTP endpoint format: "http://hostname:port" or "https://hostname:port"
-  exporterEndpoint: ""  # Empty = auto-generate, or specify custom endpoint (supports external collectors)
-  
+  exporterEndpoint: '' # Empty = auto-generate, or specify custom endpoint (supports external collectors)
+
   collector:
     enabled: false
     image:
       repository: otel/opentelemetry-collector-contrib
       tag: latest
       pullPolicy: IfNotPresent
-    
+
     service:
       type: ClusterIP
       ports:
@@ -457,7 +456,7 @@ otel:
           port: 4318
         - name: http-zpages
           port: 55679
-    
+
     resources:
       requests:
         cpu: 200m
@@ -465,14 +464,14 @@ otel:
       limits:
         cpu: 1000m
         memory: 1Gi
-  
+
   jaeger:
     enabled: false
     image:
       repository: jaegertracing/all-in-one
       tag: latest
       pullPolicy: IfNotPresent
-    
+
     service:
       type: ClusterIP
       ports:
@@ -486,7 +485,7 @@ otel:
           port: 4317
         - name: http-otlp
           port: 4318
-    
+
     resources:
       requests:
         cpu: 200m
@@ -494,29 +493,29 @@ otel:
       limits:
         cpu: 1000m
         memory: 1Gi
-    
+
     # Ingress configuration for Jaeger UI
     # When enabled, Jaeger will be configured with QUERY_BASE_PATH to serve from the subpath
     ingress:
-      enabled: false  # Set to true to expose Jaeger UI via Istio ingress
-      path: /jaeger  # Path prefix for Jaeger UI (e.g., /jaeger) - also sets QUERY_BASE_PATH
-  
+      enabled: false # Set to true to expose Jaeger UI via Istio ingress
+      path: /jaeger # Path prefix for Jaeger UI (e.g., /jaeger) - also sets QUERY_BASE_PATH
+
   prometheus:
     enabled: false
     image:
       repository: prom/prometheus
       tag: latest
       pullPolicy: IfNotPresent
-    
+
     service:
       type: ClusterIP
       port: 9090
-    
+
     persistence:
       enabled: true
       size: 10Gi
-      storageClass: ""
-    
+      storageClass: ''
+
     resources:
       requests:
         cpu: 200m
@@ -524,37 +523,37 @@ otel:
       limits:
         cpu: 1000m
         memory: 2Gi
-    
+
     # Security context configuration
     # If you encounter permission issues with existing volumes, you may need to:
     # 1. Set runAsRoot: true (less secure but may be necessary for query log)
     # 2. Delete and recreate the PVC
     # 3. Disable query log (queryLogFile: "")
     securityContext:
-      runAsRoot: false  # Set to true if permission issues persist (runs as UID 0)
-      runAsUser: 65534  # Prometheus default user (nobody)
+      runAsRoot: false # Set to true if permission issues persist (runs as UID 0)
+      runAsUser: 65534 # Prometheus default user (nobody)
       fsGroup: 65534
-    
+
     # Query log configuration
     # Set to empty string to disable query log (recommended if permission issues occur)
-    queryLogFile: ""  # Empty = disabled, or set path like "/prometheus/queries.active"
-  
+    queryLogFile: '' # Empty = disabled, or set path like "/prometheus/queries.active"
+
   loki:
     enabled: false
     image:
       repository: grafana/loki
       tag: latest
       pullPolicy: IfNotPresent
-    
+
     service:
       type: ClusterIP
       port: 3100
-    
+
     persistence:
       enabled: true
       size: 20Gi
-      storageClass: ""
-    
+      storageClass: ''
+
     resources:
       requests:
         cpu: 200m
@@ -562,28 +561,28 @@ otel:
       limits:
         cpu: 1000m
         memory: 2Gi
-    
+
     # Security context configuration
     securityContext:
-      runAsUser: 10001  # Loki default user
+      runAsUser: 10001 # Loki default user
       fsGroup: 10001
-  
+
   grafana:
     enabled: false
     image:
       repository: grafana/grafana
       tag: latest
       pullPolicy: IfNotPresent
-    
+
     service:
       type: ClusterIP
       port: 3000
-    
+
     persistence:
       enabled: true
       size: 10Gi
-      storageClass: ""
-    
+      storageClass: ''
+
     resources:
       requests:
         cpu: 200m
@@ -591,16 +590,16 @@ otel:
       limits:
         cpu: 500m
         memory: 512Mi
-    
+
     # Security context configuration
     securityContext:
-      runAsUser: 472  # Grafana default user
+      runAsUser: 472 # Grafana default user
       fsGroup: 472
-    
+
     # Ingress configuration for Grafana UI
     ingress:
-      enabled: false  # Set to true to expose Grafana UI via Istio ingress
-      path: /grafana  # Path prefix for Grafana UI (e.g., /grafana)
+      enabled: false # Set to true to expose Grafana UI via Istio ingress
+      path: /grafana # Path prefix for Grafana UI (e.g., /grafana)
 
 # Secrets Configuration
 # WARNING: Do NOT store secrets in values.yaml for production!
@@ -613,99 +612,99 @@ secrets:
   # Each secret can have its own method: "create" (auto-generate), "external" (use existing), "eso" (External Secrets Operator)
   # For production, use "external" or "eso" for sensitive secrets, "create" for non-sensitive ones
   database:
-    method: create  # create, external, eso
+    method: create # create, external, eso
     # Option 1: Auto-generate (DEVELOPMENT ONLY - NOT FOR PRODUCTION)
     # When method: "create", secret is auto-generated
-    
+
     # Option 2: Reference existing Kubernetes secret (PRODUCTION-SAFE)
     # When method: "external", reference existing secret by name
     external:
-      secretName: ""  # e.g., "postgresql-credentials"
-      passwordKey: "password"  # Key name in the secret
-      hostKey: "host"  # Optional, only if using external PostgreSQL
-      portKey: "port"  # Optional, only if using external PostgreSQL
-      databaseKey: "database"  # Optional, only if using external PostgreSQL
-      usernameKey: "username"  # Optional, only if using external PostgreSQL
-    
+      secretName: '' # e.g., "postgresql-credentials"
+      passwordKey: 'password' # Key name in the secret
+      hostKey: 'host' # Optional, only if using external PostgreSQL
+      portKey: 'port' # Optional, only if using external PostgreSQL
+      databaseKey: 'database' # Optional, only if using external PostgreSQL
+      usernameKey: 'username' # Optional, only if using external PostgreSQL
+
     # Option 3: External Secrets Operator (PRODUCTION-SAFE)
     # When method: "eso", creates ExternalSecret resource
     # Requires External Secrets Operator to be installed
     externalSecrets:
-      secretKey: ""  # e.g., "vmxai/postgresql/password"
-      passwordKey: "password"
-      hostKey: "host"
-      portKey: "port"
-      databaseKey: "database"
-      usernameKey: "username"
-  
+      secretKey: '' # e.g., "vmxai/postgresql/password"
+      passwordKey: 'password'
+      hostKey: 'host'
+      portKey: 'port'
+      databaseKey: 'database'
+      usernameKey: 'username'
+
   questdb:
-    method: create  # create, external, eso
+    method: create # create, external, eso
     # Option 1: Auto-generate (DEVELOPMENT ONLY - NOT FOR PRODUCTION)
     # When method: "create", secret is auto-generated
-    
+
     # Option 2: Reference existing Kubernetes secret (PRODUCTION-SAFE)
     # When method: "external", reference existing secret by name
     external:
-      secretName: ""  # e.g., "questdb-credentials"
-      passwordKey: "password"  # Key name in the secret
-      hostKey: "host"  # Optional, only if using external QuestDB
-      portKey: "port"  # Optional, only if using external QuestDB
-      databaseKey: "database"  # Optional, only if using external QuestDB
-      usernameKey: "username"  # Optional, only if using external QuestDB
-    
+      secretName: '' # e.g., "questdb-credentials"
+      passwordKey: 'password' # Key name in the secret
+      hostKey: 'host' # Optional, only if using external QuestDB
+      portKey: 'port' # Optional, only if using external QuestDB
+      databaseKey: 'database' # Optional, only if using external QuestDB
+      usernameKey: 'username' # Optional, only if using external QuestDB
+
     # Option 3: External Secrets Operator (PRODUCTION-SAFE)
     # When method: "eso", creates ExternalSecret resource
     # Requires External Secrets Operator to be installed
     externalSecrets:
-      secretKey: ""  # e.g., "vmxai/questdb/password"
-      passwordKey: "password"
-      hostKey: "host"
-      portKey: "port"
-      databaseKey: "database"
-      usernameKey: "username"
-  
+      secretKey: '' # e.g., "vmxai/questdb/password"
+      passwordKey: 'password'
+      hostKey: 'host'
+      portKey: 'port'
+      databaseKey: 'database'
+      usernameKey: 'username'
+
   libsodium:
     # Only needed if api.encryption.provider is libsodium
-    method: create  # create, external, eso
+    method: create # create, external, eso
     external:
-      secretName: ""  # e.g., "libsodium-encryption-key"
-      encryptionKeyKey: "encryption-key"
+      secretName: '' # e.g., "libsodium-encryption-key"
+      encryptionKeyKey: 'encryption-key'
     externalSecrets:
-      secretKey: ""  # e.g., "vmxai/encryption/libsodium-key"
-      encryptionKeyKey: "encryption-key"
-  
+      secretKey: '' # e.g., "vmxai/encryption/libsodium-key"
+      encryptionKeyKey: 'encryption-key'
+
   ui:
-    method: create  # create, external, eso
+    method: create # create, external, eso
     external:
-      secretName: ""  # e.g., "ui-auth-secret"
-      authSecretKey: "auth-secret"
+      secretName: '' # e.g., "ui-auth-secret"
+      authSecretKey: 'auth-secret'
     externalSecrets:
-      secretKey: ""  # e.g., "vmxai/ui/auth-secret"
-      authSecretKey: "auth-secret"
-  
+      secretKey: '' # e.g., "vmxai/ui/auth-secret"
+      authSecretKey: 'auth-secret'
+
   oidcFederated:
     # Only needed if api.oidcFederated.clientSecret is set
-    method: create  # create, external, eso
+    method: create # create, external, eso
     external:
-      secretName: ""  # e.g., "oidc-federated-secret"
-      clientSecretKey: "client-secret"
+      secretName: '' # e.g., "oidc-federated-secret"
+      clientSecretKey: 'client-secret'
     externalSecrets:
-      secretKey: ""  # e.g., "vmxai/oidc/client-secret"
-      clientSecretKey: "client-secret"
-  
+      secretKey: '' # e.g., "vmxai/oidc/client-secret"
+      clientSecretKey: 'client-secret'
+
   # External Secrets Operator configuration (shared for all secrets using method: "eso")
   externalSecrets:
-    enabled: true  # Set to true if any secret uses method: "eso"
+    enabled: true # Set to true if any secret uses method: "eso"
     # Secret Store to use (must exist in cluster)
     secretStore:
-      name: ""  # e.g., "aws-secrets-manager"
-      kind: SecretStore  # or ClusterSecretStore
+      name: '' # e.g., "aws-secrets-manager"
+      kind: SecretStore # or ClusterSecretStore
 
 # Ingress Configuration
 # Uses Istio Gateway + VirtualService
 ingress:
   enabled: false
-  
+
   # Istio Gateway and VirtualService Configuration
   istio:
     # Host configuration - defined once, used in Gateway servers and VirtualService
@@ -713,7 +712,7 @@ ingress:
     # Gateway configuration
     gateway:
       name: vm-x-ai-gateway
-      namespace: istio-system  # Usually deployed in istio-system
+      namespace: istio-system # Usually deployed in istio-system
       selector:
         istio: ingressgateway
       servers:
@@ -727,21 +726,21 @@ ingress:
             protocol: HTTPS
           tls:
             mode: SIMPLE
-            credentialName: vm-x-ai-tls  # Secret in istio-system namespace
-    
+            credentialName: vm-x-ai-tls # Secret in istio-system namespace
+
     # VirtualService configuration
     virtualService:
       gateways:
         - istio-system/vm-x-ai-gateway
-      
+
       # Optional: Traffic management features
       # These apply to all routes unless overridden per-route
       trafficPolicy:
-    
+
     # Internal DNS configuration for cluster-internal access
     # This creates a ServiceEntry to allow pods to resolve and access vm-x-ai.local
     internalDns:
-      enabled: true  # Set to true to enable internal DNS resolution
+      enabled: true # Set to true to enable internal DNS resolution
       # Gateway service to route internal traffic to
       # Default is the standard Istio ingress gateway service
       gatewayService: istio-ingressgateway.istio-system.svc.cluster.local
@@ -752,7 +751,7 @@ ingress:
 serviceAccount:
   create: true
   annotations: {}
-  name: ""
+  name: ''
 
 # Pod Security Context
 podSecurityContext:
@@ -762,7 +761,7 @@ podSecurityContext:
 securityContext:
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: false
   runAsNonRoot: true
   runAsUser: 1000

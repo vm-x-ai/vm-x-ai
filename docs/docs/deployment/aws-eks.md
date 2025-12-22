@@ -70,14 +70,17 @@ Replace with your IAM role ARN that should have admin access to the cluster.
 
 :::tip AWS SSO Users
 If you're using AWS SSO, your role ARN will typically look like:
+
 ```typescript
 const adminRoleArn = `arn:aws:iam::${this.account}:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AWSAdministratorAccess_<unique-id>`;
 ```
 
 You can find your SSO role ARN in the AWS Console under IAM → Roles, or by running:
+
 ```bash
 aws sts get-caller-identity
 ```
+
 :::
 
 ### 4. Bootstrap CDK (First Time Only)
@@ -95,6 +98,7 @@ pnpm cdk deploy --all
 ```
 
 This will:
+
 - Create the VPC and networking infrastructure
 - Provision the EKS cluster with all add-ons
 - Create the Aurora PostgreSQL database
@@ -142,7 +146,7 @@ graph TB
     Internet[Internet]
     NLB[AWS Network Load Balancer<br/>Istio Ingress Gateway]
     EKS[EKS Cluster]
-    
+
     subgraph EKS["EKS Cluster"]
         Istio[Istio Service Mesh]
         UI[VM-X AI UI]
@@ -150,11 +154,11 @@ graph TB
         Redis[Redis Cluster]
         OTEL[OTEL Stack]
     end
-    
+
     Aurora[(Aurora PostgreSQL)]
     Timestream[(Timestream Database)]
     KMS[AWS KMS Key]
-    
+
     Internet --> NLB
     NLB --> Istio
     Istio --> UI
@@ -164,7 +168,7 @@ graph TB
     API --> Aurora
     API --> Timestream
     API --> KMS
-    
+
     style Internet fill:#e3f2fd
     style NLB fill:#fff3e0
     style EKS fill:#e8f5e9
@@ -203,6 +207,7 @@ const vpc = new Vpc(this, 'VPC', {
 ```
 
 **Key Points:**
+
 - **CIDR**: `10.0.0.0/16` provides 65,536 IP addresses
 - **Availability Zones**: 3 AZs for high availability
 - **NAT Gateway**: 1 NAT gateway for private subnet egress
@@ -220,14 +225,11 @@ const database = new DatabaseCluster(this, 'Database', {
   vpc,
   clusterIdentifier: 'vm-x-ai-rds-cluster',
   vpcSubnets: {
-    subnetType: SubnetType.PUBLIC,  // Production: Use PRIVATE_WITH_EGRESS
+    subnetType: SubnetType.PUBLIC, // Production: Use PRIVATE_WITH_EGRESS
   },
   writer: ClusterInstance.provisioned('writer', {
-    publiclyAccessible: true,  // Production: Set to false
-    instanceType: InstanceType.of(
-      InstanceClass.BURSTABLE3,
-      InstanceSize.MEDIUM
-    ),
+    publiclyAccessible: true, // Production: Set to false
+    instanceType: InstanceType.of(InstanceClass.BURSTABLE3, InstanceSize.MEDIUM),
   }),
   credentials: Credentials.fromGeneratedSecret('vmxai', {
     secretName: 'vm-x-ai-database-secret',
@@ -237,6 +239,7 @@ const database = new DatabaseCluster(this, 'Database', {
 ```
 
 **Key Points:**
+
 - **Engine**: Aurora PostgreSQL 17.6
 - **Instance Type**: `db.t3.medium` (burstable performance)
 - **Credentials**: Auto-generated and stored in AWS Secrets Manager
@@ -309,6 +312,7 @@ const addOns: blueprints.ClusterAddOn[] = [
 ```
 
 **Key Add-ons:**
+
 - **Metrics Server**: Required for HPA and resource metrics
 - **AWS Load Balancer Controller**: Manages NLB/ALB integration
 - **Istio**: Service mesh for traffic management and observability
@@ -325,16 +329,15 @@ const clusterBuilder = blueprints.EksBlueprint.builder()
   .region(this.region)
   .addOns(...addOns)
   .version(KubernetesVersion.V1_34)
-  .resourceProvider(
-    blueprints.GlobalResources.Vpc,
-    new blueprints.DirectVpcProvider(vpc)
-  )
+  .resourceProvider(blueprints.GlobalResources.Vpc, new blueprints.DirectVpcProvider(vpc))
   .clusterProvider(
     new blueprints.AutomodeClusterProvider({
       version: KubernetesVersion.V1_34,
-      vpcSubnets: [{
-        subnetType: SubnetType.PRIVATE_WITH_EGRESS,
-      }],
+      vpcSubnets: [
+        {
+          subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+        },
+      ],
       nodePools: ['system', 'general-purpose'],
       securityGroup: clusterSecurityGroup,
     })
@@ -348,6 +351,7 @@ const clusterBuilder = blueprints.EksBlueprint.builder()
 ```
 
 **Key Points:**
+
 - **Kubernetes Version**: 1.34
 - **Node Pools**: System and general-purpose pools
 - **Subnets**: Worker nodes in private subnets
@@ -562,6 +566,7 @@ const helmChart = new HelmChart(cluster.stack, 'VmXAiHelmChart', {
 ```
 
 **Key Configuration Points:**
+
 - **Repository**: Uses published Helm chart from GitHub Pages
 - **Encryption**: AWS KMS for production-grade encryption
 - **Time-series**: AWS Timestream for metrics storage (QuestDB disabled)
@@ -660,6 +665,7 @@ Estimated monthly costs for minimal production setup:
 **Total**: $300-500/month
 
 To reduce costs:
+
 - Use smaller instance types
 - Disable optional components (Grafana, Jaeger)
 - Use single-AZ deployment (not recommended for production)
@@ -750,6 +756,7 @@ For production deployments:
 For the complete CDK stack implementation, see the [EKS example directory](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/aws-cdk-eks).
 
 The example includes:
+
 - Complete CDK stack code
 - All infrastructure components
 - IAM roles and policies
@@ -761,4 +768,3 @@ The example includes:
 - [AWS ECS Deployment](./aws-ecs.md) - Alternative AWS deployment option
 - [Minikube Deployment](./minikube.md) - Local Kubernetes deployment
 - [EKS Example README](https://github.com/vm-x-ai/vm-x-ai/blob/main/examples/aws-cdk-eks/README.md) - Detailed example documentation
-

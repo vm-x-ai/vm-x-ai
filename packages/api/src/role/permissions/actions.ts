@@ -11,5 +11,5 @@ export enum RoleActions {
   UNASSIGN = `${ROLE_MODULE_NAME}:unassign`,
 }
 
-export const ROLE_BASE_RESOURCE = 'role'
-export const ROLE_RESOURCE_ITEM = `${ROLE_BASE_RESOURCE}:\${role.name}`
+export const ROLE_BASE_RESOURCE = 'role';
+export const ROLE_RESOURCE_ITEM = `${ROLE_BASE_RESOURCE}:\${role.name}`;

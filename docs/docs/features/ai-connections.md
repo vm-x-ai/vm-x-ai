@@ -30,7 +30,6 @@ You can also use the quick add feature for faster connection setup:
 
 ![AI Connection Quick Add](/pages/ai-connection-quick-add.png)
 
-
 ## Provider-Specific Configuration
 
 ### OpenAI
@@ -106,6 +105,7 @@ Capacity limits control how many requests and tokens can be used within a time p
 ### Capacity Periods
 
 Supported periods:
+
 - **minute**: Requests/tokens per minute
 - **hour**: Requests/tokens per hour
 - **day**: Requests/tokens per day
@@ -137,6 +137,7 @@ Supported periods:
 ### Capacity Enforcement
 
 Capacity is enforced at the connection level. When a request exceeds capacity:
+
 - The request is rejected with a `429 Too Many Requests` status
 - An error message indicates which limit was exceeded
 - The client should retry after the rate limit window resets
@@ -149,6 +150,7 @@ VM-X AI automatically discovers rate limits from provider responses:
 - **X-RateLimit-Limit-Tokens**: Maximum tokens per window
 
 Discovered capacity is stored in the connection and can be viewed in the UI. This helps you:
+
 - Understand actual provider limits
 - Optimize your capacity configuration
 - Monitor provider rate limit changes
@@ -158,6 +160,7 @@ Discovered capacity is stored in the connection and can be viewed in the UI. Thi
 ### Encryption
 
 Credentials are encrypted at rest using:
+
 - **AWS KMS**: For production environments (recommended)
 - **Libsodium**: For local development and small deployments
 
@@ -183,6 +186,7 @@ To rotate credentials:
 ### 1. One Connection Per Provider Account
 
 Create separate connections for:
+
 - Different provider accounts
 - Different regions (for AWS Bedrock)
 - Different environments (development, staging, production)
@@ -190,6 +194,7 @@ Create separate connections for:
 ### 2. Set Realistic Capacity
 
 Base capacity limits on:
+
 - Provider quotas
 - Your usage patterns
 - Cost considerations
@@ -199,6 +204,7 @@ Monitor discovered capacity to understand actual provider limits.
 ### 3. Monitor Usage
 
 Regularly review:
+
 - Capacity utilization
 - Discovered capacity changes
 - Error rates
@@ -220,6 +226,7 @@ Regularly review:
 ## Viewing Connection Details
 
 Navigate to **AI Connections** and click on a connection to view:
+
 - Connection details
 - Capacity configuration
 - Discovered capacity

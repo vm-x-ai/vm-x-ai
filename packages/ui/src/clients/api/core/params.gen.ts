@@ -104,7 +104,7 @@ const stripEmptySlots = (params: Params) => {
 
 export const buildClientParams = (
   args: ReadonlyArray<unknown>,
-  fields: FieldsConfig,
+  fields: FieldsConfig
 ) => {
   const params: Params = {
     body: {},
@@ -149,7 +149,7 @@ export const buildClientParams = (
           }
         } else {
           const extra = extraPrefixes.find(([prefix]) =>
-            key.startsWith(prefix),
+            key.startsWith(prefix)
           );
 
           if (extra) {

@@ -17,10 +17,8 @@ export function register() {
     ],
     instrumentationConfig: {
       fetch: {
-        propagateContextUrls: [
-          new RegExp(`^${process.env.API_BASE_URL}/.*`),
-        ],
+        propagateContextUrls: [new RegExp(`^${process.env.API_BASE_URL}/.*`)],
       },
-    }
+    },
   });
 }

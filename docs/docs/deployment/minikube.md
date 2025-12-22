@@ -43,6 +43,7 @@ VM-X AI uses Istio for ingress. You can use the provided [bootstrap script](http
 The Istio Gateway requires a **minikube tunnel** to be running to generate an external IP address. The bootstrap script automatically starts the tunnel, but you must keep it running while using Istio ingress.
 
 If the tunnel stops, restart it manually:
+
 ```bash
 minikube tunnel
 ```
@@ -51,6 +52,7 @@ Keep this command running in a separate terminal.
 :::
 
 The bootstrap script will:
+
 - Start Minikube if not running
 - Enable metrics-server
 - Start minikube tunnel (required for Istio Gateway)
@@ -86,7 +88,6 @@ helm install ingressgateway istio/gateway \
   --set service.type=LoadBalancer \
   --wait
 ```
-
 
 ## Deploy VM-X AI
 
@@ -139,10 +140,10 @@ The `values-minikube.yaml` file includes optimized settings for Minikube:
 # Example values for Minikube/development environment
 api:
   encryption:
-    provider: libsodium  # libsodium is fine for local testing
+    provider: libsodium # libsodium is fine for local testing
   env:
     # Avoid conflicts with Next.js API routes when both are deployed to same host
-    BASE_PATH: "/_api"
+    BASE_PATH: '/_api'
   replicaCount: 1
   resources:
     requests:
@@ -253,6 +254,7 @@ kubectl port-forward -n vm-x-ai svc/vm-x-ai-api 3000:3000
 ```
 
 Then access:
+
 - **UI**: http://localhost:3001
 - **API**: http://localhost:3000
 

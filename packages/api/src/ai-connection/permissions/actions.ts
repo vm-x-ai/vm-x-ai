@@ -8,5 +8,6 @@ export enum AIConnectionActions {
   DELETE = `${AI_CONNECTION_MODULE_NAME}:delete`,
 }
 
-export const AI_CONNECTION_BASE_RESOURCE = 'workspace:${workspace.name}:environment:${environment.name}:ai-connection';
+export const AI_CONNECTION_BASE_RESOURCE =
+  'workspace:${workspace.name}:environment:${environment.name}:ai-connection';
 export const AI_CONNECTION_RESOURCE_ITEM = `${AI_CONNECTION_BASE_RESOURCE}:\${connection.name}`;

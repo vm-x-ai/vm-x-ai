@@ -8,10 +8,17 @@ export type Top10TTFTTableProps = {
   data: CompletionUsageQueryResultDto[];
   autoRefresh: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<CompletionUsageQueryResultDto[] | undefined>;
+  autoRefreshAction?: () => Promise<
+    CompletionUsageQueryResultDto[] | undefined
+  >;
 };
 
-export function Top10TTFTTable({ data, autoRefresh, autoRefreshInterval, autoRefreshAction }: Top10TTFTTableProps) {
+export function Top10TTFTTable({
+  data,
+  autoRefresh,
+  autoRefreshInterval,
+  autoRefreshAction,
+}: Top10TTFTTableProps) {
   return (
     <BaseSummaryTable
       columns={[
@@ -27,7 +34,8 @@ export function Top10TTFTTable({ data, autoRefresh, autoRefreshInterval, autoRef
           accessorKey: 'timeToFirstToken',
           header: 'Average ms',
           enableGrouping: false,
-          Cell: ({ row: { original: row } }) => ((row.timeToFirstToken as number) ?? 0).toFixed(2),
+          Cell: ({ row: { original: row } }) =>
+            ((row.timeToFirstToken as number) ?? 0).toFixed(2),
         },
       ]}
       data={data}

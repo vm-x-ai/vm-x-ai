@@ -1,5 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PublicProviderType, PublicUserState } from '../../storage/entities.generated';
+import {
+  PublicProviderType,
+  PublicUserState,
+} from '../../storage/entities.generated';
 import {
   IsBoolean,
   IsDateString,
@@ -140,7 +143,7 @@ export class UserEntity {
     example: '123e4567-e89b-12d3-a456-426614174000',
     nullable: true,
     required: false,
-    type: String
+    type: String,
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -151,7 +154,7 @@ export class UserEntity {
     example: '123e4567-e89b-12d3-a456-426614174000',
     nullable: true,
     required: false,
-    type: String
+    type: String,
   })
   @IsUUID('4')
   @IsNotEmpty()

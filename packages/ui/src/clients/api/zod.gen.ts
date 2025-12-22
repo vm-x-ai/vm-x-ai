@@ -3,17 +3,20 @@
 import { z } from 'zod';
 
 export const zHealthcheckResponseDto = z.object({
-    status: z.string().register(z.globalRegistry, {
-        description: 'The status of the healthcheck'
-    })
+  status: z.string().register(z.globalRegistry, {
+    description: 'The status of the healthcheck',
+  }),
 });
 
-export type HealthcheckResponseDtoZodType = z.infer<typeof zHealthcheckResponseDto>;
+export type HealthcheckResponseDtoZodType = z.infer<
+  typeof zHealthcheckResponseDto
+>;
 
 /**
  * The error code
  */
-export const zErrorCode = z.enum([
+export const zErrorCode = z
+  .enum([
     'INTERNAL_SERVER_ERROR',
     'USER_EMAIL_IN_USE',
     'USER_USERNAME_IN_USE',
@@ -42,21 +45,22 @@ export const zErrorCode = z.enum([
     'COMPLETION_BATCH_NOT_FOUND',
     'COMPLETION_BATCH_ITEM_NOT_FOUND',
     'ROLE_NOT_FOUND',
-    'NOT_AUTHORIZED'
-]).register(z.globalRegistry, {
-    description: 'The error code'
-});
+    'NOT_AUTHORIZED',
+  ])
+  .register(z.globalRegistry, {
+    description: 'The error code',
+  });
 
 export type ErrorCodeZodType = z.infer<typeof zErrorCode>;
 
 export const zServiceError = z.object({
-    errorMessage: z.string().register(z.globalRegistry, {
-        description: 'The error message'
-    }),
-    errorCode: zErrorCode,
-    details: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-        description: 'The error details'
-    })
+  errorMessage: z.string().register(z.globalRegistry, {
+    description: 'The error message',
+  }),
+  errorCode: zErrorCode,
+  details: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
+    description: 'The error details',
+  }),
 });
 
 export type ServiceErrorZodType = z.infer<typeof zServiceError>;
@@ -64,195 +68,186 @@ export type ServiceErrorZodType = z.infer<typeof zServiceError>;
 /**
  * The state of the user
  */
-export const zUserState = z.enum([
-    'ACTIVE',
-    'CHANGE_PASSWORD',
-    'INACTIVE'
-]).register(z.globalRegistry, {
-    description: 'The state of the user'
-});
+export const zUserState = z
+  .enum(['ACTIVE', 'CHANGE_PASSWORD', 'INACTIVE'])
+  .register(z.globalRegistry, {
+    description: 'The state of the user',
+  });
 
 export type UserStateZodType = z.infer<typeof zUserState>;
 
 export const zUserEntity = z.object({
-    id: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the user (UUID)'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the user'
-    }),
-    firstName: z.string().register(z.globalRegistry, {
-        description: 'The first name of the user'
-    }),
-    lastName: z.string().register(z.globalRegistry, {
-        description: 'The last name of the user'
-    }),
-    username: z.string().register(z.globalRegistry, {
-        description: 'The username of the user, by default it is the email address'
-    }),
-    email: z.string().register(z.globalRegistry, {
-        description: 'The email address of the user'
-    }),
-    emailVerified: z.boolean().register(z.globalRegistry, {
-        description: 'Whether the email address of the user has been verified'
-    }),
-    pictureUrl: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    state: zUserState,
-    providerType: z.enum(['LOCAL', 'OIDC']).register(z.globalRegistry, {
-        description: 'The type of provider used by the user'
-    }),
-    providerId: z.string().register(z.globalRegistry, {
-        description: 'The provider identifier for the user'
-    }),
-    providerMetadata: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ])),
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the user was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the user was last updated'
-    }),
-    createdBy: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    updatedBy: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  id: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the user (UUID)',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the user',
+  }),
+  firstName: z.string().register(z.globalRegistry, {
+    description: 'The first name of the user',
+  }),
+  lastName: z.string().register(z.globalRegistry, {
+    description: 'The last name of the user',
+  }),
+  username: z.string().register(z.globalRegistry, {
+    description: 'The username of the user, by default it is the email address',
+  }),
+  email: z.string().register(z.globalRegistry, {
+    description: 'The email address of the user',
+  }),
+  emailVerified: z.boolean().register(z.globalRegistry, {
+    description: 'Whether the email address of the user has been verified',
+  }),
+  pictureUrl: z.optional(z.union([z.string(), z.null()])),
+  state: zUserState,
+  providerType: z.enum(['LOCAL', 'OIDC']).register(z.globalRegistry, {
+    description: 'The type of provider used by the user',
+  }),
+  providerId: z.string().register(z.globalRegistry, {
+    description: 'The provider identifier for the user',
+  }),
+  providerMetadata: z.optional(
+    z.union([z.record(z.string(), z.unknown()), z.null()])
+  ),
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the user was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the user was last updated',
+  }),
+  createdBy: z.optional(z.union([z.string(), z.null()])),
+  updatedBy: z.optional(z.union([z.string(), z.null()])),
 });
 
 export type UserEntityZodType = z.infer<typeof zUserEntity>;
 
 export const zCreateUserDto = z.object({
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the user'
-    }),
-    firstName: z.string().register(z.globalRegistry, {
-        description: 'The first name of the user'
-    }),
-    lastName: z.string().register(z.globalRegistry, {
-        description: 'The last name of the user'
-    }),
-    username: z.string().register(z.globalRegistry, {
-        description: 'The username of the user, by default it is the email address'
-    }),
-    email: z.string().register(z.globalRegistry, {
-        description: 'The email address of the user'
-    }),
-    password: z.string().register(z.globalRegistry, {
-        description: 'The password of the user'
-    }),
-    state: zUserState
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the user',
+  }),
+  firstName: z.string().register(z.globalRegistry, {
+    description: 'The first name of the user',
+  }),
+  lastName: z.string().register(z.globalRegistry, {
+    description: 'The last name of the user',
+  }),
+  username: z.string().register(z.globalRegistry, {
+    description: 'The username of the user, by default it is the email address',
+  }),
+  email: z.string().register(z.globalRegistry, {
+    description: 'The email address of the user',
+  }),
+  password: z.string().register(z.globalRegistry, {
+    description: 'The password of the user',
+  }),
+  state: zUserState,
 });
 
 export type CreateUserDtoZodType = z.infer<typeof zCreateUserDto>;
 
 export const zUpdateUserDto = z.object({
-    name: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The name of the user'
-    })),
-    firstName: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The first name of the user'
-    })),
-    lastName: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The last name of the user'
-    })),
-    username: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The username of the user, by default it is the email address'
-    })),
-    email: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The email address of the user'
-    })),
-    password: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The password of the user'
-    })),
-    state: z.optional(zUserState)
+  name: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The name of the user',
+    })
+  ),
+  firstName: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The first name of the user',
+    })
+  ),
+  lastName: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The last name of the user',
+    })
+  ),
+  username: z.optional(
+    z.string().register(z.globalRegistry, {
+      description:
+        'The username of the user, by default it is the email address',
+    })
+  ),
+  email: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The email address of the user',
+    })
+  ),
+  password: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The password of the user',
+    })
+  ),
+  state: z.optional(zUserState),
 });
 
 export type UpdateUserDtoZodType = z.infer<typeof zUpdateUserDto>;
 
 export const zModulePermissionsDto = z.object({
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the module'
-    }),
-    actions: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The actions of the module'
-    }),
-    baseResource: z.string().register(z.globalRegistry, {
-        description: 'The base resource of the module'
-    }),
-    itemResource: z.string().register(z.globalRegistry, {
-        description: 'The item resource of the module'
-    })
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the module',
+  }),
+  actions: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The actions of the module',
+  }),
+  baseResource: z.string().register(z.globalRegistry, {
+    description: 'The base resource of the module',
+  }),
+  itemResource: z.string().register(z.globalRegistry, {
+    description: 'The item resource of the module',
+  }),
 });
 
 export type ModulePermissionsDtoZodType = z.infer<typeof zModulePermissionsDto>;
 
 export const zPermissionsDto = z.object({
-    modules: z.array(zModulePermissionsDto).register(z.globalRegistry, {
-        description: 'All available actions for each module'
-    })
+  modules: z.array(zModulePermissionsDto).register(z.globalRegistry, {
+    description: 'All available actions for each module',
+  }),
 });
 
 export type PermissionsDtoZodType = z.infer<typeof zPermissionsDto>;
 
 export const zUserRelationDto = z.object({
-    id: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the user (UUID)'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the user'
-    }),
-    firstName: z.string().register(z.globalRegistry, {
-        description: 'The first name of the user'
-    }),
-    lastName: z.string().register(z.globalRegistry, {
-        description: 'The last name of the user'
-    }),
-    username: z.string().register(z.globalRegistry, {
-        description: 'The username of the user, by default it is the email address'
-    }),
-    email: z.string().register(z.globalRegistry, {
-        description: 'The email address of the user'
-    }),
-    emailVerified: z.boolean().register(z.globalRegistry, {
-        description: 'Whether the email address of the user has been verified'
-    }),
-    pictureUrl: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    state: zUserState,
-    providerType: z.enum(['LOCAL', 'OIDC']).register(z.globalRegistry, {
-        description: 'The type of provider used by the user'
-    }),
-    providerId: z.string().register(z.globalRegistry, {
-        description: 'The provider identifier for the user'
-    }),
-    providerMetadata: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ])),
-    createdBy: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    updatedBy: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the user was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the user was last updated'
-    })
+  id: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the user (UUID)',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the user',
+  }),
+  firstName: z.string().register(z.globalRegistry, {
+    description: 'The first name of the user',
+  }),
+  lastName: z.string().register(z.globalRegistry, {
+    description: 'The last name of the user',
+  }),
+  username: z.string().register(z.globalRegistry, {
+    description: 'The username of the user, by default it is the email address',
+  }),
+  email: z.string().register(z.globalRegistry, {
+    description: 'The email address of the user',
+  }),
+  emailVerified: z.boolean().register(z.globalRegistry, {
+    description: 'Whether the email address of the user has been verified',
+  }),
+  pictureUrl: z.optional(z.union([z.string(), z.null()])),
+  state: zUserState,
+  providerType: z.enum(['LOCAL', 'OIDC']).register(z.globalRegistry, {
+    description: 'The type of provider used by the user',
+  }),
+  providerId: z.string().register(z.globalRegistry, {
+    description: 'The provider identifier for the user',
+  }),
+  providerMetadata: z.optional(
+    z.union([z.record(z.string(), z.unknown()), z.null()])
+  ),
+  createdBy: z.optional(z.union([z.string(), z.null()])),
+  updatedBy: z.optional(z.union([z.string(), z.null()])),
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the user was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the user was last updated',
+  }),
 });
 
 export type UserRelationDtoZodType = z.infer<typeof zUserRelationDto>;
@@ -260,278 +255,237 @@ export type UserRelationDtoZodType = z.infer<typeof zUserRelationDto>;
 /**
  * The effect of the statement
  */
-export const zRolePolicyEffect = z.enum(['allow', 'deny']).register(z.globalRegistry, {
-    description: 'The effect of the statement'
-});
+export const zRolePolicyEffect = z
+  .enum(['allow', 'deny'])
+  .register(z.globalRegistry, {
+    description: 'The effect of the statement',
+  });
 
 export type RolePolicyEffectZodType = z.infer<typeof zRolePolicyEffect>;
 
 export const zRolePolicyStatement = z.object({
-    effect: zRolePolicyEffect,
-    actions: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The actions of the statement'
-    }),
-    resources: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The resources of the statement'
-    })
+  effect: zRolePolicyEffect,
+  actions: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The actions of the statement',
+  }),
+  resources: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The resources of the statement',
+  }),
 });
 
 export type RolePolicyStatementZodType = z.infer<typeof zRolePolicyStatement>;
 
 export const zRolePolicy = z.object({
-    $schema: z.enum(['https://vm-x.ai/schema/role-policy.json']).register(z.globalRegistry, {
-        description: 'The schema of the policy'
+  $schema: z
+    .enum(['https://vm-x.ai/schema/role-policy.json'])
+    .register(z.globalRegistry, {
+      description: 'The schema of the policy',
     }),
-    statements: z.array(zRolePolicyStatement).register(z.globalRegistry, {
-        description: 'The statements of the policy'
-    })
+  statements: z.array(zRolePolicyStatement).register(z.globalRegistry, {
+    description: 'The statements of the policy',
+  }),
 });
 
 export type RolePolicyZodType = z.infer<typeof zRolePolicy>;
 
 export const zUserRoleDto = z.object({
-    roleId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the role (UUID)'
-    }),
-    userId: z.uuid().register(z.globalRegistry, {
-        description: 'The user who is assigned the role'
-    }),
-    assignedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the role was assigned'
-    }),
-    assignedBy: z.uuid().register(z.globalRegistry, {
-        description: 'The user who assigned the role'
-    }),
-    assignedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    user: zUserRelationDto
+  roleId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the role (UUID)',
+  }),
+  userId: z.uuid().register(z.globalRegistry, {
+    description: 'The user who is assigned the role',
+  }),
+  assignedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the role was assigned',
+  }),
+  assignedBy: z.uuid().register(z.globalRegistry, {
+    description: 'The user who assigned the role',
+  }),
+  assignedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  user: zUserRelationDto,
 });
 
 export type UserRoleDtoZodType = z.infer<typeof zUserRoleDto>;
 
 export const zRoleDto = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    roleId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the role (UUID)'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the role'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    policy: zRolePolicy,
-    membersCount: z.number().register(z.globalRegistry, {
-        description: 'The number of members in the role'
-    }),
-    members: z.optional(z.union([
-        z.array(zUserRoleDto),
-        z.null()
-    ]))
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  roleId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the role (UUID)',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the role',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  policy: zRolePolicy,
+  membersCount: z.number().register(z.globalRegistry, {
+    description: 'The number of members in the role',
+  }),
+  members: z.optional(z.union([z.array(zUserRoleDto), z.null()])),
 });
 
 export type RoleDtoZodType = z.infer<typeof zRoleDto>;
 
 export const zCreateRoleDto = z.object({
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the role'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    policy: zRolePolicy
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the role',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  policy: zRolePolicy,
 });
 
 export type CreateRoleDtoZodType = z.infer<typeof zCreateRoleDto>;
 
 export const zRoleEntity = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    roleId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the role (UUID)'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the role'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    policy: zRolePolicy
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  roleId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the role (UUID)',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the role',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  policy: zRolePolicy,
 });
 
 export type RoleEntityZodType = z.infer<typeof zRoleEntity>;
 
 export const zAssignRoleDto = z.object({
-    userIds: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The user IDs to assign the role to'
-    })
+  userIds: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The user IDs to assign the role to',
+  }),
 });
 
 export type AssignRoleDtoZodType = z.infer<typeof zAssignRoleDto>;
 
 export const zUnassignRoleDto = z.object({
-    userIds: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The user IDs to unassign the role from'
-    })
+  userIds: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The user IDs to unassign the role from',
+  }),
 });
 
 export type UnassignRoleDtoZodType = z.infer<typeof zUnassignRoleDto>;
 
 export const zUpdateRoleDto = z.object({
-    name: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The name of the role'
-    })),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    policy: z.optional(zRolePolicy)
+  name: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The name of the role',
+    })
+  ),
+  description: z.optional(z.union([z.string(), z.null()])),
+  policy: z.optional(zRolePolicy),
 });
 
 export type UpdateRoleDtoZodType = z.infer<typeof zUpdateRoleDto>;
 
 export const zLoginDto = z.object({
-    username: z.string().register(z.globalRegistry, {
-        description: 'The username or email address of the user'
-    }),
-    password: z.string().register(z.globalRegistry, {
-        description: 'The password of the user'
-    })
+  username: z.string().register(z.globalRegistry, {
+    description: 'The username or email address of the user',
+  }),
+  password: z.string().register(z.globalRegistry, {
+    description: 'The password of the user',
+  }),
 });
 
 export type LoginDtoZodType = z.infer<typeof zLoginDto>;
 
 export const zChangePasswordDto = z.object({
-    password: z.string().register(z.globalRegistry, {
-        description: 'The password of the user'
-    })
+  password: z.string().register(z.globalRegistry, {
+    description: 'The password of the user',
+  }),
 });
 
 export type ChangePasswordDtoZodType = z.infer<typeof zChangePasswordDto>;
 
 export const zConsentDto = z.object({
-    consent: z.enum(['yes', 'no']).register(z.globalRegistry, {
-        description: 'The consent value'
-    })
+  consent: z.enum(['yes', 'no']).register(z.globalRegistry, {
+    description: 'The consent value',
+  }),
 });
 
 export type ConsentDtoZodType = z.infer<typeof zConsentDto>;
 
 export const zEnvironmentRelationDto = z.object({
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the environment (UUID)'
-    }),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The workspace that the environment is associated with'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the environment'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the environment was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the environment was last updated'
-    })
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the environment (UUID)',
+  }),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The workspace that the environment is associated with',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the environment',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the environment was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the environment was last updated',
+  }),
 });
 
-export type EnvironmentRelationDtoZodType = z.infer<typeof zEnvironmentRelationDto>;
+export type EnvironmentRelationDtoZodType = z.infer<
+  typeof zEnvironmentRelationDto
+>;
 
 export const zWorkspaceEntity = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the workspace (UUID)'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the workspace'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    environments: z.optional(z.union([
-        z.array(zEnvironmentRelationDto),
-        z.null()
-    ]))
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the workspace (UUID)',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the workspace',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  environments: z.optional(
+    z.union([z.array(zEnvironmentRelationDto), z.null()])
+  ),
 });
 
 export type WorkspaceEntityZodType = z.infer<typeof zWorkspaceEntity>;
@@ -539,186 +493,156 @@ export type WorkspaceEntityZodType = z.infer<typeof zWorkspaceEntity>;
 /**
  * The role of the user in the workspace
  */
-export const zWorkspaceUserRole = z.enum(['MEMBER', 'OWNER']).register(z.globalRegistry, {
-    description: 'The role of the user in the workspace'
-});
+export const zWorkspaceUserRole = z
+  .enum(['MEMBER', 'OWNER'])
+  .register(z.globalRegistry, {
+    description: 'The role of the user in the workspace',
+  });
 
 export type WorkspaceUserRoleZodType = z.infer<typeof zWorkspaceUserRole>;
 
 export const zWorkspaceRelationDto = z.object({
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the workspace (UUID)'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the workspace'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    environments: z.optional(z.union([
-        z.array(zEnvironmentRelationDto),
-        z.null()
-    ])),
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the user was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the user was last updated'
-    })
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the workspace (UUID)',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the workspace',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  environments: z.optional(
+    z.union([z.array(zEnvironmentRelationDto), z.null()])
+  ),
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the user was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the user was last updated',
+  }),
 });
 
 export type WorkspaceRelationDtoZodType = z.infer<typeof zWorkspaceRelationDto>;
 
 export const zWorkspaceUserDto = z.object({
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the workspace (UUID)'
-    }),
-    userId: z.uuid().register(z.globalRegistry, {
-        description: 'The user who is a member of the workspace (UUID)'
-    }),
-    role: zWorkspaceUserRole,
-    addedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the user was added to the workspace'
-    }),
-    addedBy: z.uuid().register(z.globalRegistry, {
-        description: 'The user who added the user to the workspace'
-    }),
-    workspace: z.optional(z.union([
-        zWorkspaceRelationDto,
-        z.null()
-    ])),
-    user: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    addedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ]))
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the workspace (UUID)',
+  }),
+  userId: z.uuid().register(z.globalRegistry, {
+    description: 'The user who is a member of the workspace (UUID)',
+  }),
+  role: zWorkspaceUserRole,
+  addedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the user was added to the workspace',
+  }),
+  addedBy: z.uuid().register(z.globalRegistry, {
+    description: 'The user who added the user to the workspace',
+  }),
+  workspace: z.optional(z.union([zWorkspaceRelationDto, z.null()])),
+  user: z.optional(z.union([zUserRelationDto, z.null()])),
+  addedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
 });
 
 export type WorkspaceUserDtoZodType = z.infer<typeof zWorkspaceUserDto>;
 
 export const zCreateWorkspaceDto = z.object({
-    name: z.string().min(1).register(z.globalRegistry, {
-        description: 'The name of the workspace'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  name: z.string().min(1).register(z.globalRegistry, {
+    description: 'The name of the workspace',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
 });
 
 export type CreateWorkspaceDtoZodType = z.infer<typeof zCreateWorkspaceDto>;
 
 export const zUpdateWorkspaceDto = z.object({
-    name: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The name of the workspace'
-    })),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  name: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The name of the workspace',
+    })
+  ),
+  description: z.optional(z.union([z.string(), z.null()])),
 });
 
 export type UpdateWorkspaceDtoZodType = z.infer<typeof zUpdateWorkspaceDto>;
 
 export const zUpdateMemberRoleDto = z.object({
-    role: zWorkspaceUserRole
+  role: zWorkspaceUserRole,
 });
 
 export type UpdateMemberRoleDtoZodType = z.infer<typeof zUpdateMemberRoleDto>;
 
 export const zAssignWorkspaceUsersDto = z.object({
-    userIds: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The user IDs to assign to the workspace'
-    }),
-    role: zWorkspaceUserRole
+  userIds: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The user IDs to assign to the workspace',
+  }),
+  role: zWorkspaceUserRole,
 });
 
-export type AssignWorkspaceUsersDtoZodType = z.infer<typeof zAssignWorkspaceUsersDto>;
+export type AssignWorkspaceUsersDtoZodType = z.infer<
+  typeof zAssignWorkspaceUsersDto
+>;
 
 export const zUnassignWorkspaceUsersDto = z.object({
-    userIds: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The user IDs to assign to the workspace'
-    })
+  userIds: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The user IDs to assign to the workspace',
+  }),
 });
 
-export type UnassignWorkspaceUsersDtoZodType = z.infer<typeof zUnassignWorkspaceUsersDto>;
+export type UnassignWorkspaceUsersDtoZodType = z.infer<
+  typeof zUnassignWorkspaceUsersDto
+>;
 
 export const zEnvironmentEntity = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the environment (UUID)'
-    }),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The workspace that the environment is associated with'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the environment'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the environment (UUID)',
+  }),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The workspace that the environment is associated with',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the environment',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
 });
 
 export type EnvironmentEntityZodType = z.infer<typeof zEnvironmentEntity>;
 
 export const zCreateEnvironmentDto = z.object({
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the environment'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the environment',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
 });
 
 export type CreateEnvironmentDtoZodType = z.infer<typeof zCreateEnvironmentDto>;
 
 export const zUpdateEnvironmentDto = z.object({
-    name: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The name of the environment'
-    })),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  name: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The name of the environment',
+    })
+  ),
+  description: z.optional(z.union([z.string(), z.null()])),
 });
 
 export type UpdateEnvironmentDtoZodType = z.infer<typeof zUpdateEnvironmentDto>;
@@ -726,243 +650,208 @@ export type UpdateEnvironmentDtoZodType = z.infer<typeof zUpdateEnvironmentDto>;
 /**
  * The period of the capacity
  */
-export const zCapacityPeriod = z.enum([
-    'minute',
-    'hour',
-    'day',
-    'week',
-    'month',
-    'lifetime'
-]).register(z.globalRegistry, {
-    description: 'The period of the capacity'
-});
+export const zCapacityPeriod = z
+  .enum(['minute', 'hour', 'day', 'week', 'month', 'lifetime'])
+  .register(z.globalRegistry, {
+    description: 'The period of the capacity',
+  });
 
 export type CapacityPeriodZodType = z.infer<typeof zCapacityPeriod>;
 
 /**
  * The dimension of the capacity
  */
-export const zCapacityDimension = z.enum(['source-ip']).register(z.globalRegistry, {
-    description: 'The dimension of the capacity'
-});
+export const zCapacityDimension = z
+  .enum(['source-ip'])
+  .register(z.globalRegistry, {
+    description: 'The dimension of the capacity',
+  });
 
 export type CapacityDimensionZodType = z.infer<typeof zCapacityDimension>;
 
 export const zCapacityEntity = z.object({
-    period: zCapacityPeriod,
-    requests: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    tokens: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    enabled: z.optional(z.union([
-        z.boolean(),
-        z.null()
-    ])),
-    dimension: z.optional(z.union([
-        zCapacityDimension,
-        z.null()
-    ]))
+  period: zCapacityPeriod,
+  requests: z.optional(z.union([z.number(), z.null()])),
+  tokens: z.optional(z.union([z.number(), z.null()])),
+  enabled: z.optional(z.union([z.boolean(), z.null()])),
+  dimension: z.optional(z.union([zCapacityDimension, z.null()])),
 });
 
 export type CapacityEntityZodType = z.infer<typeof zCapacityEntity>;
 
 export const zCreateAiConnectionDto = z.object({
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the AI connection'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    provider: z.string().register(z.globalRegistry, {
-        description: 'The provider of the AI connection'
-    }),
-    allowedModels: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    config: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ]))
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the AI connection',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  provider: z.string().register(z.globalRegistry, {
+    description: 'The provider of the AI connection',
+  }),
+  allowedModels: z.optional(z.union([z.array(z.string()), z.null()])),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  config: z.optional(z.union([z.record(z.string(), z.unknown()), z.null()])),
 });
 
-export type CreateAiConnectionDtoZodType = z.infer<typeof zCreateAiConnectionDto>;
+export type CreateAiConnectionDtoZodType = z.infer<
+  typeof zCreateAiConnectionDto
+>;
 
 export const zUpdateAiConnectionDto = z.object({
-    name: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    provider: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    allowedModels: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    config: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ]))
+  name: z.optional(z.union([z.string(), z.null()])),
+  description: z.optional(z.union([z.string(), z.null()])),
+  provider: z.optional(z.union([z.string(), z.null()])),
+  allowedModels: z.optional(z.union([z.array(z.string()), z.null()])),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  config: z.optional(z.union([z.record(z.string(), z.unknown()), z.null()])),
 });
 
-export type UpdateAiConnectionDtoZodType = z.infer<typeof zUpdateAiConnectionDto>;
+export type UpdateAiConnectionDtoZodType = z.infer<
+  typeof zUpdateAiConnectionDto
+>;
 
 export const zAiProviderConnectionButtonComponentDto = z.object({
-    type: z.enum(['link-button']).register(z.globalRegistry, {
-        description: 'The component type (should be \'link-button\')'
-    }),
-    content: z.string().register(z.globalRegistry, {
-        description: 'Text content of the button'
-    }),
-    sx: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ])),
-    url: z.string().register(z.globalRegistry, {
-        description: 'URL to which the button navigates'
-    }),
-    target: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    helperText: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  type: z.enum(['link-button']).register(z.globalRegistry, {
+    description: "The component type (should be 'link-button')",
+  }),
+  content: z.string().register(z.globalRegistry, {
+    description: 'Text content of the button',
+  }),
+  sx: z.optional(z.union([z.record(z.string(), z.unknown()), z.null()])),
+  url: z.string().register(z.globalRegistry, {
+    description: 'URL to which the button navigates',
+  }),
+  target: z.optional(z.union([z.string(), z.null()])),
+  helperText: z.optional(z.union([z.string(), z.null()])),
 });
 
-export type AiProviderConnectionButtonComponentDtoZodType = z.infer<typeof zAiProviderConnectionButtonComponentDto>;
+export type AiProviderConnectionButtonComponentDtoZodType = z.infer<
+  typeof zAiProviderConnectionButtonComponentDto
+>;
 
 export const zAiProviderConnectionTypographyComponentDto = z.object({
-    type: z.enum(['typography']).register(z.globalRegistry, {
-        description: 'The component type (should be \'typography\')'
+  type: z.enum(['typography']).register(z.globalRegistry, {
+    description: "The component type (should be 'typography')",
+  }),
+  content: z.string().register(z.globalRegistry, {
+    description: 'The text content to display',
+  }),
+  variant: z
+    .enum([
+      'body1',
+      'body2',
+      'caption',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'subtitle1',
+      'subtitle2',
+    ])
+    .register(z.globalRegistry, {
+      description: 'Typography style variant',
     }),
-    content: z.string().register(z.globalRegistry, {
-        description: 'The text content to display'
-    }),
-    variant: z.enum([
-        'body1',
-        'body2',
-        'caption',
-        'h1',
-        'h2',
-        'h3',
-        'h4',
-        'h5',
-        'h6',
-        'subtitle1',
-        'subtitle2'
-    ]).register(z.globalRegistry, {
-        description: 'Typography style variant'
-    }),
-    sx: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ]))
+  sx: z.optional(z.union([z.record(z.string(), z.unknown()), z.null()])),
 });
 
-export type AiProviderConnectionTypographyComponentDtoZodType = z.infer<typeof zAiProviderConnectionTypographyComponentDto>;
+export type AiProviderConnectionTypographyComponentDtoZodType = z.infer<
+  typeof zAiProviderConnectionTypographyComponentDto
+>;
 
 export const zAiProviderConnectionEditorComponentDto = z.object({
-    type: z.enum(['editor']).register(z.globalRegistry, {
-        description: 'The component type (should be \'editor\')'
-    }),
-    content: z.string().register(z.globalRegistry, {
-        description: 'Content/code to display in the editor'
-    }),
-    language: z.string().register(z.globalRegistry, {
-        description: 'Programming language for syntax highlighting'
-    }),
-    height: z.string().register(z.globalRegistry, {
-        description: 'Height of the editor, e.g., 200px'
-    }),
-    readOnly: z.optional(z.union([
-        z.boolean(),
-        z.null()
-    ])),
-    readOnlyMessage: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  type: z.enum(['editor']).register(z.globalRegistry, {
+    description: "The component type (should be 'editor')",
+  }),
+  content: z.string().register(z.globalRegistry, {
+    description: 'Content/code to display in the editor',
+  }),
+  language: z.string().register(z.globalRegistry, {
+    description: 'Programming language for syntax highlighting',
+  }),
+  height: z.string().register(z.globalRegistry, {
+    description: 'Height of the editor, e.g., 200px',
+  }),
+  readOnly: z.optional(z.union([z.boolean(), z.null()])),
+  readOnlyMessage: z.optional(z.union([z.string(), z.null()])),
 });
 
-export type AiProviderConnectionEditorComponentDtoZodType = z.infer<typeof zAiProviderConnectionEditorComponentDto>;
+export type AiProviderConnectionEditorComponentDtoZodType = z.infer<
+  typeof zAiProviderConnectionEditorComponentDto
+>;
 
 export const zAiProviderConnectionAccordionComponentDto = z.object({
-    type: z.enum(['accordion']).register(z.globalRegistry, {
-        description: 'The component type (should be \'accordion\')'
+  type: z.enum(['accordion']).register(z.globalRegistry, {
+    description: "The component type (should be 'accordion')",
+  }),
+  title: z.string().register(z.globalRegistry, {
+    description: 'Accordion title',
+  }),
+  elements: z
+    .array(
+      z.union([
+        zAiProviderConnectionTypographyComponentDto,
+        zAiProviderConnectionEditorComponentDto,
+      ])
+    )
+    .register(z.globalRegistry, {
+      description:
+        'Accordion content elements, may include typography or editor components',
     }),
-    title: z.string().register(z.globalRegistry, {
-        description: 'Accordion title'
-    }),
-    elements: z.array(z.union([zAiProviderConnectionTypographyComponentDto, zAiProviderConnectionEditorComponentDto])).register(z.globalRegistry, {
-        description: 'Accordion content elements, may include typography or editor components'
-    })
 });
 
-export type AiProviderConnectionAccordionComponentDtoZodType = z.infer<typeof zAiProviderConnectionAccordionComponentDto>;
+export type AiProviderConnectionAccordionComponentDtoZodType = z.infer<
+  typeof zAiProviderConnectionAccordionComponentDto
+>;
 
 export const zAiProviderLogoDto = z.object({
-    url: z.string().register(z.globalRegistry, {
-        description: 'The URL of the AI provider logo'
-    })
+  url: z.string().register(z.globalRegistry, {
+    description: 'The URL of the AI provider logo',
+  }),
 });
 
 export type AiProviderLogoDtoZodType = z.infer<typeof zAiProviderLogoDto>;
 
 export const zAiProviderConnectionDto = z.object({
-    form: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-        description: 'JSONSchema definition or data required for connection'
-    }),
-    uiComponents: z.optional(z.union([
-        z.array(z.union([zAiProviderConnectionAccordionComponentDto, zAiProviderConnectionButtonComponentDto])),
-        z.null()
-    ]))
+  form: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
+    description: 'JSONSchema definition or data required for connection',
+  }),
+  uiComponents: z.optional(
+    z.union([
+      z.array(
+        z.union([
+          zAiProviderConnectionAccordionComponentDto,
+          zAiProviderConnectionButtonComponentDto,
+        ])
+      ),
+      z.null(),
+    ])
+  ),
 });
 
-export type AiProviderConnectionDtoZodType = z.infer<typeof zAiProviderConnectionDto>;
+export type AiProviderConnectionDtoZodType = z.infer<
+  typeof zAiProviderConnectionDto
+>;
 
 export const zAiProviderConfigDto = z.object({
-    logo: zAiProviderLogoDto,
-    connection: zAiProviderConnectionDto
+  logo: zAiProviderLogoDto,
+  connection: zAiProviderConnectionDto,
 });
 
 export type AiProviderConfigDtoZodType = z.infer<typeof zAiProviderConfigDto>;
 
 export const zAiProviderDto = z.object({
-    id: z.string().register(z.globalRegistry, {
-        description: 'The unique provider identifier'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'Display name of the provider'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    config: zAiProviderConfigDto,
-    defaultModel: z.string().register(z.globalRegistry, {
-        description: 'Default model for the provider'
-    })
+  id: z.string().register(z.globalRegistry, {
+    description: 'The unique provider identifier',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'Display name of the provider',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  config: zAiProviderConfigDto,
+  defaultModel: z.string().register(z.globalRegistry, {
+    description: 'Default model for the provider',
+  }),
 });
 
 export type AiProviderDtoZodType = z.infer<typeof zAiProviderDto>;
@@ -970,7 +859,8 @@ export type AiProviderDtoZodType = z.infer<typeof zAiProviderDto>;
 /**
  * Comparator for the routing condition
  */
-export const zRoutingComparator = z.enum([
+export const zRoutingComparator = z
+  .enum([
     'EQUAL',
     'NOT_EQUAL',
     'GREATER_THAN',
@@ -984,781 +874,702 @@ export const zRoutingComparator = z.enum([
     'PATTERN',
     'IN',
     'NOT_IN',
-    'EXISTS'
-]).register(z.globalRegistry, {
-    description: 'Comparator for the routing condition'
-});
+    'EXISTS',
+  ])
+  .register(z.globalRegistry, {
+    description: 'Comparator for the routing condition',
+  });
 
 export type RoutingComparatorZodType = z.infer<typeof zRoutingComparator>;
 
 /**
  * The type of the routing condition value
  */
-export const zRoutingConditionType = z.enum([
+export const zRoutingConditionType = z
+  .enum([
     'string',
     'number',
     'boolean',
     'comma-delimited-list',
     'json-object',
-    'json-array'
-]).register(z.globalRegistry, {
-    description: 'The type of the routing condition value'
-});
+    'json-array',
+  ])
+  .register(z.globalRegistry, {
+    description: 'The type of the routing condition value',
+  });
 
 export type RoutingConditionTypeZodType = z.infer<typeof zRoutingConditionType>;
 
 export const zAiResourceRoutingConditionValue = z.object({
-    type: zRoutingConditionType,
-    expression: z.optional(z.string().register(z.globalRegistry, {
-        description: 'An optional expression EJS for the condition value'
-    }))
+  type: zRoutingConditionType,
+  expression: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'An optional expression EJS for the condition value',
+    })
+  ),
 });
 
-export type AiResourceRoutingConditionValueZodType = z.infer<typeof zAiResourceRoutingConditionValue>;
+export type AiResourceRoutingConditionValueZodType = z.infer<
+  typeof zAiResourceRoutingConditionValue
+>;
 
 export const zAiResourceRoutingCondition = z.object({
-    type: z.enum(['condition']).register(z.globalRegistry, {
-        description: 'The type of the routing condition'
-    }),
-    id: z.string().register(z.globalRegistry, {
-        description: 'The unique ID of the routing condition'
-    }),
-    label: z.string().register(z.globalRegistry, {
-        description: 'Label for the routing condition'
-    }),
-    expression: z.string().register(z.globalRegistry, {
-        description: 'The EJS expression to evaluate for the condition'
-    }),
-    comparator: zRoutingComparator,
-    value: zAiResourceRoutingConditionValue
+  type: z.enum(['condition']).register(z.globalRegistry, {
+    description: 'The type of the routing condition',
+  }),
+  id: z.string().register(z.globalRegistry, {
+    description: 'The unique ID of the routing condition',
+  }),
+  label: z.string().register(z.globalRegistry, {
+    description: 'Label for the routing condition',
+  }),
+  expression: z.string().register(z.globalRegistry, {
+    description: 'The EJS expression to evaluate for the condition',
+  }),
+  comparator: zRoutingComparator,
+  value: zAiResourceRoutingConditionValue,
 });
 
-export type AiResourceRoutingConditionZodType = z.infer<typeof zAiResourceRoutingCondition>;
+export type AiResourceRoutingConditionZodType = z.infer<
+  typeof zAiResourceRoutingCondition
+>;
 
 export const zDiscoveredCapacityEntry = z.object({
-    updatedAt: z.string().register(z.globalRegistry, {
-        description: 'The date and time the discovered capacity was last updated'
-    }),
-    capacity: z.array(zCapacityEntity).register(z.globalRegistry, {
-        description: 'The capacities of the discovered capacity (JSON array)'
-    }),
-    errorMessage: z.optional(z.union([
-        z.string(),
-        z.null()
-    ]))
+  updatedAt: z.string().register(z.globalRegistry, {
+    description: 'The date and time the discovered capacity was last updated',
+  }),
+  capacity: z.array(zCapacityEntity).register(z.globalRegistry, {
+    description: 'The capacities of the discovered capacity (JSON array)',
+  }),
+  errorMessage: z.optional(z.union([z.string(), z.null()])),
 });
 
-export type DiscoveredCapacityEntryZodType = z.infer<typeof zDiscoveredCapacityEntry>;
+export type DiscoveredCapacityEntryZodType = z.infer<
+  typeof zDiscoveredCapacityEntry
+>;
 
 export const zDiscoveredCapacityEntity = z.object({
-    models: z.record(z.string(), zDiscoveredCapacityEntry).register(z.globalRegistry, {
-        description: 'The models of the discovered capacity (JSON object)'
-    })
+  models: z
+    .record(z.string(), zDiscoveredCapacityEntry)
+    .register(z.globalRegistry, {
+      description: 'The models of the discovered capacity (JSON object)',
+    }),
 });
 
-export type DiscoveredCapacityEntityZodType = z.infer<typeof zDiscoveredCapacityEntity>;
+export type DiscoveredCapacityEntityZodType = z.infer<
+  typeof zDiscoveredCapacityEntity
+>;
 
 export const zAiConnectionEntity = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    connectionId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the AI connection (UUID)'
-    }),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The workspace that the AI connection is associated with'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The environment that the AI connection is associated with'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the AI connection'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    provider: z.string().register(z.globalRegistry, {
-        description: 'The provider of the AI connection'
-    }),
-    allowedModels: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    discoveredCapacity: z.optional(z.union([
-        zDiscoveredCapacityEntity,
-        z.null()
-    ])),
-    config: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ]))
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  connectionId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the AI connection (UUID)',
+  }),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The workspace that the AI connection is associated with',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The environment that the AI connection is associated with',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the AI connection',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  provider: z.string().register(z.globalRegistry, {
+    description: 'The provider of the AI connection',
+  }),
+  allowedModels: z.optional(z.union([z.array(z.string()), z.null()])),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  discoveredCapacity: z.optional(
+    z.union([zDiscoveredCapacityEntity, z.null()])
+  ),
+  config: z.optional(z.union([z.record(z.string(), z.unknown()), z.null()])),
 });
 
 export type AiConnectionEntityZodType = z.infer<typeof zAiConnectionEntity>;
 
 export const zAiResourceModelConfigEntity = z.object({
-    provider: z.string().register(z.globalRegistry, {
-        description: 'The provider of the AI resource model'
-    }),
-    model: z.string().register(z.globalRegistry, {
-        description: 'The model of the AI resource model'
-    }),
-    connectionId: z.uuid().register(z.globalRegistry, {
-        description: 'The AI connection ID of the AI resource model'
-    })
+  provider: z.string().register(z.globalRegistry, {
+    description: 'The provider of the AI resource model',
+  }),
+  model: z.string().register(z.globalRegistry, {
+    description: 'The model of the AI resource model',
+  }),
+  connectionId: z.uuid().register(z.globalRegistry, {
+    description: 'The AI connection ID of the AI resource model',
+  }),
 });
 
-export type AiResourceModelConfigEntityZodType = z.infer<typeof zAiResourceModelConfigEntity>;
+export type AiResourceModelConfigEntityZodType = z.infer<
+  typeof zAiResourceModelConfigEntity
+>;
 
 /**
  * Logical operator for grouping conditions
  */
-export const zRoutingOperator = z.enum(['AND', 'OR']).register(z.globalRegistry, {
-    description: 'Logical operator for grouping conditions'
-});
+export const zRoutingOperator = z
+  .enum(['AND', 'OR'])
+  .register(z.globalRegistry, {
+    description: 'Logical operator for grouping conditions',
+  });
 
 export type RoutingOperatorZodType = z.infer<typeof zRoutingOperator>;
 
 /**
  * Action to take if group matches
  */
-export const zRoutingAction = z.enum(['BLOCK', 'CALL_MODEL']).register(z.globalRegistry, {
-    description: 'Action to take if group matches'
-});
+export const zRoutingAction = z
+  .enum(['BLOCK', 'CALL_MODEL'])
+  .register(z.globalRegistry, {
+    description: 'Action to take if group matches',
+  });
 
 export type RoutingActionZodType = z.infer<typeof zRoutingAction>;
 
 /**
  * UI or advanced routing mode
  */
-export const zRoutingMode = z.enum(['UI', 'ADVANCED']).register(z.globalRegistry, {
-    description: 'UI or advanced routing mode'
-});
+export const zRoutingMode = z
+  .enum(['UI', 'ADVANCED'])
+  .register(z.globalRegistry, {
+    description: 'UI or advanced routing mode',
+  });
 
 export type RoutingModeZodType = z.infer<typeof zRoutingMode>;
 
 export const zAiResourceRoutingModelConfig = z.object({
-    provider: z.string().register(z.globalRegistry, {
-        description: 'The provider of the AI resource model'
-    }),
-    model: z.string().register(z.globalRegistry, {
-        description: 'The model of the AI resource model'
-    }),
-    connectionId: z.uuid().register(z.globalRegistry, {
-        description: 'The AI connection ID of the AI resource model'
-    }),
-    traffic: z.optional(z.number().register(z.globalRegistry, {
-        description: 'Traffic percentage sent to this model config, empty means all traffic'
-    }))
+  provider: z.string().register(z.globalRegistry, {
+    description: 'The provider of the AI resource model',
+  }),
+  model: z.string().register(z.globalRegistry, {
+    description: 'The model of the AI resource model',
+  }),
+  connectionId: z.uuid().register(z.globalRegistry, {
+    description: 'The AI connection ID of the AI resource model',
+  }),
+  traffic: z.optional(
+    z.number().register(z.globalRegistry, {
+      description:
+        'Traffic percentage sent to this model config, empty means all traffic',
+    })
+  ),
 });
 
-export type AiResourceRoutingModelConfigZodType = z.infer<typeof zAiResourceRoutingModelConfig>;
+export type AiResourceRoutingModelConfigZodType = z.infer<
+  typeof zAiResourceRoutingModelConfig
+>;
 
 export const zAiRoutingConditionGroup = z.object({
-    type: z.enum(['group']).register(z.globalRegistry, {
-        description: 'The type of the routing condition'
-    }),
-    id: z.optional(z.string().register(z.globalRegistry, {
-        description: 'Optional ID for the condition group'
-    })),
-    description: z.optional(z.string().register(z.globalRegistry, {
-        description: 'Description of the condition group'
-    })),
-    operator: zRoutingOperator,
-    get conditions() {
-        return z.array(z.union([zAiResourceRoutingCondition, z.lazy((): any => zAiRoutingConditionGroup)])).register(z.globalRegistry, {
-            description: 'List of routing conditions'
-        });
-    },
-    action: zRoutingAction,
-    mode: zRoutingMode,
-    expression: z.optional(z.string().register(z.globalRegistry, {
-        description: 'Optional expression EJS for group'
-    })),
-    then: z.optional(zAiResourceRoutingModelConfig),
-    enabled: z.optional(z.boolean().register(z.globalRegistry, {
-        description: 'Whether this group is enabled'
-    }))
+  type: z.enum(['group']).register(z.globalRegistry, {
+    description: 'The type of the routing condition',
+  }),
+  id: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'Optional ID for the condition group',
+    })
+  ),
+  description: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'Description of the condition group',
+    })
+  ),
+  operator: zRoutingOperator,
+  get conditions() {
+    return z
+      .array(
+        z.union([
+          zAiResourceRoutingCondition,
+          z.lazy((): any => zAiRoutingConditionGroup),
+        ])
+      )
+      .register(z.globalRegistry, {
+        description: 'List of routing conditions',
+      });
+  },
+  action: zRoutingAction,
+  mode: zRoutingMode,
+  expression: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'Optional expression EJS for group',
+    })
+  ),
+  then: z.optional(zAiResourceRoutingModelConfig),
+  enabled: z.optional(
+    z.boolean().register(z.globalRegistry, {
+      description: 'Whether this group is enabled',
+    })
+  ),
 });
 
-export type AiRoutingConditionGroupZodType = z.infer<typeof zAiRoutingConditionGroup>;
+export type AiRoutingConditionGroupZodType = z.infer<
+  typeof zAiRoutingConditionGroup
+>;
 
 export const zAiResourceModelRoutingEntity = z.object({
-    enabled: z.boolean().register(z.globalRegistry, {
-        description: 'Whether routing is enabled'
-    }),
-    conditions: z.array(zAiRoutingConditionGroup).register(z.globalRegistry, {
-        description: 'Condition groups for routing'
-    })
+  enabled: z.boolean().register(z.globalRegistry, {
+    description: 'Whether routing is enabled',
+  }),
+  conditions: z.array(zAiRoutingConditionGroup).register(z.globalRegistry, {
+    description: 'Condition groups for routing',
+  }),
 });
 
-export type AiResourceModelRoutingEntityZodType = z.infer<typeof zAiResourceModelRoutingEntity>;
+export type AiResourceModelRoutingEntityZodType = z.infer<
+  typeof zAiResourceModelRoutingEntity
+>;
 
 export const zAiResourceEntity = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    resourceId: z.uuid().register(z.globalRegistry, {
-        description: 'Resource unique identifier'
-    }),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'Workspace ID associated with the resource'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'Environment ID associated with the resource'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'Name of the AI resource'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    model: zAiResourceModelConfigEntity,
-    useFallback: z.boolean().register(z.globalRegistry, {
-        description: 'Whether fallback models are used if primary fails'
-    }),
-    fallbackModels: z.optional(z.union([
-        z.array(zAiResourceModelConfigEntity),
-        z.null()
-    ])),
-    secondaryModels: z.optional(z.union([
-        z.array(zAiResourceModelConfigEntity),
-        z.null()
-    ])),
-    routing: z.optional(z.union([
-        zAiResourceModelRoutingEntity,
-        z.null()
-    ])),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    enforceCapacity: z.boolean().register(z.globalRegistry, {
-        description: 'Whether capacity is enforced for requests to this resource'
-    })
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  resourceId: z.uuid().register(z.globalRegistry, {
+    description: 'Resource unique identifier',
+  }),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'Workspace ID associated with the resource',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'Environment ID associated with the resource',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'Name of the AI resource',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  model: zAiResourceModelConfigEntity,
+  useFallback: z.boolean().register(z.globalRegistry, {
+    description: 'Whether fallback models are used if primary fails',
+  }),
+  fallbackModels: z.optional(
+    z.union([z.array(zAiResourceModelConfigEntity), z.null()])
+  ),
+  secondaryModels: z.optional(
+    z.union([z.array(zAiResourceModelConfigEntity), z.null()])
+  ),
+  routing: z.optional(z.union([zAiResourceModelRoutingEntity, z.null()])),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  enforceCapacity: z.boolean().register(z.globalRegistry, {
+    description: 'Whether capacity is enforced for requests to this resource',
+  }),
 });
 
 export type AiResourceEntityZodType = z.infer<typeof zAiResourceEntity>;
 
 export const zCreateAiResourceDto = z.object({
-    name: z.string().register(z.globalRegistry, {
-        description: 'Name of the AI resource'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    model: zAiResourceModelConfigEntity,
-    useFallback: z.boolean().register(z.globalRegistry, {
-        description: 'Whether fallback models are used if primary fails'
-    }),
-    fallbackModels: z.optional(z.union([
-        z.array(zAiResourceModelConfigEntity),
-        z.null()
-    ])),
-    secondaryModels: z.optional(z.union([
-        z.array(zAiResourceModelConfigEntity),
-        z.null()
-    ])),
-    routing: z.optional(z.union([
-        zAiResourceModelRoutingEntity,
-        z.null()
-    ])),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    enforceCapacity: z.boolean().register(z.globalRegistry, {
-        description: 'Whether capacity is enforced for requests to this resource'
-    }),
-    assignApiKeys: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ]))
+  name: z.string().register(z.globalRegistry, {
+    description: 'Name of the AI resource',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  model: zAiResourceModelConfigEntity,
+  useFallback: z.boolean().register(z.globalRegistry, {
+    description: 'Whether fallback models are used if primary fails',
+  }),
+  fallbackModels: z.optional(
+    z.union([z.array(zAiResourceModelConfigEntity), z.null()])
+  ),
+  secondaryModels: z.optional(
+    z.union([z.array(zAiResourceModelConfigEntity), z.null()])
+  ),
+  routing: z.optional(z.union([zAiResourceModelRoutingEntity, z.null()])),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  enforceCapacity: z.boolean().register(z.globalRegistry, {
+    description: 'Whether capacity is enforced for requests to this resource',
+  }),
+  assignApiKeys: z.optional(z.union([z.array(z.string()), z.null()])),
 });
 
 export type CreateAiResourceDtoZodType = z.infer<typeof zCreateAiResourceDto>;
 
 export const zUpdateAiResourceDto = z.object({
-    name: z.optional(z.string().register(z.globalRegistry, {
-        description: 'Name of the AI resource'
-    })),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    model: z.optional(zAiResourceModelConfigEntity),
-    useFallback: z.optional(z.boolean().register(z.globalRegistry, {
-        description: 'Whether fallback models are used if primary fails'
-    })),
-    fallbackModels: z.optional(z.union([
-        z.array(zAiResourceModelConfigEntity),
-        z.null()
-    ])),
-    secondaryModels: z.optional(z.union([
-        z.array(zAiResourceModelConfigEntity),
-        z.null()
-    ])),
-    routing: z.optional(z.union([
-        zAiResourceModelRoutingEntity,
-        z.null()
-    ])),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    enforceCapacity: z.optional(z.boolean().register(z.globalRegistry, {
-        description: 'Whether capacity is enforced for requests to this resource'
-    })),
-    assignApiKeys: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ]))
+  name: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'Name of the AI resource',
+    })
+  ),
+  description: z.optional(z.union([z.string(), z.null()])),
+  model: z.optional(zAiResourceModelConfigEntity),
+  useFallback: z.optional(
+    z.boolean().register(z.globalRegistry, {
+      description: 'Whether fallback models are used if primary fails',
+    })
+  ),
+  fallbackModels: z.optional(
+    z.union([z.array(zAiResourceModelConfigEntity), z.null()])
+  ),
+  secondaryModels: z.optional(
+    z.union([z.array(zAiResourceModelConfigEntity), z.null()])
+  ),
+  routing: z.optional(z.union([zAiResourceModelRoutingEntity, z.null()])),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  enforceCapacity: z.optional(
+    z.boolean().register(z.globalRegistry, {
+      description: 'Whether capacity is enforced for requests to this resource',
+    })
+  ),
+  assignApiKeys: z.optional(z.union([z.array(z.string()), z.null()])),
 });
 
 export type UpdateAiResourceDtoZodType = z.infer<typeof zUpdateAiResourceDto>;
 
 export const zApiKeyEntity = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    apiKeyId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the API key (UUID)'
-    }),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The workspace that the API key is associated with'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The environment that the API key is associated with'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the API key'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    enabled: z.boolean().register(z.globalRegistry, {
-        description: 'Whether the API key is enabled'
-    }),
-    resources: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The resources that the API key is associated with'
-    }),
-    labels: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    enforceCapacity: z.boolean().register(z.globalRegistry, {
-        description: 'Whether capacity is enforced for requests to the API key'
-    }),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    maskedKey: z.string().register(z.globalRegistry, {
-        description: 'The masked key of the API key'
-    })
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  apiKeyId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the API key (UUID)',
+  }),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The workspace that the API key is associated with',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The environment that the API key is associated with',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the API key',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  enabled: z.boolean().register(z.globalRegistry, {
+    description: 'Whether the API key is enabled',
+  }),
+  resources: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The resources that the API key is associated with',
+  }),
+  labels: z.optional(z.union([z.array(z.string()), z.null()])),
+  enforceCapacity: z.boolean().register(z.globalRegistry, {
+    description: 'Whether capacity is enforced for requests to the API key',
+  }),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  maskedKey: z.string().register(z.globalRegistry, {
+    description: 'The masked key of the API key',
+  }),
 });
 
 export type ApiKeyEntityZodType = z.infer<typeof zApiKeyEntity>;
 
 export const zCreateApiKeyDto = z.object({
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the API key'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    enabled: z.boolean().register(z.globalRegistry, {
-        description: 'Whether the API key is enabled'
-    }),
-    resources: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The resources that the API key is associated with'
-    }),
-    labels: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    enforceCapacity: z.boolean().register(z.globalRegistry, {
-        description: 'Whether capacity is enforced for requests to the API key'
-    }),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ]))
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the API key',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  enabled: z.boolean().register(z.globalRegistry, {
+    description: 'Whether the API key is enabled',
+  }),
+  resources: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The resources that the API key is associated with',
+  }),
+  labels: z.optional(z.union([z.array(z.string()), z.null()])),
+  enforceCapacity: z.boolean().register(z.globalRegistry, {
+    description: 'Whether capacity is enforced for requests to the API key',
+  }),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
 });
 
 export type CreateApiKeyDtoZodType = z.infer<typeof zCreateApiKeyDto>;
 
 export const zCreatedApiKeyDto = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    apiKeyId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the API key (UUID)'
-    }),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The workspace that the API key is associated with'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The environment that the API key is associated with'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the API key'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    enabled: z.boolean().register(z.globalRegistry, {
-        description: 'Whether the API key is enabled'
-    }),
-    resources: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The resources that the API key is associated with'
-    }),
-    labels: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    enforceCapacity: z.boolean().register(z.globalRegistry, {
-        description: 'Whether capacity is enforced for requests to the API key'
-    }),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    maskedKey: z.string().register(z.globalRegistry, {
-        description: 'The masked key of the API key'
-    }),
-    apiKeyValue: z.string().register(z.globalRegistry, {
-        description: 'The full API key value, this is only returned once during creation'
-    })
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  apiKeyId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the API key (UUID)',
+  }),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The workspace that the API key is associated with',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The environment that the API key is associated with',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the API key',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  enabled: z.boolean().register(z.globalRegistry, {
+    description: 'Whether the API key is enabled',
+  }),
+  resources: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The resources that the API key is associated with',
+  }),
+  labels: z.optional(z.union([z.array(z.string()), z.null()])),
+  enforceCapacity: z.boolean().register(z.globalRegistry, {
+    description: 'Whether capacity is enforced for requests to the API key',
+  }),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  maskedKey: z.string().register(z.globalRegistry, {
+    description: 'The masked key of the API key',
+  }),
+  apiKeyValue: z.string().register(z.globalRegistry, {
+    description:
+      'The full API key value, this is only returned once during creation',
+  }),
 });
 
 export type CreatedApiKeyDtoZodType = z.infer<typeof zCreatedApiKeyDto>;
 
 export const zUpdateApiKeyDto = z.object({
-    name: z.optional(z.string().register(z.globalRegistry, {
-        description: 'The name of the API key'
-    })),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    enabled: z.optional(z.boolean().register(z.globalRegistry, {
-        description: 'Whether the API key is enabled'
-    })),
-    resources: z.optional(z.array(z.string()).register(z.globalRegistry, {
-        description: 'The resources that the API key is associated with'
-    })),
-    labels: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    enforceCapacity: z.optional(z.boolean().register(z.globalRegistry, {
-        description: 'Whether capacity is enforced for requests to the API key'
-    })),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ]))
+  name: z.optional(
+    z.string().register(z.globalRegistry, {
+      description: 'The name of the API key',
+    })
+  ),
+  description: z.optional(z.union([z.string(), z.null()])),
+  enabled: z.optional(
+    z.boolean().register(z.globalRegistry, {
+      description: 'Whether the API key is enabled',
+    })
+  ),
+  resources: z.optional(
+    z.array(z.string()).register(z.globalRegistry, {
+      description: 'The resources that the API key is associated with',
+    })
+  ),
+  labels: z.optional(z.union([z.array(z.string()), z.null()])),
+  enforceCapacity: z.optional(
+    z.boolean().register(z.globalRegistry, {
+      description: 'Whether capacity is enforced for requests to the API key',
+    })
+  ),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
 });
 
 export type UpdateApiKeyDtoZodType = z.infer<typeof zUpdateApiKeyDto>;
 
 export const zPoolDefinitionEntry = z.object({
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the pool entry'
-    }),
-    rank: z.number().register(z.globalRegistry, {
-        description: 'The rank or priority order of the entry'
-    }),
-    minReservation: z.number().register(z.globalRegistry, {
-        description: 'Minimum % of the AI connection capacity that must be reserved for this entry'
-    }),
-    maxReservation: z.number().register(z.globalRegistry, {
-        description: 'Maximum % of the AI connection capacity that can be reserved for this entry'
-    }),
-    resources: z.array(z.string()).register(z.globalRegistry, {
-        description: 'Resource identifiers included in this entry'
-    })
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the pool entry',
+  }),
+  rank: z.number().register(z.globalRegistry, {
+    description: 'The rank or priority order of the entry',
+  }),
+  minReservation: z.number().register(z.globalRegistry, {
+    description:
+      'Minimum % of the AI connection capacity that must be reserved for this entry',
+  }),
+  maxReservation: z.number().register(z.globalRegistry, {
+    description:
+      'Maximum % of the AI connection capacity that can be reserved for this entry',
+  }),
+  resources: z.array(z.string()).register(z.globalRegistry, {
+    description: 'Resource identifiers included in this entry',
+  }),
 });
 
 export type PoolDefinitionEntryZodType = z.infer<typeof zPoolDefinitionEntry>;
 
 export const zPoolDefinitionEntity = z.object({
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was created'
-    }),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the entity was last updated'
-    }),
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    workspaceId: z.string().register(z.globalRegistry, {
-        description: 'Workspace UUID'
-    }),
-    environmentId: z.string().register(z.globalRegistry, {
-        description: 'Environment UUID'
-    }),
-    definition: z.array(zPoolDefinitionEntry).register(z.globalRegistry, {
-        description: 'List of pool definition entries'
-    })
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was created',
+  }),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the entity was last updated',
+  }),
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  workspaceId: z.string().register(z.globalRegistry, {
+    description: 'Workspace UUID',
+  }),
+  environmentId: z.string().register(z.globalRegistry, {
+    description: 'Environment UUID',
+  }),
+  definition: z.array(zPoolDefinitionEntry).register(z.globalRegistry, {
+    description: 'List of pool definition entries',
+  }),
 });
 
 export type PoolDefinitionEntityZodType = z.infer<typeof zPoolDefinitionEntity>;
 
 export const zUpsertPoolDefinitionDto = z.object({
-    definition: z.array(zPoolDefinitionEntry).register(z.globalRegistry, {
-        description: 'List of pool definition entries'
-    })
+  definition: z.array(zPoolDefinitionEntry).register(z.globalRegistry, {
+    description: 'List of pool definition entries',
+  }),
 });
 
-export type UpsertPoolDefinitionDtoZodType = z.infer<typeof zUpsertPoolDefinitionDto>;
+export type UpsertPoolDefinitionDtoZodType = z.infer<
+  typeof zUpsertPoolDefinitionDto
+>;
 
 export const zMetricDto = z.object({
-    errorRate: z.number().register(z.globalRegistry, {
-        description: 'The error rate of the metric'
-    }),
-    totalSuccess: z.number().register(z.globalRegistry, {
-        description: 'The total number of successful requests in the requested window'
-    }),
-    totalFailed: z.number().register(z.globalRegistry, {
-        description: 'The total number of failed requests in the requested window'
-    }),
-    totalRequests: z.number().register(z.globalRegistry, {
-        description: 'The total number of requests in the requested window'
-    })
+  errorRate: z.number().register(z.globalRegistry, {
+    description: 'The error rate of the metric',
+  }),
+  totalSuccess: z.number().register(z.globalRegistry, {
+    description:
+      'The total number of successful requests in the requested window',
+  }),
+  totalFailed: z.number().register(z.globalRegistry, {
+    description: 'The total number of failed requests in the requested window',
+  }),
+  totalRequests: z.number().register(z.globalRegistry, {
+    description: 'The total number of requests in the requested window',
+  }),
 });
 
 export type MetricDtoZodType = z.infer<typeof zMetricDto>;
 
 export const zCompletionAuditFallbackEventEntity = z.object({
-    timestamp: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The timestamp of the Audit event'
-    }),
-    type: z.enum(['fallback']).register(z.globalRegistry, {
-        description: 'The event type of the Audit event'
-    }),
-    data: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-        description: 'The data of the Audit event'
-    })
+  timestamp: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The timestamp of the Audit event',
+  }),
+  type: z.enum(['fallback']).register(z.globalRegistry, {
+    description: 'The event type of the Audit event',
+  }),
+  data: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
+    description: 'The data of the Audit event',
+  }),
 });
 
-export type CompletionAuditFallbackEventEntityZodType = z.infer<typeof zCompletionAuditFallbackEventEntity>;
+export type CompletionAuditFallbackEventEntityZodType = z.infer<
+  typeof zCompletionAuditFallbackEventEntity
+>;
 
 /**
  * The event type of the Audit event
  */
-export const zCompletionAuditEventType = z.enum(['FALLBACK', 'ROUTING']).register(z.globalRegistry, {
-    description: 'The event type of the Audit event'
-});
+export const zCompletionAuditEventType = z
+  .enum(['FALLBACK', 'ROUTING'])
+  .register(z.globalRegistry, {
+    description: 'The event type of the Audit event',
+  });
 
-export type CompletionAuditEventTypeZodType = z.infer<typeof zCompletionAuditEventType>;
+export type CompletionAuditEventTypeZodType = z.infer<
+  typeof zCompletionAuditEventType
+>;
 
 export const zCompletionAuditRoutingEventEntity = z.object({
-    timestamp: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The timestamp of the Audit event'
-    }),
-    type: zCompletionAuditEventType,
-    data: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-        description: 'The data of the Audit event'
-    })
+  timestamp: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The timestamp of the Audit event',
+  }),
+  type: zCompletionAuditEventType,
+  data: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
+    description: 'The data of the Audit event',
+  }),
 });
 
-export type CompletionAuditRoutingEventEntityZodType = z.infer<typeof zCompletionAuditRoutingEventEntity>;
+export type CompletionAuditRoutingEventEntityZodType = z.infer<
+  typeof zCompletionAuditRoutingEventEntity
+>;
 
 export const zCompletionAuditType = z.enum(['COMPLETION', 'COMPLETION_BATCH']);
 
 export type CompletionAuditTypeZodType = z.infer<typeof zCompletionAuditType>;
 
 export const zCompletionAuditEntity = z.object({
-    id: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the completion audit event (UUID)'
-    }),
-    timestamp: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The timestamp of the completion audit event'
-    }),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The workspace that the completion audit event is associated with'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The environment that the completion audit event is associated with'
-    }),
-    connectionId: z.optional(z.union([
-        z.uuid(),
-        z.null()
-    ])),
-    type: zCompletionAuditType,
-    statusCode: z.number().register(z.globalRegistry, {
-        description: 'The status code of the completion audit event'
-    }),
-    duration: z.number().register(z.globalRegistry, {
-        description: 'The duration of the completion audit event in milliseconds'
-    }),
-    requestId: z.uuid().register(z.globalRegistry, {
-        description: 'The request ID of the completion audit event'
-    }),
-    events: z.optional(z.union([
-        z.array(z.record(z.string(), z.unknown())),
-        z.null()
-    ])),
-    batchId: z.optional(z.union([
-        z.uuid(),
-        z.null()
-    ])),
-    correlationId: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    resourceId: z.optional(z.union([
-        z.uuid(),
-        z.null()
-    ])),
-    provider: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    model: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    sourceIp: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    errorMessage: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    failureReason: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    apiKeyId: z.optional(z.union([
-        z.uuid(),
-        z.null()
-    ])),
-    userId: z.optional(z.union([
-        z.uuid(),
-        z.null()
-    ])),
-    requestPayload: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ])),
-    responseData: z.optional(z.union([
-        z.array(z.record(z.string(), z.unknown())),
-        z.null()
-    ])),
-    responseHeaders: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ]))
+  id: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the completion audit event (UUID)',
+  }),
+  timestamp: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The timestamp of the completion audit event',
+  }),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description:
+      'The workspace that the completion audit event is associated with',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description:
+      'The environment that the completion audit event is associated with',
+  }),
+  connectionId: z.optional(z.union([z.uuid(), z.null()])),
+  type: zCompletionAuditType,
+  statusCode: z.number().register(z.globalRegistry, {
+    description: 'The status code of the completion audit event',
+  }),
+  duration: z.number().register(z.globalRegistry, {
+    description: 'The duration of the completion audit event in milliseconds',
+  }),
+  requestId: z.uuid().register(z.globalRegistry, {
+    description: 'The request ID of the completion audit event',
+  }),
+  events: z.optional(
+    z.union([z.array(z.record(z.string(), z.unknown())), z.null()])
+  ),
+  batchId: z.optional(z.union([z.uuid(), z.null()])),
+  correlationId: z.optional(z.union([z.string(), z.null()])),
+  resourceId: z.optional(z.union([z.uuid(), z.null()])),
+  provider: z.optional(z.union([z.string(), z.null()])),
+  model: z.optional(z.union([z.string(), z.null()])),
+  sourceIp: z.optional(z.union([z.string(), z.null()])),
+  errorMessage: z.optional(z.union([z.string(), z.null()])),
+  failureReason: z.optional(z.union([z.string(), z.null()])),
+  apiKeyId: z.optional(z.union([z.uuid(), z.null()])),
+  userId: z.optional(z.union([z.uuid(), z.null()])),
+  requestPayload: z.optional(
+    z.union([z.record(z.string(), z.unknown()), z.null()])
+  ),
+  responseData: z.optional(
+    z.union([z.array(z.record(z.string(), z.unknown())), z.null()])
+  ),
+  responseHeaders: z.optional(
+    z.union([z.record(z.string(), z.unknown()), z.null()])
+  ),
 });
 
-export type CompletionAuditEntityZodType = z.infer<typeof zCompletionAuditEntity>;
+export type CompletionAuditEntityZodType = z.infer<
+  typeof zCompletionAuditEntity
+>;
 
 export const zListAuditResponseDto = z.object({
-    total: z.number().register(z.globalRegistry, {
-        description: 'The total number of items'
-    }),
-    pageIndex: z.number().register(z.globalRegistry, {
-        description: 'The page number'
-    }),
-    pageSize: z.number().register(z.globalRegistry, {
-        description: 'The page size'
-    }),
-    data: z.array(zCompletionAuditEntity).register(z.globalRegistry, {
-        description: 'The data'
-    })
+  total: z.number().register(z.globalRegistry, {
+    description: 'The total number of items',
+  }),
+  pageIndex: z.number().register(z.globalRegistry, {
+    description: 'The page number',
+  }),
+  pageSize: z.number().register(z.globalRegistry, {
+    description: 'The page size',
+  }),
+  data: z.array(zCompletionAuditEntity).register(z.globalRegistry, {
+    description: 'The data',
+  }),
 });
 
 export type ListAuditResponseDtoZodType = z.infer<typeof zListAuditResponseDto>;
@@ -1766,38 +1577,32 @@ export type ListAuditResponseDtoZodType = z.infer<typeof zListAuditResponseDto>;
 /**
  * Operator for the filter
  */
-export const zCompletionUsageDimensionOperator = z.enum([
-    'eq',
-    'neq',
-    'in',
-    'nin',
-    'gt',
-    'gte',
-    'lt',
-    'lte',
-    'is_not'
-]).register(z.globalRegistry, {
-    description: 'Operator for the filter'
-});
+export const zCompletionUsageDimensionOperator = z
+  .enum(['eq', 'neq', 'in', 'nin', 'gt', 'gte', 'lt', 'lte', 'is_not'])
+  .register(z.globalRegistry, {
+    description: 'Operator for the filter',
+  });
 
-export type CompletionUsageDimensionOperatorZodType = z.infer<typeof zCompletionUsageDimensionOperator>;
+export type CompletionUsageDimensionOperatorZodType = z.infer<
+  typeof zCompletionUsageDimensionOperator
+>;
 
 export const zCompletionUsageDimensionFilterDto = z.object({
-    operator: zCompletionUsageDimensionOperator,
-    value: z.optional(z.union([
-        z.string(),
-        z.array(z.string()),
-        z.unknown(),
-        z.null()
-    ]))
+  operator: zCompletionUsageDimensionOperator,
+  value: z.optional(
+    z.union([z.string(), z.array(z.string()), z.unknown(), z.null()])
+  ),
 });
 
-export type CompletionUsageDimensionFilterDtoZodType = z.infer<typeof zCompletionUsageDimensionFilterDto>;
+export type CompletionUsageDimensionFilterDtoZodType = z.infer<
+  typeof zCompletionUsageDimensionFilterDto
+>;
 
 /**
  * Granularity unit for aggregation (time bucket size)
  */
-export const zGranularityUnit = z.enum([
+export const zGranularityUnit = z
+  .enum([
     'second',
     'second_5',
     'second_10',
@@ -1808,17 +1613,19 @@ export const zGranularityUnit = z.enum([
     'day',
     'week',
     'month',
-    'year'
-]).register(z.globalRegistry, {
-    description: 'Granularity unit for aggregation (time bucket size)'
-});
+    'year',
+  ])
+  .register(z.globalRegistry, {
+    description: 'Granularity unit for aggregation (time bucket size)',
+  });
 
 export type GranularityUnitZodType = z.infer<typeof zGranularityUnit>;
 
 /**
  * Dimensions to group results by
  */
-export const zCompletionDimensions = z.enum([
+export const zCompletionDimensions = z
+  .enum([
     'workspaceId',
     'environmentId',
     'connectionId',
@@ -1832,715 +1639,542 @@ export const zCompletionDimensions = z.enum([
     'correlationId',
     'apiKeyId',
     'sourceIp',
-    'userId'
-]).register(z.globalRegistry, {
-    description: 'Dimensions to group results by'
-});
+    'userId',
+  ])
+  .register(z.globalRegistry, {
+    description: 'Dimensions to group results by',
+  });
 
 export type CompletionDimensionsZodType = z.infer<typeof zCompletionDimensions>;
 
 export const zCompletionUsageQueryDateRangeDto = z.object({
-    start: z.iso.datetime().register(z.globalRegistry, {
-        description: 'Start date (inclusive) of the date range for the query'
-    }),
-    end: z.iso.datetime().register(z.globalRegistry, {
-        description: 'End date (exclusive) of the date range for the query'
-    })
+  start: z.iso.datetime().register(z.globalRegistry, {
+    description: 'Start date (inclusive) of the date range for the query',
+  }),
+  end: z.iso.datetime().register(z.globalRegistry, {
+    description: 'End date (exclusive) of the date range for the query',
+  }),
 });
 
-export type CompletionUsageQueryDateRangeDtoZodType = z.infer<typeof zCompletionUsageQueryDateRangeDto>;
+export type CompletionUsageQueryDateRangeDtoZodType = z.infer<
+  typeof zCompletionUsageQueryDateRangeDto
+>;
 
 export const zCompletionUsageQueryFilterDto = z.object({
-    dateRange: zCompletionUsageQueryDateRangeDto,
-    fields: z.object({
-        time: z.optional(zCompletionUsageDimensionFilterDto),
-        workspaceId: z.optional(zCompletionUsageDimensionFilterDto),
-        environmentId: z.optional(zCompletionUsageDimensionFilterDto),
-        connectionId: z.optional(zCompletionUsageDimensionFilterDto),
-        resourceId: z.optional(zCompletionUsageDimensionFilterDto),
-        provider: z.optional(zCompletionUsageDimensionFilterDto),
-        model: z.optional(zCompletionUsageDimensionFilterDto),
-        requestId: z.optional(zCompletionUsageDimensionFilterDto),
-        messageId: z.optional(zCompletionUsageDimensionFilterDto),
-        failureReason: z.optional(zCompletionUsageDimensionFilterDto),
-        statusCode: z.optional(zCompletionUsageDimensionFilterDto),
-        correlationId: z.optional(zCompletionUsageDimensionFilterDto),
-        apiKeyId: z.optional(zCompletionUsageDimensionFilterDto),
-        sourceIp: z.optional(zCompletionUsageDimensionFilterDto),
-        userId: z.optional(zCompletionUsageDimensionFilterDto),
-        promptTokens: z.optional(zCompletionUsageDimensionFilterDto),
-        completionTokens: z.optional(zCompletionUsageDimensionFilterDto),
-        totalTokens: z.optional(zCompletionUsageDimensionFilterDto),
-        tokensPerSecond: z.optional(zCompletionUsageDimensionFilterDto),
-        timeToFirstToken: z.optional(zCompletionUsageDimensionFilterDto),
-        requestCount: z.optional(zCompletionUsageDimensionFilterDto),
-        errorCount: z.optional(zCompletionUsageDimensionFilterDto),
-        successCount: z.optional(zCompletionUsageDimensionFilterDto),
-        requestDuration: z.optional(zCompletionUsageDimensionFilterDto),
-        providerDuration: z.optional(zCompletionUsageDimensionFilterDto),
-        gateDuration: z.optional(zCompletionUsageDimensionFilterDto),
-        routingDuration: z.optional(zCompletionUsageDimensionFilterDto)
-    }).register(z.globalRegistry, {
-        description: 'Dimensions and their filters'
+  dateRange: zCompletionUsageQueryDateRangeDto,
+  fields: z
+    .object({
+      time: z.optional(zCompletionUsageDimensionFilterDto),
+      workspaceId: z.optional(zCompletionUsageDimensionFilterDto),
+      environmentId: z.optional(zCompletionUsageDimensionFilterDto),
+      connectionId: z.optional(zCompletionUsageDimensionFilterDto),
+      resourceId: z.optional(zCompletionUsageDimensionFilterDto),
+      provider: z.optional(zCompletionUsageDimensionFilterDto),
+      model: z.optional(zCompletionUsageDimensionFilterDto),
+      requestId: z.optional(zCompletionUsageDimensionFilterDto),
+      messageId: z.optional(zCompletionUsageDimensionFilterDto),
+      failureReason: z.optional(zCompletionUsageDimensionFilterDto),
+      statusCode: z.optional(zCompletionUsageDimensionFilterDto),
+      correlationId: z.optional(zCompletionUsageDimensionFilterDto),
+      apiKeyId: z.optional(zCompletionUsageDimensionFilterDto),
+      sourceIp: z.optional(zCompletionUsageDimensionFilterDto),
+      userId: z.optional(zCompletionUsageDimensionFilterDto),
+      promptTokens: z.optional(zCompletionUsageDimensionFilterDto),
+      completionTokens: z.optional(zCompletionUsageDimensionFilterDto),
+      totalTokens: z.optional(zCompletionUsageDimensionFilterDto),
+      tokensPerSecond: z.optional(zCompletionUsageDimensionFilterDto),
+      timeToFirstToken: z.optional(zCompletionUsageDimensionFilterDto),
+      requestCount: z.optional(zCompletionUsageDimensionFilterDto),
+      errorCount: z.optional(zCompletionUsageDimensionFilterDto),
+      successCount: z.optional(zCompletionUsageDimensionFilterDto),
+      requestDuration: z.optional(zCompletionUsageDimensionFilterDto),
+      providerDuration: z.optional(zCompletionUsageDimensionFilterDto),
+      gateDuration: z.optional(zCompletionUsageDimensionFilterDto),
+      routingDuration: z.optional(zCompletionUsageDimensionFilterDto),
     })
+    .register(z.globalRegistry, {
+      description: 'Dimensions and their filters',
+    }),
 });
 
-export type CompletionUsageQueryFilterDtoZodType = z.infer<typeof zCompletionUsageQueryFilterDto>;
+export type CompletionUsageQueryFilterDtoZodType = z.infer<
+  typeof zCompletionUsageQueryFilterDto
+>;
 
 export const zCompletionUsageQueryDto = z.object({
-    granularity: z.optional(z.union([
-        zGranularityUnit,
-        z.null()
-    ])),
-    timeZone: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    agg: z.object({
-        promptTokens: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        completionTokens: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        totalTokens: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        tokensPerSecond: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        timeToFirstToken: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        requestCount: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        errorCount: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        successCount: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        requestDuration: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        providerDuration: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        gateDuration: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ])),
-        routingDuration: z.optional(z.enum([
-            'sum',
-            'avg',
-            'min',
-            'max',
-            'p99',
-            'p95',
-            'p90'
-        ]))
-    }).register(z.globalRegistry, {
-        description: 'Metrics and their aggregation types'
+  granularity: z.optional(z.union([zGranularityUnit, z.null()])),
+  timeZone: z.optional(z.union([z.string(), z.null()])),
+  agg: z
+    .object({
+      promptTokens: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      completionTokens: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      totalTokens: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      tokensPerSecond: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      timeToFirstToken: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      requestCount: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      errorCount: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      successCount: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      requestDuration: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      providerDuration: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      gateDuration: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+      routingDuration: z.optional(
+        z.enum(['sum', 'avg', 'min', 'max', 'p99', 'p95', 'p90'])
+      ),
+    })
+    .register(z.globalRegistry, {
+      description: 'Metrics and their aggregation types',
     }),
-    dimensions: z.array(zCompletionDimensions).register(z.globalRegistry, {
-        description: 'Dimensions to group results by'
-    }),
-    limit: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    filter: zCompletionUsageQueryFilterDto,
-    orderBy: z.optional(z.union([
-        z.object({
-            time: z.optional(z.enum(['asc', 'desc'])),
-            workspaceId: z.optional(z.enum(['asc', 'desc'])),
-            environmentId: z.optional(z.enum(['asc', 'desc'])),
-            connectionId: z.optional(z.enum(['asc', 'desc'])),
-            resourceId: z.optional(z.enum(['asc', 'desc'])),
-            provider: z.optional(z.enum(['asc', 'desc'])),
-            model: z.optional(z.enum(['asc', 'desc'])),
-            requestId: z.optional(z.enum(['asc', 'desc'])),
-            messageId: z.optional(z.enum(['asc', 'desc'])),
-            failureReason: z.optional(z.enum(['asc', 'desc'])),
-            statusCode: z.optional(z.enum(['asc', 'desc'])),
-            correlationId: z.optional(z.enum(['asc', 'desc'])),
-            apiKeyId: z.optional(z.enum(['asc', 'desc'])),
-            sourceIp: z.optional(z.enum(['asc', 'desc'])),
-            userId: z.optional(z.enum(['asc', 'desc'])),
-            promptTokens: z.optional(z.enum(['asc', 'desc'])),
-            completionTokens: z.optional(z.enum(['asc', 'desc'])),
-            totalTokens: z.optional(z.enum(['asc', 'desc'])),
-            tokensPerSecond: z.optional(z.enum(['asc', 'desc'])),
-            timeToFirstToken: z.optional(z.enum(['asc', 'desc'])),
-            requestCount: z.optional(z.enum(['asc', 'desc'])),
-            errorCount: z.optional(z.enum(['asc', 'desc'])),
-            successCount: z.optional(z.enum(['asc', 'desc'])),
-            requestDuration: z.optional(z.enum(['asc', 'desc'])),
-            providerDuration: z.optional(z.enum(['asc', 'desc'])),
-            gateDuration: z.optional(z.enum(['asc', 'desc'])),
-            routingDuration: z.optional(z.enum(['asc', 'desc']))
-        }),
-        z.null()
-    ]))
+  dimensions: z.array(zCompletionDimensions).register(z.globalRegistry, {
+    description: 'Dimensions to group results by',
+  }),
+  limit: z.optional(z.union([z.number(), z.null()])),
+  filter: zCompletionUsageQueryFilterDto,
+  orderBy: z.optional(
+    z.union([
+      z.object({
+        time: z.optional(z.enum(['asc', 'desc'])),
+        workspaceId: z.optional(z.enum(['asc', 'desc'])),
+        environmentId: z.optional(z.enum(['asc', 'desc'])),
+        connectionId: z.optional(z.enum(['asc', 'desc'])),
+        resourceId: z.optional(z.enum(['asc', 'desc'])),
+        provider: z.optional(z.enum(['asc', 'desc'])),
+        model: z.optional(z.enum(['asc', 'desc'])),
+        requestId: z.optional(z.enum(['asc', 'desc'])),
+        messageId: z.optional(z.enum(['asc', 'desc'])),
+        failureReason: z.optional(z.enum(['asc', 'desc'])),
+        statusCode: z.optional(z.enum(['asc', 'desc'])),
+        correlationId: z.optional(z.enum(['asc', 'desc'])),
+        apiKeyId: z.optional(z.enum(['asc', 'desc'])),
+        sourceIp: z.optional(z.enum(['asc', 'desc'])),
+        userId: z.optional(z.enum(['asc', 'desc'])),
+        promptTokens: z.optional(z.enum(['asc', 'desc'])),
+        completionTokens: z.optional(z.enum(['asc', 'desc'])),
+        totalTokens: z.optional(z.enum(['asc', 'desc'])),
+        tokensPerSecond: z.optional(z.enum(['asc', 'desc'])),
+        timeToFirstToken: z.optional(z.enum(['asc', 'desc'])),
+        requestCount: z.optional(z.enum(['asc', 'desc'])),
+        errorCount: z.optional(z.enum(['asc', 'desc'])),
+        successCount: z.optional(z.enum(['asc', 'desc'])),
+        requestDuration: z.optional(z.enum(['asc', 'desc'])),
+        providerDuration: z.optional(z.enum(['asc', 'desc'])),
+        gateDuration: z.optional(z.enum(['asc', 'desc'])),
+        routingDuration: z.optional(z.enum(['asc', 'desc'])),
+      }),
+      z.null(),
+    ])
+  ),
 });
 
-export type CompletionUsageQueryDtoZodType = z.infer<typeof zCompletionUsageQueryDto>;
+export type CompletionUsageQueryDtoZodType = z.infer<
+  typeof zCompletionUsageQueryDto
+>;
 
 export const zCompletionUsageDimensionValueDto = z.object({
-    value: z.string().register(z.globalRegistry, {
-        description: 'Dimension value'
-    }),
-    label: z.string().register(z.globalRegistry, {
-        description: 'Dimension label'
-    }),
-    displayName: z.string().register(z.globalRegistry, {
-        description: 'Display name of the dimension'
-    })
+  value: z.string().register(z.globalRegistry, {
+    description: 'Dimension value',
+  }),
+  label: z.string().register(z.globalRegistry, {
+    description: 'Dimension label',
+  }),
+  displayName: z.string().register(z.globalRegistry, {
+    description: 'Display name of the dimension',
+  }),
 });
 
-export type CompletionUsageDimensionValueDtoZodType = z.infer<typeof zCompletionUsageDimensionValueDto>;
+export type CompletionUsageDimensionValueDtoZodType = z.infer<
+  typeof zCompletionUsageDimensionValueDto
+>;
 
 export const zCompletionUsageQueryResultDto = z.object({
-    time: z.string().register(z.globalRegistry, {
-        description: 'Time bucket truncated to the granularity unit'
-    }),
-    promptTokens: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    completionTokens: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    totalTokens: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    tokensPerSecond: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    timeToFirstToken: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    requestCount: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    errorCount: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    successCount: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    requestDuration: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    providerDuration: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    gateDuration: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    routingDuration: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    model: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    requestId: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    messageId: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    failureReason: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    statusCode: z.optional(z.union([
-        z.number(),
-        z.null()
-    ])),
-    correlationId: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    sourceIp: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    workspaceId: z.optional(z.union([
-        zCompletionUsageDimensionValueDto,
-        z.null()
-    ])),
-    environmentId: z.optional(z.union([
-        zCompletionUsageDimensionValueDto,
-        z.null()
-    ])),
-    connectionId: z.optional(z.union([
-        zCompletionUsageDimensionValueDto,
-        z.null()
-    ])),
-    resourceId: z.optional(z.union([
-        zCompletionUsageDimensionValueDto,
-        z.null()
-    ])),
-    provider: z.optional(z.union([
-        zCompletionUsageDimensionValueDto,
-        z.null()
-    ])),
-    apiKeyId: z.optional(z.union([
-        zCompletionUsageDimensionValueDto,
-        z.null()
-    ])),
-    userId: z.optional(z.union([
-        zCompletionUsageDimensionValueDto,
-        z.null()
-    ]))
+  time: z.string().register(z.globalRegistry, {
+    description: 'Time bucket truncated to the granularity unit',
+  }),
+  promptTokens: z.optional(z.union([z.number(), z.null()])),
+  completionTokens: z.optional(z.union([z.number(), z.null()])),
+  totalTokens: z.optional(z.union([z.number(), z.null()])),
+  tokensPerSecond: z.optional(z.union([z.number(), z.null()])),
+  timeToFirstToken: z.optional(z.union([z.number(), z.null()])),
+  requestCount: z.optional(z.union([z.number(), z.null()])),
+  errorCount: z.optional(z.union([z.number(), z.null()])),
+  successCount: z.optional(z.union([z.number(), z.null()])),
+  requestDuration: z.optional(z.union([z.number(), z.null()])),
+  providerDuration: z.optional(z.union([z.number(), z.null()])),
+  gateDuration: z.optional(z.union([z.number(), z.null()])),
+  routingDuration: z.optional(z.union([z.number(), z.null()])),
+  model: z.optional(z.union([z.string(), z.null()])),
+  requestId: z.optional(z.union([z.string(), z.null()])),
+  messageId: z.optional(z.union([z.string(), z.null()])),
+  failureReason: z.optional(z.union([z.string(), z.null()])),
+  statusCode: z.optional(z.union([z.number(), z.null()])),
+  correlationId: z.optional(z.union([z.string(), z.null()])),
+  sourceIp: z.optional(z.union([z.string(), z.null()])),
+  workspaceId: z.optional(
+    z.union([zCompletionUsageDimensionValueDto, z.null()])
+  ),
+  environmentId: z.optional(
+    z.union([zCompletionUsageDimensionValueDto, z.null()])
+  ),
+  connectionId: z.optional(
+    z.union([zCompletionUsageDimensionValueDto, z.null()])
+  ),
+  resourceId: z.optional(
+    z.union([zCompletionUsageDimensionValueDto, z.null()])
+  ),
+  provider: z.optional(z.union([zCompletionUsageDimensionValueDto, z.null()])),
+  apiKeyId: z.optional(z.union([zCompletionUsageDimensionValueDto, z.null()])),
+  userId: z.optional(z.union([zCompletionUsageDimensionValueDto, z.null()])),
 });
 
-export type CompletionUsageQueryResultDtoZodType = z.infer<typeof zCompletionUsageQueryResultDto>;
+export type CompletionUsageQueryResultDtoZodType = z.infer<
+  typeof zCompletionUsageQueryResultDto
+>;
 
 export const zCreateCompletionBatchItemDto = z.object({
-    resourceId: z.uuid().register(z.globalRegistry, {
-        description: 'The name of the resource this item references'
-    }),
-    request: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-        description: 'The completion request payload (openai chat completion request payload)'
-    })
+  resourceId: z.uuid().register(z.globalRegistry, {
+    description: 'The name of the resource this item references',
+  }),
+  request: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
+    description:
+      'The completion request payload (openai chat completion request payload)',
+  }),
 });
 
-export type CreateCompletionBatchItemDtoZodType = z.infer<typeof zCreateCompletionBatchItemDto>;
+export type CreateCompletionBatchItemDtoZodType = z.infer<
+  typeof zCreateCompletionBatchItemDto
+>;
 
 /**
  * The type of the batch request
  */
-export const zCompletionBatchRequestType = z.enum(['SYNC', 'ASYNC']).register(z.globalRegistry, {
-    description: 'The type of the batch request'
-});
+export const zCompletionBatchRequestType = z
+  .enum(['SYNC', 'ASYNC'])
+  .register(z.globalRegistry, {
+    description: 'The type of the batch request',
+  });
 
-export type CompletionBatchRequestTypeZodType = z.infer<typeof zCompletionBatchRequestType>;
+export type CompletionBatchRequestTypeZodType = z.infer<
+  typeof zCompletionBatchRequestType
+>;
 
 export const zCreateCompletionBatchDto = z.object({
-    capacity: z.array(zCapacityEntity).register(z.globalRegistry, {
-        description: 'The capacities of the batch request'
-    }),
-    items: z.array(zCreateCompletionBatchItemDto).register(z.globalRegistry, {
-        description: 'The items to create in the batch'
-    }),
-    type: zCompletionBatchRequestType
+  capacity: z.array(zCapacityEntity).register(z.globalRegistry, {
+    description: 'The capacities of the batch request',
+  }),
+  items: z.array(zCreateCompletionBatchItemDto).register(z.globalRegistry, {
+    description: 'The items to create in the batch',
+  }),
+  type: zCompletionBatchRequestType,
 });
 
-export type CreateCompletionBatchDtoZodType = z.infer<typeof zCreateCompletionBatchDto>;
+export type CreateCompletionBatchDtoZodType = z.infer<
+  typeof zCreateCompletionBatchDto
+>;
 
 /**
  * The events to send the callback for
  */
-export const zCompletionBatchCallbackEvent = z.enum([
-    'batch_update',
-    'item_update',
-    'all'
-]).register(z.globalRegistry, {
-    description: 'The events to send the callback for'
-});
+export const zCompletionBatchCallbackEvent = z
+  .enum(['batch_update', 'item_update', 'all'])
+  .register(z.globalRegistry, {
+    description: 'The events to send the callback for',
+  });
 
-export type CompletionBatchCallbackEventZodType = z.infer<typeof zCompletionBatchCallbackEvent>;
+export type CompletionBatchCallbackEventZodType = z.infer<
+  typeof zCompletionBatchCallbackEvent
+>;
 
 export const zCompletionBatchCallbackOptionsDto = z.object({
-    url: z.string().register(z.globalRegistry, {
-        description: 'The URL to send the callback to'
-    }),
-    headers: z.optional(z.union([
-        z.record(z.string(), z.string()),
-        z.null()
-    ])),
-    events: zCompletionBatchCallbackEvent
+  url: z.string().register(z.globalRegistry, {
+    description: 'The URL to send the callback to',
+  }),
+  headers: z.optional(z.union([z.record(z.string(), z.string()), z.null()])),
+  events: zCompletionBatchCallbackEvent,
 });
 
-export type CompletionBatchCallbackOptionsDtoZodType = z.infer<typeof zCompletionBatchCallbackOptionsDto>;
+export type CompletionBatchCallbackOptionsDtoZodType = z.infer<
+  typeof zCompletionBatchCallbackOptionsDto
+>;
 
 export const zCreateCompletionCallbackBatchDto = z.object({
-    capacity: z.array(zCapacityEntity).register(z.globalRegistry, {
-        description: 'The capacities of the batch request'
-    }),
-    items: z.array(zCreateCompletionBatchItemDto).register(z.globalRegistry, {
-        description: 'The items to create in the batch'
-    }),
-    type: zCompletionBatchRequestType,
-    callbackOptions: zCompletionBatchCallbackOptionsDto
+  capacity: z.array(zCapacityEntity).register(z.globalRegistry, {
+    description: 'The capacities of the batch request',
+  }),
+  items: z.array(zCreateCompletionBatchItemDto).register(z.globalRegistry, {
+    description: 'The items to create in the batch',
+  }),
+  type: zCompletionBatchRequestType,
+  callbackOptions: zCompletionBatchCallbackOptionsDto,
 });
 
-export type CreateCompletionCallbackBatchDtoZodType = z.infer<typeof zCreateCompletionCallbackBatchDto>;
+export type CreateCompletionCallbackBatchDtoZodType = z.infer<
+  typeof zCreateCompletionCallbackBatchDto
+>;
 
 /**
  * The status of the batch request
  */
-export const zCompletionBatchRequestStatus = z.enum([
-    'CANCELLED',
-    'COMPLETED',
-    'FAILED',
-    'PENDING',
-    'RUNNING'
-]).register(z.globalRegistry, {
-    description: 'The status of the batch request'
-});
+export const zCompletionBatchRequestStatus = z
+  .enum(['CANCELLED', 'COMPLETED', 'FAILED', 'PENDING', 'RUNNING'])
+  .register(z.globalRegistry, {
+    description: 'The status of the batch request',
+  });
 
-export type CompletionBatchRequestStatusZodType = z.infer<typeof zCompletionBatchRequestStatus>;
+export type CompletionBatchRequestStatusZodType = z.infer<
+  typeof zCompletionBatchRequestStatus
+>;
 
 export const zApiKeyRelationDto = z.object({
-    createdBy: z.string().register(z.globalRegistry, {
-        description: 'The user who created the entity'
-    }),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    updatedBy: z.string().register(z.globalRegistry, {
-        description: 'The user who last updated the entity'
-    }),
-    updatedByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    apiKeyId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the API key (UUID)'
-    }),
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The workspace that the API key is associated with'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The environment that the API key is associated with'
-    }),
-    name: z.string().register(z.globalRegistry, {
-        description: 'The name of the API key'
-    }),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    enabled: z.boolean().register(z.globalRegistry, {
-        description: 'Whether the API key is enabled'
-    }),
-    resources: z.array(z.string()).register(z.globalRegistry, {
-        description: 'The resources that the API key is associated with'
-    }),
-    labels: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    enforceCapacity: z.boolean().register(z.globalRegistry, {
-        description: 'Whether capacity is enforced for requests to the API key'
-    }),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    maskedKey: z.string().register(z.globalRegistry, {
-        description: 'The masked key of the API key'
-    }),
-    createdAt: z.string().register(z.globalRegistry, {
-        description: 'The date and time the API key was created'
-    }),
-    updatedAt: z.string().register(z.globalRegistry, {
-        description: 'The date and time the API key was last updated'
-    })
+  createdBy: z.string().register(z.globalRegistry, {
+    description: 'The user who created the entity',
+  }),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  updatedBy: z.string().register(z.globalRegistry, {
+    description: 'The user who last updated the entity',
+  }),
+  updatedByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  apiKeyId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the API key (UUID)',
+  }),
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The workspace that the API key is associated with',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The environment that the API key is associated with',
+  }),
+  name: z.string().register(z.globalRegistry, {
+    description: 'The name of the API key',
+  }),
+  description: z.optional(z.union([z.string(), z.null()])),
+  enabled: z.boolean().register(z.globalRegistry, {
+    description: 'Whether the API key is enabled',
+  }),
+  resources: z.array(z.string()).register(z.globalRegistry, {
+    description: 'The resources that the API key is associated with',
+  }),
+  labels: z.optional(z.union([z.array(z.string()), z.null()])),
+  enforceCapacity: z.boolean().register(z.globalRegistry, {
+    description: 'Whether capacity is enforced for requests to the API key',
+  }),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  maskedKey: z.string().register(z.globalRegistry, {
+    description: 'The masked key of the API key',
+  }),
+  createdAt: z.string().register(z.globalRegistry, {
+    description: 'The date and time the API key was created',
+  }),
+  updatedAt: z.string().register(z.globalRegistry, {
+    description: 'The date and time the API key was last updated',
+  }),
 });
 
 export type ApiKeyRelationDtoZodType = z.infer<typeof zApiKeyRelationDto>;
 
 export const zCompletionBatchItemRelationDto = z.object({
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the workspace (UUID)'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the environment (UUID)'
-    }),
-    batchId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the batch (UUID)'
-    }),
-    itemId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the batch item (UUID)'
-    }),
-    resourceId: z.uuid().register(z.globalRegistry, {
-        description: 'The name of the resource this item references'
-    }),
-    status: zCompletionBatchRequestStatus,
-    request: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-        description: 'The completion request payload (openai chat completion request payload)'
-    }),
-    response: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ])),
-    estimatedPromptTokens: z.number().register(z.globalRegistry, {
-        description: 'The estimated number of prompt tokens for the batch item'
-    }),
-    completionTokens: z.number().register(z.globalRegistry, {
-        description: 'Number of completion tokens used'
-    }),
-    promptTokens: z.number().register(z.globalRegistry, {
-        description: 'Number of prompt tokens used'
-    }),
-    totalTokens: z.number().register(z.globalRegistry, {
-        description: 'Total number of tokens used'
-    }),
-    errorMessage: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    retryCount: z.number().register(z.globalRegistry, {
-        description: 'The number of times this item has been retried'
-    }),
-    createdAt: z.string().register(z.globalRegistry, {
-        description: 'The date and time the batch item was created'
-    }),
-    completedAt: z.optional(z.union([
-        z.iso.datetime(),
-        z.null()
-    ]))
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the workspace (UUID)',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the environment (UUID)',
+  }),
+  batchId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the batch (UUID)',
+  }),
+  itemId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the batch item (UUID)',
+  }),
+  resourceId: z.uuid().register(z.globalRegistry, {
+    description: 'The name of the resource this item references',
+  }),
+  status: zCompletionBatchRequestStatus,
+  request: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
+    description:
+      'The completion request payload (openai chat completion request payload)',
+  }),
+  response: z.optional(z.union([z.record(z.string(), z.unknown()), z.null()])),
+  estimatedPromptTokens: z.number().register(z.globalRegistry, {
+    description: 'The estimated number of prompt tokens for the batch item',
+  }),
+  completionTokens: z.number().register(z.globalRegistry, {
+    description: 'Number of completion tokens used',
+  }),
+  promptTokens: z.number().register(z.globalRegistry, {
+    description: 'Number of prompt tokens used',
+  }),
+  totalTokens: z.number().register(z.globalRegistry, {
+    description: 'Total number of tokens used',
+  }),
+  errorMessage: z.optional(z.union([z.string(), z.null()])),
+  retryCount: z.number().register(z.globalRegistry, {
+    description: 'The number of times this item has been retried',
+  }),
+  createdAt: z.string().register(z.globalRegistry, {
+    description: 'The date and time the batch item was created',
+  }),
+  completedAt: z.optional(z.union([z.iso.datetime(), z.null()])),
 });
 
-export type CompletionBatchItemRelationDtoZodType = z.infer<typeof zCompletionBatchItemRelationDto>;
+export type CompletionBatchItemRelationDtoZodType = z.infer<
+  typeof zCompletionBatchItemRelationDto
+>;
 
 export const zCompletionBatchDto = z.object({
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the workspace (UUID)'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the environment (UUID)'
-    }),
-    timestamp: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The timestamp of the batch request'
-    }),
-    batchId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the batch request (UUID)'
-    }),
-    type: zCompletionBatchRequestType,
-    callbackOptions: z.optional(z.union([
-        zCompletionBatchCallbackOptionsDto,
-        z.null()
-    ])),
-    capacity: z.optional(z.union([
-        z.array(zCapacityEntity),
-        z.null()
-    ])),
-    completed: z.number().register(z.globalRegistry, {
-        description: 'The number of completed items in the batch request'
-    }),
-    completedAt: z.optional(z.union([
-        z.iso.datetime(),
-        z.null()
-    ])),
-    failed: z.number().register(z.globalRegistry, {
-        description: 'The number of failed items in the batch request'
-    }),
-    pending: z.number().register(z.globalRegistry, {
-        description: 'The number of pending items in the batch request'
-    }),
-    running: z.number().register(z.globalRegistry, {
-        description: 'The number of running items in the batch request'
-    }),
-    status: zCompletionBatchRequestStatus,
-    totalEstimatedPromptTokens: z.number().register(z.globalRegistry, {
-        description: 'The total estimated number of prompt tokens in the batch request'
-    }),
-    totalPromptTokens: z.number().register(z.globalRegistry, {
-        description: 'The total number of prompt tokens in the batch request'
-    }),
-    totalCompletionTokens: z.number().register(z.globalRegistry, {
-        description: 'The total number of completion tokens in the batch request'
-    }),
-    totalItems: z.number().register(z.globalRegistry, {
-        description: 'The total number of items in the batch request'
-    }),
-    errorMessage: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    updatedAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the batch request was last updated'
-    }),
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The date and time the batch request was created'
-    }),
-    createdByApiKeyId: z.optional(z.union([
-        z.uuid(),
-        z.null()
-    ])),
-    createdByApiKey: z.optional(z.union([
-        zApiKeyRelationDto,
-        z.null()
-    ])),
-    createdByUserId: z.optional(z.union([
-        z.uuid(),
-        z.null()
-    ])),
-    createdByUser: z.optional(z.union([
-        zUserRelationDto,
-        z.null()
-    ])),
-    items: z.optional(z.union([
-        z.array(zCompletionBatchItemRelationDto),
-        z.null()
-    ])),
-    completedPercentage: z.optional(z.union([
-        z.number(),
-        z.null()
-    ]))
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the workspace (UUID)',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the environment (UUID)',
+  }),
+  timestamp: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The timestamp of the batch request',
+  }),
+  batchId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the batch request (UUID)',
+  }),
+  type: zCompletionBatchRequestType,
+  callbackOptions: z.optional(
+    z.union([zCompletionBatchCallbackOptionsDto, z.null()])
+  ),
+  capacity: z.optional(z.union([z.array(zCapacityEntity), z.null()])),
+  completed: z.number().register(z.globalRegistry, {
+    description: 'The number of completed items in the batch request',
+  }),
+  completedAt: z.optional(z.union([z.iso.datetime(), z.null()])),
+  failed: z.number().register(z.globalRegistry, {
+    description: 'The number of failed items in the batch request',
+  }),
+  pending: z.number().register(z.globalRegistry, {
+    description: 'The number of pending items in the batch request',
+  }),
+  running: z.number().register(z.globalRegistry, {
+    description: 'The number of running items in the batch request',
+  }),
+  status: zCompletionBatchRequestStatus,
+  totalEstimatedPromptTokens: z.number().register(z.globalRegistry, {
+    description:
+      'The total estimated number of prompt tokens in the batch request',
+  }),
+  totalPromptTokens: z.number().register(z.globalRegistry, {
+    description: 'The total number of prompt tokens in the batch request',
+  }),
+  totalCompletionTokens: z.number().register(z.globalRegistry, {
+    description: 'The total number of completion tokens in the batch request',
+  }),
+  totalItems: z.number().register(z.globalRegistry, {
+    description: 'The total number of items in the batch request',
+  }),
+  errorMessage: z.optional(z.union([z.string(), z.null()])),
+  updatedAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the batch request was last updated',
+  }),
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The date and time the batch request was created',
+  }),
+  createdByApiKeyId: z.optional(z.union([z.uuid(), z.null()])),
+  createdByApiKey: z.optional(z.union([zApiKeyRelationDto, z.null()])),
+  createdByUserId: z.optional(z.union([z.uuid(), z.null()])),
+  createdByUser: z.optional(z.union([zUserRelationDto, z.null()])),
+  items: z.optional(
+    z.union([z.array(zCompletionBatchItemRelationDto), z.null()])
+  ),
+  completedPercentage: z.optional(z.union([z.number(), z.null()])),
 });
 
 export type CompletionBatchDtoZodType = z.infer<typeof zCompletionBatchDto>;
 
 export const zCompletionBatchItemEntity = z.object({
-    workspaceId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the workspace (UUID)'
-    }),
-    environmentId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the environment (UUID)'
-    }),
-    batchId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the batch (UUID)'
-    }),
-    itemId: z.uuid().register(z.globalRegistry, {
-        description: 'The unique identifier for the batch item (UUID)'
-    }),
-    resourceId: z.uuid().register(z.globalRegistry, {
-        description: 'The name of the resource this item references'
-    }),
-    status: zCompletionBatchRequestStatus,
-    request: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-        description: 'The completion request payload (openai chat completion request payload)'
-    }),
-    response: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ])),
-    completedAt: z.optional(z.union([
-        z.iso.datetime(),
-        z.null()
-    ])),
-    estimatedPromptTokens: z.number().register(z.globalRegistry, {
-        description: 'The estimated number of prompt tokens for the batch item'
-    }),
-    completionTokens: z.number().register(z.globalRegistry, {
-        description: 'Number of completion tokens used'
-    }),
-    promptTokens: z.number().register(z.globalRegistry, {
-        description: 'Number of prompt tokens used'
-    }),
-    totalTokens: z.number().register(z.globalRegistry, {
-        description: 'Total number of tokens used'
-    }),
-    errorMessage: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    retryCount: z.number().register(z.globalRegistry, {
-        description: 'The number of times this item has been retried'
-    }),
-    createdAt: z.iso.datetime().register(z.globalRegistry, {
-        description: 'The timestamp when the item was created'
-    })
+  workspaceId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the workspace (UUID)',
+  }),
+  environmentId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the environment (UUID)',
+  }),
+  batchId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the batch (UUID)',
+  }),
+  itemId: z.uuid().register(z.globalRegistry, {
+    description: 'The unique identifier for the batch item (UUID)',
+  }),
+  resourceId: z.uuid().register(z.globalRegistry, {
+    description: 'The name of the resource this item references',
+  }),
+  status: zCompletionBatchRequestStatus,
+  request: z.record(z.string(), z.unknown()).register(z.globalRegistry, {
+    description:
+      'The completion request payload (openai chat completion request payload)',
+  }),
+  response: z.optional(z.union([z.record(z.string(), z.unknown()), z.null()])),
+  completedAt: z.optional(z.union([z.iso.datetime(), z.null()])),
+  estimatedPromptTokens: z.number().register(z.globalRegistry, {
+    description: 'The estimated number of prompt tokens for the batch item',
+  }),
+  completionTokens: z.number().register(z.globalRegistry, {
+    description: 'Number of completion tokens used',
+  }),
+  promptTokens: z.number().register(z.globalRegistry, {
+    description: 'Number of prompt tokens used',
+  }),
+  totalTokens: z.number().register(z.globalRegistry, {
+    description: 'Total number of tokens used',
+  }),
+  errorMessage: z.optional(z.union([z.string(), z.null()])),
+  retryCount: z.number().register(z.globalRegistry, {
+    description: 'The number of times this item has been retried',
+  }),
+  createdAt: z.iso.datetime().register(z.globalRegistry, {
+    description: 'The timestamp when the item was created',
+  }),
 });
 
-export type CompletionBatchItemEntityZodType = z.infer<typeof zCompletionBatchItemEntity>;
+export type CompletionBatchItemEntityZodType = z.infer<
+  typeof zCompletionBatchItemEntity
+>;
 
 export const zHealthcheckControllerHealthcheckData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
-export type HealthcheckControllerHealthcheckDataZodType = z.infer<typeof zHealthcheckControllerHealthcheckData>;
+export type HealthcheckControllerHealthcheckDataZodType = z.infer<
+  typeof zHealthcheckControllerHealthcheckData
+>;
 
 /**
  * Healthcheck endpoint
  */
-export const zHealthcheckControllerHealthcheckResponse = zHealthcheckResponseDto;
+export const zHealthcheckControllerHealthcheckResponse =
+  zHealthcheckResponseDto;
 
-export type HealthcheckControllerHealthcheckResponseZodType = z.infer<typeof zHealthcheckControllerHealthcheckResponse>;
+export type HealthcheckControllerHealthcheckResponseZodType = z.infer<
+  typeof zHealthcheckControllerHealthcheckResponse
+>;
 
 export const zGetUsersData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
 export type GetUsersDataZodType = z.infer<typeof zGetUsersData>;
@@ -2548,16 +2182,18 @@ export type GetUsersDataZodType = z.infer<typeof zGetUsersData>;
 /**
  * List all users
  */
-export const zGetUsersResponse = z.array(zUserEntity).register(z.globalRegistry, {
-    description: 'List all users'
-});
+export const zGetUsersResponse = z
+  .array(zUserEntity)
+  .register(z.globalRegistry, {
+    description: 'List all users',
+  });
 
 export type GetUsersResponseZodType = z.infer<typeof zGetUsersResponse>;
 
 export const zCreateUserData = z.object({
-    body: zCreateUserDto,
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: zCreateUserDto,
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
 export type CreateUserDataZodType = z.infer<typeof zCreateUserData>;
@@ -2570,25 +2206,25 @@ export const zCreateUserResponse = zUserEntity;
 export type CreateUserResponseZodType = z.infer<typeof zCreateUserResponse>;
 
 export const zDeleteUserData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        userId: z.uuid().register(z.globalRegistry, {
-            description: 'The unique identifier of the user'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    userId: z.uuid().register(z.globalRegistry, {
+      description: 'The unique identifier of the user',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
 export type DeleteUserDataZodType = z.infer<typeof zDeleteUserData>;
 
 export const zGetUserByIdData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        userId: z.uuid().register(z.globalRegistry, {
-            description: 'The unique identifier of the user'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    userId: z.uuid().register(z.globalRegistry, {
+      description: 'The unique identifier of the user',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
 export type GetUserByIdDataZodType = z.infer<typeof zGetUserByIdData>;
@@ -2601,13 +2237,13 @@ export const zGetUserByIdResponse = zUserEntity;
 export type GetUserByIdResponseZodType = z.infer<typeof zGetUserByIdResponse>;
 
 export const zUpdateUserData = z.object({
-    body: zUpdateUserDto,
-    path: z.object({
-        userId: z.uuid().register(z.globalRegistry, {
-            description: 'The unique identifier of the user'
-        })
+  body: zUpdateUserDto,
+  path: z.object({
+    userId: z.uuid().register(z.globalRegistry, {
+      description: 'The unique identifier of the user',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
 export type UpdateUserDataZodType = z.infer<typeof zUpdateUserData>;
@@ -2620,9 +2256,9 @@ export const zUpdateUserResponse = zUserEntity;
 export type UpdateUserResponseZodType = z.infer<typeof zUpdateUserResponse>;
 
 export const zGetPermissionsData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
 export type GetPermissionsDataZodType = z.infer<typeof zGetPermissionsData>;
@@ -2632,16 +2268,22 @@ export type GetPermissionsDataZodType = z.infer<typeof zGetPermissionsData>;
  */
 export const zGetPermissionsResponse = zPermissionsDto;
 
-export type GetPermissionsResponseZodType = z.infer<typeof zGetPermissionsResponse>;
+export type GetPermissionsResponseZodType = z.infer<
+  typeof zGetPermissionsResponse
+>;
 
 export const zGetRolesData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetRolesDataZodType = z.infer<typeof zGetRolesData>;
@@ -2650,15 +2292,15 @@ export type GetRolesDataZodType = z.infer<typeof zGetRolesData>;
  * List all roles
  */
 export const zGetRolesResponse = z.array(zRoleDto).register(z.globalRegistry, {
-    description: 'List all roles'
+  description: 'List all roles',
 });
 
 export type GetRolesResponseZodType = z.infer<typeof zGetRolesResponse>;
 
 export const zCreateRoleData = z.object({
-    body: zCreateRoleDto,
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: zCreateRoleDto,
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
 export type CreateRoleDataZodType = z.infer<typeof zCreateRoleData>;
@@ -2671,32 +2313,38 @@ export const zCreateRoleResponse = zRoleEntity;
 export type CreateRoleResponseZodType = z.infer<typeof zCreateRoleResponse>;
 
 export const zDeleteRoleData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        roleId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the role'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    roleId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the role',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
 export type DeleteRoleDataZodType = z.infer<typeof zDeleteRoleData>;
 
 export const zGetRoleByIdData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        roleId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the role'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    roleId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the role',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        })),
-        includesMembers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include members in the response'
-        }))
-    }))
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+      includesMembers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include members in the response',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetRoleByIdDataZodType = z.infer<typeof zGetRoleByIdData>;
@@ -2709,13 +2357,13 @@ export const zGetRoleByIdResponse = zRoleDto;
 export type GetRoleByIdResponseZodType = z.infer<typeof zGetRoleByIdResponse>;
 
 export const zUpdateRoleData = z.object({
-    body: zUpdateRoleDto,
-    path: z.object({
-        roleId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the role'
-        })
+  body: zUpdateRoleDto,
+  path: z.object({
+    roleId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the role',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
 export type UpdateRoleDataZodType = z.infer<typeof zUpdateRoleData>;
@@ -2728,13 +2376,13 @@ export const zUpdateRoleResponse = zRoleEntity;
 export type UpdateRoleResponseZodType = z.infer<typeof zUpdateRoleResponse>;
 
 export const zGetRoleMembersData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        roleId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the role'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    roleId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the role',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
 export type GetRoleMembersDataZodType = z.infer<typeof zGetRoleMembersData>;
@@ -2742,115 +2390,143 @@ export type GetRoleMembersDataZodType = z.infer<typeof zGetRoleMembersData>;
 /**
  * List all members of a role
  */
-export const zGetRoleMembersResponse = z.array(zUserRoleDto).register(z.globalRegistry, {
-    description: 'List all members of a role'
-});
+export const zGetRoleMembersResponse = z
+  .array(zUserRoleDto)
+  .register(z.globalRegistry, {
+    description: 'List all members of a role',
+  });
 
-export type GetRoleMembersResponseZodType = z.infer<typeof zGetRoleMembersResponse>;
+export type GetRoleMembersResponseZodType = z.infer<
+  typeof zGetRoleMembersResponse
+>;
 
 export const zAssignUsersToRoleData = z.object({
-    body: zAssignRoleDto,
-    path: z.object({
-        roleId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the role'
-        })
+  body: zAssignRoleDto,
+  path: z.object({
+    roleId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the role',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
-export type AssignUsersToRoleDataZodType = z.infer<typeof zAssignUsersToRoleData>;
+export type AssignUsersToRoleDataZodType = z.infer<
+  typeof zAssignUsersToRoleData
+>;
 
 export const zUnassignUsersFromRoleData = z.object({
-    body: zUnassignRoleDto,
-    path: z.object({
-        roleId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the role'
-        })
+  body: zUnassignRoleDto,
+  path: z.object({
+    roleId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the role',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
-export type UnassignUsersFromRoleDataZodType = z.infer<typeof zUnassignUsersFromRoleData>;
+export type UnassignUsersFromRoleDataZodType = z.infer<
+  typeof zUnassignUsersFromRoleData
+>;
 
 export const zOidcInteractionControllerShowInteractionData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        uid: z.string()
-    }),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.object({
+    uid: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type OidcInteractionControllerShowInteractionDataZodType = z.infer<typeof zOidcInteractionControllerShowInteractionData>;
+export type OidcInteractionControllerShowInteractionDataZodType = z.infer<
+  typeof zOidcInteractionControllerShowInteractionData
+>;
 
-export const zOidcInteractionControllerShowChangePasswordInteractionData = z.object({
+export const zOidcInteractionControllerShowChangePasswordInteractionData =
+  z.object({
     body: z.optional(z.never()),
     path: z.object({
-        uid: z.string()
+      uid: z.string(),
     }),
-    query: z.optional(z.never())
-});
+    query: z.optional(z.never()),
+  });
 
-export type OidcInteractionControllerShowChangePasswordInteractionDataZodType = z.infer<typeof zOidcInteractionControllerShowChangePasswordInteractionData>;
+export type OidcInteractionControllerShowChangePasswordInteractionDataZodType =
+  z.infer<typeof zOidcInteractionControllerShowChangePasswordInteractionData>;
 
 export const zOidcInteractionControllerSubmitChangePasswordData = z.object({
-    body: zChangePasswordDto,
-    path: z.object({
-        uid: z.string()
-    }),
-    query: z.optional(z.never())
+  body: zChangePasswordDto,
+  path: z.object({
+    uid: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type OidcInteractionControllerSubmitChangePasswordDataZodType = z.infer<typeof zOidcInteractionControllerSubmitChangePasswordData>;
+export type OidcInteractionControllerSubmitChangePasswordDataZodType = z.infer<
+  typeof zOidcInteractionControllerSubmitChangePasswordData
+>;
 
 export const zOidcInteractionControllerLoginData = z.object({
-    body: zLoginDto,
-    path: z.object({
-        uid: z.string()
-    }),
-    query: z.optional(z.never())
+  body: zLoginDto,
+  path: z.object({
+    uid: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type OidcInteractionControllerLoginDataZodType = z.infer<typeof zOidcInteractionControllerLoginData>;
+export type OidcInteractionControllerLoginDataZodType = z.infer<
+  typeof zOidcInteractionControllerLoginData
+>;
 
 export const zOidcInteractionControllerConsentData = z.object({
-    body: zConsentDto,
-    path: z.object({
-        uid: z.string()
-    }),
-    query: z.optional(z.never())
+  body: zConsentDto,
+  path: z.object({
+    uid: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type OidcInteractionControllerConsentDataZodType = z.infer<typeof zOidcInteractionControllerConsentData>;
+export type OidcInteractionControllerConsentDataZodType = z.infer<
+  typeof zOidcInteractionControllerConsentData
+>;
 
 export const zOidcInteractionControllerFederatedCallbackData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
-export type OidcInteractionControllerFederatedCallbackDataZodType = z.infer<typeof zOidcInteractionControllerFederatedCallbackData>;
+export type OidcInteractionControllerFederatedCallbackDataZodType = z.infer<
+  typeof zOidcInteractionControllerFederatedCallbackData
+>;
 
 export const zOidcInteractionControllerFederatedInteractionData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        uid: z.string()
-    }),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.object({
+    uid: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type OidcInteractionControllerFederatedInteractionDataZodType = z.infer<typeof zOidcInteractionControllerFederatedInteractionData>;
+export type OidcInteractionControllerFederatedInteractionDataZodType = z.infer<
+  typeof zOidcInteractionControllerFederatedInteractionData
+>;
 
 export const zGetWorkspacesData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        })),
-        includesEnvironments: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include environments in the response'
-        }))
-    }))
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+      includesEnvironments: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include environments in the response',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetWorkspacesDataZodType = z.infer<typeof zGetWorkspacesData>;
@@ -2858,16 +2534,20 @@ export type GetWorkspacesDataZodType = z.infer<typeof zGetWorkspacesData>;
 /**
  * List all workspaces that the user is a member of
  */
-export const zGetWorkspacesResponse = z.array(zWorkspaceEntity).register(z.globalRegistry, {
-    description: 'List all workspaces that the user is a member of'
-});
+export const zGetWorkspacesResponse = z
+  .array(zWorkspaceEntity)
+  .register(z.globalRegistry, {
+    description: 'List all workspaces that the user is a member of',
+  });
 
-export type GetWorkspacesResponseZodType = z.infer<typeof zGetWorkspacesResponse>;
+export type GetWorkspacesResponseZodType = z.infer<
+  typeof zGetWorkspacesResponse
+>;
 
 export const zCreateWorkspaceData = z.object({
-    body: zCreateWorkspaceDto,
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: zCreateWorkspaceDto,
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
 export type CreateWorkspaceDataZodType = z.infer<typeof zCreateWorkspaceData>;
@@ -2877,32 +2557,38 @@ export type CreateWorkspaceDataZodType = z.infer<typeof zCreateWorkspaceData>;
  */
 export const zCreateWorkspaceResponse = zWorkspaceEntity;
 
-export type CreateWorkspaceResponseZodType = z.infer<typeof zCreateWorkspaceResponse>;
+export type CreateWorkspaceResponseZodType = z.infer<
+  typeof zCreateWorkspaceResponse
+>;
 
 export const zDeleteWorkspaceData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
 export type DeleteWorkspaceDataZodType = z.infer<typeof zDeleteWorkspaceData>;
 
 export const zGetWorkspaceByIdData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetWorkspaceByIdDataZodType = z.infer<typeof zGetWorkspaceByIdData>;
@@ -2912,16 +2598,18 @@ export type GetWorkspaceByIdDataZodType = z.infer<typeof zGetWorkspaceByIdData>;
  */
 export const zGetWorkspaceByIdResponse = zWorkspaceEntity;
 
-export type GetWorkspaceByIdResponseZodType = z.infer<typeof zGetWorkspaceByIdResponse>;
+export type GetWorkspaceByIdResponseZodType = z.infer<
+  typeof zGetWorkspaceByIdResponse
+>;
 
 export const zUpdateWorkspaceData = z.object({
-    body: zUpdateWorkspaceDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        })
+  body: zUpdateWorkspaceDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
 export type UpdateWorkspaceDataZodType = z.infer<typeof zUpdateWorkspaceData>;
@@ -2931,80 +2619,96 @@ export type UpdateWorkspaceDataZodType = z.infer<typeof zUpdateWorkspaceData>;
  */
 export const zUpdateWorkspaceResponse = zWorkspaceEntity;
 
-export type UpdateWorkspaceResponseZodType = z.infer<typeof zUpdateWorkspaceResponse>;
+export type UpdateWorkspaceResponseZodType = z.infer<
+  typeof zUpdateWorkspaceResponse
+>;
 
 export const zGetWorkspaceMembersData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
-export type GetWorkspaceMembersDataZodType = z.infer<typeof zGetWorkspaceMembersData>;
+export type GetWorkspaceMembersDataZodType = z.infer<
+  typeof zGetWorkspaceMembersData
+>;
 
 /**
  * Get the members of a workspace
  */
-export const zGetWorkspaceMembersResponse = z.array(zWorkspaceUserDto).register(z.globalRegistry, {
-    description: 'Get the members of a workspace'
-});
+export const zGetWorkspaceMembersResponse = z
+  .array(zWorkspaceUserDto)
+  .register(z.globalRegistry, {
+    description: 'Get the members of a workspace',
+  });
 
-export type GetWorkspaceMembersResponseZodType = z.infer<typeof zGetWorkspaceMembersResponse>;
+export type GetWorkspaceMembersResponseZodType = z.infer<
+  typeof zGetWorkspaceMembersResponse
+>;
 
 export const zUpdateMemberRoleData = z.object({
-    body: zUpdateMemberRoleDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        userId: z.uuid().register(z.globalRegistry, {
-            description: 'The unique identifier of the user'
-        })
+  body: zUpdateMemberRoleDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    userId: z.uuid().register(z.globalRegistry, {
+      description: 'The unique identifier of the user',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
 export type UpdateMemberRoleDataZodType = z.infer<typeof zUpdateMemberRoleData>;
 
 export const zAssignUsersToWorkspaceData = z.object({
-    body: zAssignWorkspaceUsersDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        })
+  body: zAssignWorkspaceUsersDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
-export type AssignUsersToWorkspaceDataZodType = z.infer<typeof zAssignUsersToWorkspaceData>;
+export type AssignUsersToWorkspaceDataZodType = z.infer<
+  typeof zAssignUsersToWorkspaceData
+>;
 
 export const zUnassignUsersFromWorkspaceData = z.object({
-    body: zUnassignWorkspaceUsersDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        })
+  body: zUnassignWorkspaceUsersDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
-export type UnassignUsersFromWorkspaceDataZodType = z.infer<typeof zUnassignUsersFromWorkspaceData>;
+export type UnassignUsersFromWorkspaceDataZodType = z.infer<
+  typeof zUnassignUsersFromWorkspaceData
+>;
 
 export const zGetEnvironmentsData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetEnvironmentsDataZodType = z.infer<typeof zGetEnvironmentsData>;
@@ -3012,107 +2716,133 @@ export type GetEnvironmentsDataZodType = z.infer<typeof zGetEnvironmentsData>;
 /**
  * List all environments that the user is a member of
  */
-export const zGetEnvironmentsResponse = z.array(zEnvironmentEntity).register(z.globalRegistry, {
-    description: 'List all environments that the user is a member of'
-});
+export const zGetEnvironmentsResponse = z
+  .array(zEnvironmentEntity)
+  .register(z.globalRegistry, {
+    description: 'List all environments that the user is a member of',
+  });
 
-export type GetEnvironmentsResponseZodType = z.infer<typeof zGetEnvironmentsResponse>;
+export type GetEnvironmentsResponseZodType = z.infer<
+  typeof zGetEnvironmentsResponse
+>;
 
 export const zCreateEnvironmentData = z.object({
-    body: zCreateEnvironmentDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        })
+  body: zCreateEnvironmentDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+  }),
+  query: z.optional(z.never()),
 });
 
-export type CreateEnvironmentDataZodType = z.infer<typeof zCreateEnvironmentData>;
+export type CreateEnvironmentDataZodType = z.infer<
+  typeof zCreateEnvironmentData
+>;
 
 /**
  * Create a new environment
  */
 export const zCreateEnvironmentResponse = zEnvironmentEntity;
 
-export type CreateEnvironmentResponseZodType = z.infer<typeof zCreateEnvironmentResponse>;
+export type CreateEnvironmentResponseZodType = z.infer<
+  typeof zCreateEnvironmentResponse
+>;
 
 export const zDeleteEnvironmentData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string()
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type DeleteEnvironmentDataZodType = z.infer<typeof zDeleteEnvironmentData>;
+export type DeleteEnvironmentDataZodType = z.infer<
+  typeof zDeleteEnvironmentData
+>;
 
 export const zGetEnvironmentByIdData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
-export type GetEnvironmentByIdDataZodType = z.infer<typeof zGetEnvironmentByIdData>;
+export type GetEnvironmentByIdDataZodType = z.infer<
+  typeof zGetEnvironmentByIdData
+>;
 
 /**
  * Get an environment by ID
  */
 export const zGetEnvironmentByIdResponse = zEnvironmentEntity;
 
-export type GetEnvironmentByIdResponseZodType = z.infer<typeof zGetEnvironmentByIdResponse>;
+export type GetEnvironmentByIdResponseZodType = z.infer<
+  typeof zGetEnvironmentByIdResponse
+>;
 
 export const zUpdateEnvironmentData = z.object({
-    body: zUpdateEnvironmentDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: zUpdateEnvironmentDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type UpdateEnvironmentDataZodType = z.infer<typeof zUpdateEnvironmentData>;
+export type UpdateEnvironmentDataZodType = z.infer<
+  typeof zUpdateEnvironmentData
+>;
 
 /**
  * Update an environment
  */
 export const zUpdateEnvironmentResponse = zEnvironmentEntity;
 
-export type UpdateEnvironmentResponseZodType = z.infer<typeof zUpdateEnvironmentResponse>;
+export type UpdateEnvironmentResponseZodType = z.infer<
+  typeof zUpdateEnvironmentResponse
+>;
 
 export const zGetAiConnectionsData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetAiConnectionsDataZodType = z.infer<typeof zGetAiConnectionsData>;
@@ -3120,104 +2850,126 @@ export type GetAiConnectionsDataZodType = z.infer<typeof zGetAiConnectionsData>;
 /**
  * List all AI connections associated with an environment
  */
-export const zGetAiConnectionsResponse = z.array(zAiConnectionEntity).register(z.globalRegistry, {
-    description: 'List all AI connections associated with an environment'
-});
+export const zGetAiConnectionsResponse = z
+  .array(zAiConnectionEntity)
+  .register(z.globalRegistry, {
+    description: 'List all AI connections associated with an environment',
+  });
 
-export type GetAiConnectionsResponseZodType = z.infer<typeof zGetAiConnectionsResponse>;
+export type GetAiConnectionsResponseZodType = z.infer<
+  typeof zGetAiConnectionsResponse
+>;
 
 export const zCreateAiConnectionData = z.object({
-    body: zCreateAiConnectionDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: zCreateAiConnectionDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type CreateAiConnectionDataZodType = z.infer<typeof zCreateAiConnectionData>;
+export type CreateAiConnectionDataZodType = z.infer<
+  typeof zCreateAiConnectionData
+>;
 
 /**
  * Create a new AI connection
  */
 export const zCreateAiConnectionResponse = zAiConnectionEntity;
 
-export type CreateAiConnectionResponseZodType = z.infer<typeof zCreateAiConnectionResponse>;
+export type CreateAiConnectionResponseZodType = z.infer<
+  typeof zCreateAiConnectionResponse
+>;
 
 export const zDeleteAiConnectionData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string(),
-        connectionId: z.string()
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string(),
+    connectionId: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type DeleteAiConnectionDataZodType = z.infer<typeof zDeleteAiConnectionData>;
+export type DeleteAiConnectionDataZodType = z.infer<
+  typeof zDeleteAiConnectionData
+>;
 
 export const zGetAiConnectionByIdData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        connectionId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the AI connection'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    connectionId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the AI connection',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
-export type GetAiConnectionByIdDataZodType = z.infer<typeof zGetAiConnectionByIdData>;
+export type GetAiConnectionByIdDataZodType = z.infer<
+  typeof zGetAiConnectionByIdData
+>;
 
 /**
  * Get an AI connection by ID
  */
 export const zGetAiConnectionByIdResponse = zAiConnectionEntity;
 
-export type GetAiConnectionByIdResponseZodType = z.infer<typeof zGetAiConnectionByIdResponse>;
+export type GetAiConnectionByIdResponseZodType = z.infer<
+  typeof zGetAiConnectionByIdResponse
+>;
 
 export const zUpdateAiConnectionData = z.object({
-    body: zUpdateAiConnectionDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        connectionId: z.string()
+  body: zUpdateAiConnectionDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    connectionId: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type UpdateAiConnectionDataZodType = z.infer<typeof zUpdateAiConnectionData>;
+export type UpdateAiConnectionDataZodType = z.infer<
+  typeof zUpdateAiConnectionData
+>;
 
 /**
  * Update an AI connection
  */
 export const zUpdateAiConnectionResponse = zAiConnectionEntity;
 
-export type UpdateAiConnectionResponseZodType = z.infer<typeof zUpdateAiConnectionResponse>;
+export type UpdateAiConnectionResponseZodType = z.infer<
+  typeof zUpdateAiConnectionResponse
+>;
 
 export const zGetAiProvidersData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
 export type GetAiProvidersDataZodType = z.infer<typeof zGetAiProvidersData>;
@@ -3225,30 +2977,40 @@ export type GetAiProvidersDataZodType = z.infer<typeof zGetAiProvidersData>;
 /**
  * List all AI providers
  */
-export const zGetAiProvidersResponse = z.array(zAiProviderDto).register(z.globalRegistry, {
-    description: 'List all AI providers'
-});
+export const zGetAiProvidersResponse = z
+  .array(zAiProviderDto)
+  .register(z.globalRegistry, {
+    description: 'List all AI providers',
+  });
 
-export type GetAiProvidersResponseZodType = z.infer<typeof zGetAiProvidersResponse>;
+export type GetAiProvidersResponseZodType = z.infer<
+  typeof zGetAiProvidersResponse
+>;
 
 export const zGetAiResourcesData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        })),
-        connectionId: z.optional(z.uuid().register(z.globalRegistry, {
-            description: 'The connection ID to list AI resources for'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+      connectionId: z.optional(
+        z.uuid().register(z.globalRegistry, {
+          description: 'The connection ID to list AI resources for',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetAiResourcesDataZodType = z.infer<typeof zGetAiResourcesData>;
@@ -3256,23 +3018,27 @@ export type GetAiResourcesDataZodType = z.infer<typeof zGetAiResourcesData>;
 /**
  * List all AI resources associated with an environment
  */
-export const zGetAiResourcesResponse = z.array(zAiResourceEntity).register(z.globalRegistry, {
-    description: 'List all AI resources associated with an environment'
-});
+export const zGetAiResourcesResponse = z
+  .array(zAiResourceEntity)
+  .register(z.globalRegistry, {
+    description: 'List all AI resources associated with an environment',
+  });
 
-export type GetAiResourcesResponseZodType = z.infer<typeof zGetAiResourcesResponse>;
+export type GetAiResourcesResponseZodType = z.infer<
+  typeof zGetAiResourcesResponse
+>;
 
 export const zCreateAiResourceData = z.object({
-    body: zCreateAiResourceDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: zCreateAiResourceDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
 export type CreateAiResourceDataZodType = z.infer<typeof zCreateAiResourceData>;
@@ -3282,63 +3048,73 @@ export type CreateAiResourceDataZodType = z.infer<typeof zCreateAiResourceData>;
  */
 export const zCreateAiResourceResponse = zAiResourceEntity;
 
-export type CreateAiResourceResponseZodType = z.infer<typeof zCreateAiResourceResponse>;
+export type CreateAiResourceResponseZodType = z.infer<
+  typeof zCreateAiResourceResponse
+>;
 
 export const zDeleteAiResourceData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string(),
-        resourceId: z.string()
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string(),
+    resourceId: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
 export type DeleteAiResourceDataZodType = z.infer<typeof zDeleteAiResourceData>;
 
 export const zGetAiResourceByIdData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        resourceId: z.uuid().register(z.globalRegistry, {
-            description: 'The unique identifier of the AI resource'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    resourceId: z.uuid().register(z.globalRegistry, {
+      description: 'The unique identifier of the AI resource',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
-export type GetAiResourceByIdDataZodType = z.infer<typeof zGetAiResourceByIdData>;
+export type GetAiResourceByIdDataZodType = z.infer<
+  typeof zGetAiResourceByIdData
+>;
 
 /**
  * Get an AI resource by ID
  */
 export const zGetAiResourceByIdResponse = zAiResourceEntity;
 
-export type GetAiResourceByIdResponseZodType = z.infer<typeof zGetAiResourceByIdResponse>;
+export type GetAiResourceByIdResponseZodType = z.infer<
+  typeof zGetAiResourceByIdResponse
+>;
 
 export const zUpdateAiResourceData = z.object({
-    body: zUpdateAiResourceDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        resourceId: z.string()
+  body: zUpdateAiResourceDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    resourceId: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
 export type UpdateAiResourceDataZodType = z.infer<typeof zUpdateAiResourceData>;
@@ -3348,23 +3124,29 @@ export type UpdateAiResourceDataZodType = z.infer<typeof zUpdateAiResourceData>;
  */
 export const zUpdateAiResourceResponse = zAiResourceEntity;
 
-export type UpdateAiResourceResponseZodType = z.infer<typeof zUpdateAiResourceResponse>;
+export type UpdateAiResourceResponseZodType = z.infer<
+  typeof zUpdateAiResourceResponse
+>;
 
 export const zGetApiKeysData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetApiKeysDataZodType = z.infer<typeof zGetApiKeysData>;
@@ -3372,23 +3154,25 @@ export type GetApiKeysDataZodType = z.infer<typeof zGetApiKeysData>;
 /**
  * List all API keys associated with an environment
  */
-export const zGetApiKeysResponse = z.array(zApiKeyEntity).register(z.globalRegistry, {
-    description: 'List all API keys associated with an environment'
-});
+export const zGetApiKeysResponse = z
+  .array(zApiKeyEntity)
+  .register(z.globalRegistry, {
+    description: 'List all API keys associated with an environment',
+  });
 
 export type GetApiKeysResponseZodType = z.infer<typeof zGetApiKeysResponse>;
 
 export const zCreateApiKeyData = z.object({
-    body: zCreateApiKeyDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: zCreateApiKeyDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
 export type CreateApiKeyDataZodType = z.infer<typeof zCreateApiKeyData>;
@@ -3401,37 +3185,41 @@ export const zCreateApiKeyResponse = zCreatedApiKeyDto;
 export type CreateApiKeyResponseZodType = z.infer<typeof zCreateApiKeyResponse>;
 
 export const zDeleteApiKeyData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string(),
-        apiKeyId: z.string()
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string(),
+    apiKeyId: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
 export type DeleteApiKeyDataZodType = z.infer<typeof zDeleteApiKeyData>;
 
 export const zGetApiKeyByIdData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        apiKeyId: z.string().register(z.globalRegistry, {
-            description: 'The unique identifier of the API key'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    apiKeyId: z.string().register(z.globalRegistry, {
+      description: 'The unique identifier of the API key',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
 export type GetApiKeyByIdDataZodType = z.infer<typeof zGetApiKeyByIdData>;
@@ -3441,20 +3229,22 @@ export type GetApiKeyByIdDataZodType = z.infer<typeof zGetApiKeyByIdData>;
  */
 export const zGetApiKeyByIdResponse = zApiKeyEntity;
 
-export type GetApiKeyByIdResponseZodType = z.infer<typeof zGetApiKeyByIdResponse>;
+export type GetApiKeyByIdResponseZodType = z.infer<
+  typeof zGetApiKeyByIdResponse
+>;
 
 export const zUpdateApiKeyData = z.object({
-    body: zUpdateApiKeyDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        apiKeyId: z.string()
+  body: zUpdateApiKeyDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    apiKeyId: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
 export type UpdateApiKeyDataZodType = z.infer<typeof zUpdateApiKeyData>;
@@ -3467,361 +3257,413 @@ export const zUpdateApiKeyResponse = zApiKeyEntity;
 export type UpdateApiKeyResponseZodType = z.infer<typeof zUpdateApiKeyResponse>;
 
 export const zDeletePoolDefinitionData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string()
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string(),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type DeletePoolDefinitionDataZodType = z.infer<typeof zDeletePoolDefinitionData>;
+export type DeletePoolDefinitionDataZodType = z.infer<
+  typeof zDeletePoolDefinitionData
+>;
 
 export const zGetPoolDefinitionData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+    })
+  ),
 });
 
-export type GetPoolDefinitionDataZodType = z.infer<typeof zGetPoolDefinitionData>;
+export type GetPoolDefinitionDataZodType = z.infer<
+  typeof zGetPoolDefinitionData
+>;
 
 /**
  * Get a pool definition by workspace and environment
  */
 export const zGetPoolDefinitionResponse = zPoolDefinitionEntity;
 
-export type GetPoolDefinitionResponseZodType = z.infer<typeof zGetPoolDefinitionResponse>;
+export type GetPoolDefinitionResponseZodType = z.infer<
+  typeof zGetPoolDefinitionResponse
+>;
 
 export const zUpdatePoolDefinitionData = z.object({
-    body: zUpsertPoolDefinitionDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: zUpsertPoolDefinitionDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type UpdatePoolDefinitionDataZodType = z.infer<typeof zUpdatePoolDefinitionData>;
+export type UpdatePoolDefinitionDataZodType = z.infer<
+  typeof zUpdatePoolDefinitionData
+>;
 
 /**
  * Created/updated a pool definition
  */
 export const zUpdatePoolDefinitionResponse = zPoolDefinitionEntity;
 
-export type UpdatePoolDefinitionResponseZodType = z.infer<typeof zUpdatePoolDefinitionResponse>;
+export type UpdatePoolDefinitionResponseZodType = z.infer<
+  typeof zUpdatePoolDefinitionResponse
+>;
 
 export const zCompletionData = z.object({
-    body: z.optional(z.record(z.string(), z.unknown())),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: z.optional(z.record(z.string(), z.unknown())),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
 export type CompletionDataZodType = z.infer<typeof zCompletionData>;
 
 export const zGetCompletionErrorRateData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        resourceId: z.uuid().register(z.globalRegistry, {
-            description: 'The unique identifier of the AI resource'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.object({
-        aiConnectionId: z.string(),
-        model: z.string()
-    })
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    resourceId: z.uuid().register(z.globalRegistry, {
+      description: 'The unique identifier of the AI resource',
+    }),
+  }),
+  query: z.object({
+    aiConnectionId: z.string(),
+    model: z.string(),
+  }),
 });
 
-export type GetCompletionErrorRateDataZodType = z.infer<typeof zGetCompletionErrorRateData>;
+export type GetCompletionErrorRateDataZodType = z.infer<
+  typeof zGetCompletionErrorRateData
+>;
 
 /**
  * Get the error rate for an AI resource
  */
 export const zGetCompletionErrorRateResponse = zMetricDto;
 
-export type GetCompletionErrorRateResponseZodType = z.infer<typeof zGetCompletionErrorRateResponse>;
+export type GetCompletionErrorRateResponseZodType = z.infer<
+  typeof zGetCompletionErrorRateResponse
+>;
 
 export const zGetCompletionAuditData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        type: z.optional(zCompletionAuditType),
-        connectionId: z.optional(z.union([
-            z.uuid(),
-            z.null()
-        ])),
-        resourceId: z.optional(z.union([
-            z.uuid(),
-            z.null()
-        ])),
-        model: z.optional(z.union([
-            z.string(),
-            z.null()
-        ])),
-        statusCode: z.optional(z.union([
-            z.number(),
-            z.null()
-        ])),
-        startDate: z.optional(z.union([
-            z.iso.datetime(),
-            z.null()
-        ])),
-        endDate: z.optional(z.union([
-            z.iso.datetime(),
-            z.null()
-        ])),
-        pageIndex: z.optional(z.union([
-            z.int(),
-            z.null()
-        ])),
-        pageSize: z.optional(z.union([
-            z.int(),
-            z.null()
-        ]))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      type: z.optional(zCompletionAuditType),
+      connectionId: z.optional(z.union([z.uuid(), z.null()])),
+      resourceId: z.optional(z.union([z.uuid(), z.null()])),
+      model: z.optional(z.union([z.string(), z.null()])),
+      statusCode: z.optional(z.union([z.number(), z.null()])),
+      startDate: z.optional(z.union([z.iso.datetime(), z.null()])),
+      endDate: z.optional(z.union([z.iso.datetime(), z.null()])),
+      pageIndex: z.optional(z.union([z.int(), z.null()])),
+      pageSize: z.optional(z.union([z.int(), z.null()])),
+    })
+  ),
 });
 
-export type GetCompletionAuditDataZodType = z.infer<typeof zGetCompletionAuditData>;
+export type GetCompletionAuditDataZodType = z.infer<
+  typeof zGetCompletionAuditData
+>;
 
 /**
  * List all completion audits associated with an environment
  */
 export const zGetCompletionAuditResponse = zListAuditResponseDto;
 
-export type GetCompletionAuditResponseZodType = z.infer<typeof zGetCompletionAuditResponse>;
+export type GetCompletionAuditResponseZodType = z.infer<
+  typeof zGetCompletionAuditResponse
+>;
 
 export const zGetCompletionUsageData = z.object({
-    body: zCompletionUsageQueryDto,
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: zCompletionUsageQueryDto,
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type GetCompletionUsageDataZodType = z.infer<typeof zGetCompletionUsageData>;
+export type GetCompletionUsageDataZodType = z.infer<
+  typeof zGetCompletionUsageData
+>;
 
 /**
  * List all completion usage records
  */
-export const zGetCompletionUsageResponse = z.array(zCompletionUsageQueryResultDto).register(z.globalRegistry, {
-    description: 'List all completion usage records'
-});
+export const zGetCompletionUsageResponse = z
+  .array(zCompletionUsageQueryResultDto)
+  .register(z.globalRegistry, {
+    description: 'List all completion usage records',
+  });
 
-export type GetCompletionUsageResponseZodType = z.infer<typeof zGetCompletionUsageResponse>;
+export type GetCompletionUsageResponseZodType = z.infer<
+  typeof zGetCompletionUsageResponse
+>;
 
 export const zGetCompletionBatchData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        batchId: z.unknown().register(z.globalRegistry, {
-            description: 'The ID of the batch'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.object({
-        includesUsers: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include users in the response'
-        })),
-        includesItems: z.optional(z.boolean().register(z.globalRegistry, {
-            description: 'Whether to include items in the response'
-        }))
-    }))
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    batchId: z.unknown().register(z.globalRegistry, {
+      description: 'The ID of the batch',
+    }),
+  }),
+  query: z.optional(
+    z.object({
+      includesUsers: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include users in the response',
+        })
+      ),
+      includesItems: z.optional(
+        z.boolean().register(z.globalRegistry, {
+          description: 'Whether to include items in the response',
+        })
+      ),
+    })
+  ),
 });
 
-export type GetCompletionBatchDataZodType = z.infer<typeof zGetCompletionBatchData>;
+export type GetCompletionBatchDataZodType = z.infer<
+  typeof zGetCompletionBatchData
+>;
 
 /**
  * Get a completion batch by its ID
  */
 export const zGetCompletionBatchResponse = zCompletionBatchDto;
 
-export type GetCompletionBatchResponseZodType = z.infer<typeof zGetCompletionBatchResponse>;
+export type GetCompletionBatchResponseZodType = z.infer<
+  typeof zGetCompletionBatchResponse
+>;
 
 export const zGetCompletionBatchItemData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        batchId: z.unknown().register(z.globalRegistry, {
-            description: 'The ID of the batch'
-        }),
-        itemId: z.unknown().register(z.globalRegistry, {
-            description: 'The ID of the batch item'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    batchId: z.unknown().register(z.globalRegistry, {
+      description: 'The ID of the batch',
+    }),
+    itemId: z.unknown().register(z.globalRegistry, {
+      description: 'The ID of the batch item',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type GetCompletionBatchItemDataZodType = z.infer<typeof zGetCompletionBatchItemData>;
+export type GetCompletionBatchItemDataZodType = z.infer<
+  typeof zGetCompletionBatchItemData
+>;
 
 /**
  * Get a completion batch item by its ID
  */
 export const zGetCompletionBatchItemResponse = zCompletionBatchItemEntity;
 
-export type GetCompletionBatchItemResponseZodType = z.infer<typeof zGetCompletionBatchItemResponse>;
+export type GetCompletionBatchItemResponseZodType = z.infer<
+  typeof zGetCompletionBatchItemResponse
+>;
 
 export const zCreateCompletionBatchData = z.object({
-    body: z.optional(z.union([
-        zCreateCompletionBatchDto,
-        zCreateCompletionCallbackBatchDto
-    ])),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        })
+  body: z.optional(
+    z.union([zCreateCompletionBatchDto, zCreateCompletionCallbackBatchDto])
+  ),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type CreateCompletionBatchDataZodType = z.infer<typeof zCreateCompletionBatchData>;
+export type CreateCompletionBatchDataZodType = z.infer<
+  typeof zCreateCompletionBatchData
+>;
 
 /**
  * Create a completion batch
  */
 export const zCreateCompletionBatchResponse = zCompletionBatchDto;
 
-export type CreateCompletionBatchResponseZodType = z.infer<typeof zCreateCompletionBatchResponse>;
+export type CreateCompletionBatchResponseZodType = z.infer<
+  typeof zCreateCompletionBatchResponse
+>;
 
 export const zCancelCompletionBatchData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        workspaceId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the workspace'
-        }),
-        environmentId: z.string().register(z.globalRegistry, {
-            description: 'The ID of the environment'
-        }),
-        batchId: z.unknown().register(z.globalRegistry, {
-            description: 'The ID of the batch'
-        })
+  body: z.optional(z.never()),
+  path: z.object({
+    workspaceId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the workspace',
     }),
-    query: z.optional(z.never())
+    environmentId: z.string().register(z.globalRegistry, {
+      description: 'The ID of the environment',
+    }),
+    batchId: z.unknown().register(z.globalRegistry, {
+      description: 'The ID of the batch',
+    }),
+  }),
+  query: z.optional(z.never()),
 });
 
-export type CancelCompletionBatchDataZodType = z.infer<typeof zCancelCompletionBatchData>;
+export type CancelCompletionBatchDataZodType = z.infer<
+  typeof zCancelCompletionBatchData
+>;
 
 /**
  * Cancel a completion batch by its ID
  */
-export const zCancelCompletionBatchResponse = z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-    description: 'Cancel a completion batch by its ID'
-});
+export const zCancelCompletionBatchResponse = z
+  .record(z.string(), z.unknown())
+  .register(z.globalRegistry, {
+    description: 'Cancel a completion batch by its ID',
+  });
 
-export type CancelCompletionBatchResponseZodType = z.infer<typeof zCancelCompletionBatchResponse>;
+export type CancelCompletionBatchResponseZodType = z.infer<
+  typeof zCancelCompletionBatchResponse
+>;
 
 export const zGetOauth2AuthorizeData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.object({
-        client_id: z.string().register(z.globalRegistry, {
-            description: 'The client ID'
-        }),
-        response_type: z.string().register(z.globalRegistry, {
-            description: 'The response type (usually "code")'
-        }),
-        redirect_uri: z.string().register(z.globalRegistry, {
-            description: 'The redirect URI'
-        }),
-        scope: z.optional(z.string().register(z.globalRegistry, {
-            description: 'The requested scopes (e.g., "openid profile email")'
-        })),
-        state: z.optional(z.string().register(z.globalRegistry, {
-            description: 'Opaque state value to maintain state between the request and callback'
-        })),
-        code_challenge: z.optional(z.string().register(z.globalRegistry, {
-            description: 'Code challenge for PKCE'
-        })),
-        code_challenge_method: z.optional(z.string().register(z.globalRegistry, {
-            description: 'Code challenge method (usually "S256")'
-        }))
-    })
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.object({
+    client_id: z.string().register(z.globalRegistry, {
+      description: 'The client ID',
+    }),
+    response_type: z.string().register(z.globalRegistry, {
+      description: 'The response type (usually "code")',
+    }),
+    redirect_uri: z.string().register(z.globalRegistry, {
+      description: 'The redirect URI',
+    }),
+    scope: z.optional(
+      z.string().register(z.globalRegistry, {
+        description: 'The requested scopes (e.g., "openid profile email")',
+      })
+    ),
+    state: z.optional(
+      z.string().register(z.globalRegistry, {
+        description:
+          'Opaque state value to maintain state between the request and callback',
+      })
+    ),
+    code_challenge: z.optional(
+      z.string().register(z.globalRegistry, {
+        description: 'Code challenge for PKCE',
+      })
+    ),
+    code_challenge_method: z.optional(
+      z.string().register(z.globalRegistry, {
+        description: 'Code challenge method (usually "S256")',
+      })
+    ),
+  }),
 });
 
-export type GetOauth2AuthorizeDataZodType = z.infer<typeof zGetOauth2AuthorizeData>;
+export type GetOauth2AuthorizeDataZodType = z.infer<
+  typeof zGetOauth2AuthorizeData
+>;
 
 export const zPostOauth2TokenData = z.object({
-    body: z.optional(z.object({
-        grant_type: z.enum([
-            'authorization_code',
-            'refresh_token',
-            'client_credentials'
-        ]).register(z.globalRegistry, {
-            description: 'The grant type'
+  body: z.optional(
+    z.object({
+      grant_type: z
+        .enum(['authorization_code', 'refresh_token', 'client_credentials'])
+        .register(z.globalRegistry, {
+          description: 'The grant type',
         }),
-        code: z.optional(z.string().register(z.globalRegistry, {
-            description: 'Authorization code'
-        })),
-        redirect_uri: z.optional(z.string().register(z.globalRegistry, {
-            description: 'Redirect URI'
-        })),
-        client_id: z.optional(z.string().register(z.globalRegistry, {
-            description: 'Client ID'
-        })),
-        refresh_token: z.optional(z.string().register(z.globalRegistry, {
-            description: 'Refresh token'
-        })),
-        code_verifier: z.optional(z.string().register(z.globalRegistry, {
-            description: 'PKCE code verifier'
-        })),
-        client_secret: z.optional(z.string().register(z.globalRegistry, {
-            description: 'Client secret (for machine-to-machine)'
-        }))
-    })),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+      code: z.optional(
+        z.string().register(z.globalRegistry, {
+          description: 'Authorization code',
+        })
+      ),
+      redirect_uri: z.optional(
+        z.string().register(z.globalRegistry, {
+          description: 'Redirect URI',
+        })
+      ),
+      client_id: z.optional(
+        z.string().register(z.globalRegistry, {
+          description: 'Client ID',
+        })
+      ),
+      refresh_token: z.optional(
+        z.string().register(z.globalRegistry, {
+          description: 'Refresh token',
+        })
+      ),
+      code_verifier: z.optional(
+        z.string().register(z.globalRegistry, {
+          description: 'PKCE code verifier',
+        })
+      ),
+      client_secret: z.optional(
+        z.string().register(z.globalRegistry, {
+          description: 'Client secret (for machine-to-machine)',
+        })
+      ),
+    })
+  ),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
 export type PostOauth2TokenDataZodType = z.infer<typeof zPostOauth2TokenData>;
@@ -3829,31 +3671,38 @@ export type PostOauth2TokenDataZodType = z.infer<typeof zPostOauth2TokenData>;
 /**
  * Token response
  */
-export const zPostOauth2TokenResponse = z.object({
+export const zPostOauth2TokenResponse = z
+  .object({
     access_token: z.optional(z.string()),
     token_type: z.optional(z.string()),
     expires_in: z.optional(z.number()),
     refresh_token: z.optional(z.string()),
     id_token: z.optional(z.string()),
-    scope: z.optional(z.string())
-}).register(z.globalRegistry, {
-    description: 'Token response'
-});
+    scope: z.optional(z.string()),
+  })
+  .register(z.globalRegistry, {
+    description: 'Token response',
+  });
 
-export type PostOauth2TokenResponseZodType = z.infer<typeof zPostOauth2TokenResponse>;
+export type PostOauth2TokenResponseZodType = z.infer<
+  typeof zPostOauth2TokenResponse
+>;
 
 export const zGetOauth2UserinfoData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
-export type GetOauth2UserinfoDataZodType = z.infer<typeof zGetOauth2UserinfoData>;
+export type GetOauth2UserinfoDataZodType = z.infer<
+  typeof zGetOauth2UserinfoData
+>;
 
 /**
  * User claims
  */
-export const zGetOauth2UserinfoResponse = z.object({
+export const zGetOauth2UserinfoResponse = z
+  .object({
     sub: z.optional(z.string()),
     email: z.optional(z.string()),
     email_verified: z.optional(z.boolean()),
@@ -3861,41 +3710,54 @@ export const zGetOauth2UserinfoResponse = z.object({
     username: z.optional(z.string()),
     picture: z.optional(z.string()),
     firstName: z.optional(z.string()),
-    lastName: z.optional(z.string())
-}).register(z.globalRegistry, {
-    description: 'User claims'
-});
+    lastName: z.optional(z.string()),
+  })
+  .register(z.globalRegistry, {
+    description: 'User claims',
+  });
 
-export type GetOauth2UserinfoResponseZodType = z.infer<typeof zGetOauth2UserinfoResponse>;
+export type GetOauth2UserinfoResponseZodType = z.infer<
+  typeof zGetOauth2UserinfoResponse
+>;
 
 export const zPostOauth2RevokeData = z.object({
-    body: z.optional(z.object({
-        token: z.string().register(z.globalRegistry, {
-            description: 'The token to revoke'
-        }),
-        token_type_hint: z.optional(z.enum(['access_token', 'refresh_token']).register(z.globalRegistry, {
-            description: 'Hint about the token type'
-        }))
-    })),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: z.optional(
+    z.object({
+      token: z.string().register(z.globalRegistry, {
+        description: 'The token to revoke',
+      }),
+      token_type_hint: z.optional(
+        z.enum(['access_token', 'refresh_token']).register(z.globalRegistry, {
+          description: 'Hint about the token type',
+        })
+      ),
+    })
+  ),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
 export type PostOauth2RevokeDataZodType = z.infer<typeof zPostOauth2RevokeData>;
 
 export const zGetOauth2WellKnownOpenidConfigurationData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
+  body: z.optional(z.never()),
+  path: z.optional(z.never()),
+  query: z.optional(z.never()),
 });
 
-export type GetOauth2WellKnownOpenidConfigurationDataZodType = z.infer<typeof zGetOauth2WellKnownOpenidConfigurationData>;
+export type GetOauth2WellKnownOpenidConfigurationDataZodType = z.infer<
+  typeof zGetOauth2WellKnownOpenidConfigurationData
+>;
 
 /**
  * OpenID Connect Discovery document
  */
-export const zGetOauth2WellKnownOpenidConfigurationResponse = z.record(z.string(), z.unknown()).register(z.globalRegistry, {
-    description: 'OpenID Connect Discovery document'
-});
+export const zGetOauth2WellKnownOpenidConfigurationResponse = z
+  .record(z.string(), z.unknown())
+  .register(z.globalRegistry, {
+    description: 'OpenID Connect Discovery document',
+  });
 
-export type GetOauth2WellKnownOpenidConfigurationResponseZodType = z.infer<typeof zGetOauth2WellKnownOpenidConfigurationResponse>;
+export type GetOauth2WellKnownOpenidConfigurationResponseZodType = z.infer<
+  typeof zGetOauth2WellKnownOpenidConfigurationResponse
+>;

@@ -20,28 +20,20 @@ const baseImports = [
   }),
   AppLoggerModule,
   MigrationsModule,
-]
+];
 
 @Module({
-  imports: [
-    ...baseImports,
-  ],
+  imports: [...baseImports],
 })
 class DBMigrationModule {}
 
 @Module({
-  imports: [
-    ...baseImports,
-    QuestDBMigrationsModule,
-  ],
+  imports: [...baseImports, QuestDBMigrationsModule],
 })
 class QuestDBMigrationModule {}
 
 @Module({
-  imports: [
-    ...baseImports,
-    AWSTimestreamMigrationsModule,
-  ],
+  imports: [...baseImports, AWSTimestreamMigrationsModule],
 })
 class AWSTimestreamMigrationModule {}
 
@@ -72,9 +64,7 @@ async function runMigration() {
       break;
     }
     case 'questdb': {
-      app = await NestFactory.createApplicationContext(
-        QuestDBMigrationModule
-      );
+      app = await NestFactory.createApplicationContext(QuestDBMigrationModule);
       migrator = app.get(QuestDBMigrationsService);
       break;
     }

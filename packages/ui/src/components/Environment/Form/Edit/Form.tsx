@@ -13,7 +13,7 @@ import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { schema } from './schema';
 import type { FormSchema, FormAction } from './schema';
-  import { EnvironmentEntity } from '@/clients/api';
+import { EnvironmentEntity } from '@/clients/api';
 
 export type EnvironmentEditFormProps = {
   environment: EnvironmentEntity;

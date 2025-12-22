@@ -1,12 +1,18 @@
 import { Kysely, Migration, sql } from 'kysely';
 import { PasswordService } from '../auth/password.service';
-import { DB, PublicProviderType, PublicUserState } from '../storage/entities.generated';
+import {
+  DB,
+  PublicProviderType,
+  PublicUserState,
+} from '../storage/entities.generated';
 
 export const migration = (passwordService: PasswordService): Migration => ({
   async up(db: Kysely<DB>): Promise<void> {
     // Create ProviderType enum type first
     await sql`CREATE TYPE PROVIDER_TYPE AS ENUM ('LOCAL', 'OIDC')`.execute(db);
-    await sql`CREATE TYPE USER_STATE AS ENUM ('ACTIVE', 'INACTIVE', 'CHANGE_PASSWORD')`.execute(db);
+    await sql`CREATE TYPE USER_STATE AS ENUM ('ACTIVE', 'INACTIVE', 'CHANGE_PASSWORD')`.execute(
+      db
+    );
 
     await db.schema
       .createTable('users')

@@ -377,7 +377,9 @@ export default function CreateAIConnectionForm({
                                           LinkComponent={Link}
                                           href={ejs.render(element.url, {
                                             environment,
-                                            formData: quickForm.watch(`providers.${index}`),
+                                            formData: quickForm.watch(
+                                              `providers.${index}`
+                                            ),
                                           })}
                                           target={element.target ?? '_blank'}
                                         >

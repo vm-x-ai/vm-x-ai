@@ -10,7 +10,9 @@ export const schema = z.object({
       error: 'Environment name is required.',
     })
     .trim()
-    .min(3, { message: 'Environment name must be at least 3 characters long.' }),
+    .min(3, {
+      message: 'Environment name must be at least 3 characters long.',
+    }),
   description: z.string().optional(),
 });
 

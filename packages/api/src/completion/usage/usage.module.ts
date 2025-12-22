@@ -20,7 +20,8 @@ import { AWSTimestreamModule } from './aws-timestream/aws-timestream.module';
     ),
     ConditionalModule.registerWhen(
       AWSTimestreamModule,
-      (env: NodeJS.ProcessEnv) => env.COMPLETION_USAGE_PROVIDER === 'aws-timestream'
+      (env: NodeJS.ProcessEnv) =>
+        env.COMPLETION_USAGE_PROVIDER === 'aws-timestream'
     ),
     WorkspaceModule,
     EnvironmentModule,

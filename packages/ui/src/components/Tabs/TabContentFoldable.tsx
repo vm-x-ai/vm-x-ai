@@ -58,7 +58,9 @@ export default function TabContentFoldable({
             </Typography>
           </Box>
           {/* Optional Action Element */}
-          {actionElement && <Box sx={{ marginLeft: 'auto' }}>{actionElement}</Box>}
+          {actionElement && (
+            <Box sx={{ marginLeft: 'auto' }}>{actionElement}</Box>
+          )}
         </AccordionSummary>
 
         {/* Collapsible Content */}

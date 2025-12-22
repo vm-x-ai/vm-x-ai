@@ -5,7 +5,7 @@ export class GetApiKeyDto {
   @ApiProperty({
     description: 'The workspace ID to get API key for',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -14,7 +14,7 @@ export class GetApiKeyDto {
   @ApiProperty({
     description: 'The environment ID to get API key for',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -23,7 +23,7 @@ export class GetApiKeyDto {
   @ApiProperty({
     description: 'The API key ID to get API key for',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()

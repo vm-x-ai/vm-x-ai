@@ -26,9 +26,7 @@ import { CompletionBatchItemService } from './batch-item-service';
 import { AuthContext } from '../../auth/auth.guard';
 import { v4 as uuidv4 } from 'uuid';
 import { TokenService } from '../../token/token.service';
-import {
-  CreateCompletionBatchItemWithEstimatedPromptTokensDto,
-} from './dto/create-batch-item.dto';
+import { CreateCompletionBatchItemWithEstimatedPromptTokensDto } from './dto/create-batch-item.dto';
 import { CompletionBatchQueueService } from './batch-queue.service';
 
 @Injectable()
@@ -117,9 +115,13 @@ export class CompletionBatchService {
       .executeTakeFirst();
 
     if (throwOnNotFound && !batch) {
-      throwServiceError(HttpStatus.NOT_FOUND, ErrorCode.COMPLETION_BATCH_NOT_FOUND, {
-        batchId,
-      });
+      throwServiceError(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.COMPLETION_BATCH_NOT_FOUND,
+        {
+          batchId,
+        }
+      );
     }
 
     return batch;

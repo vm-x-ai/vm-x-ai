@@ -130,9 +130,9 @@ export default function WorkspaceSelectorMenu({
                 workspaceIndex === selectedWorkspaceIndex &&
                 envIndex === selectedEnvironmentIndex
               }
-              href={`/workspaces/${workspace.workspaceId}/${environment.environmentId}/${
-                currentTab ? currentTab : 'ai-connections/overview'
-              }`}
+              href={`/workspaces/${workspace.workspaceId}/${
+                environment.environmentId
+              }/${currentTab ? currentTab : 'ai-connections/overview'}`}
               sx={{
                 marginLeft: '1rem',
               }}

@@ -1,7 +1,7 @@
 import { CompletionUsageQueryResultDto } from '@/clients/api';
 
 export function groupDataByTime(
-  data: CompletionUsageQueryResultDto[],
+  data: CompletionUsageQueryResultDto[]
 ): Record<string, CompletionUsageQueryResultDto[]> {
   return data.reduce<Record<string, CompletionUsageQueryResultDto[]>>(
     (acc, curr) => {

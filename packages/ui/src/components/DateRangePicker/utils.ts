@@ -25,10 +25,13 @@ import type { DateRange, DateRangePickerValue } from './types';
 export const identity = <T>(x: T) => x;
 
 export const chunks = <T>(array: ReadonlyArray<T>, size: number): T[][] => {
-  return Array.from({ length: Math.ceil(array.length / size) }, (v, i) => array.slice(i * size, i * size + size));
+  return Array.from({ length: Math.ceil(array.length / size) }, (v, i) =>
+    array.slice(i * size, i * size + size)
+  );
 };
 
-export const combine = (...args: unknown[]): string => args.filter(identity).join(' ');
+export const combine = (...args: unknown[]): string =>
+  args.filter(identity).join(' ');
 
 // Date
 export const getDaysInMonth = (date: Date) => {
@@ -45,7 +48,8 @@ export const getDaysInMonth = (date: Date) => {
 export const isStartOfRange = ({ startDate }: DateRange, day: Date) =>
   (startDate && isSameDay(day, startDate)) as boolean;
 
-export const isEndOfRange = ({ endDate }: DateRange, day: Date) => (endDate && isSameDay(day, endDate)) as boolean;
+export const isEndOfRange = ({ endDate }: DateRange, day: Date) =>
+  (endDate && isSameDay(day, endDate)) as boolean;
 
 export const inDateRange = ({ startDate, endDate }: DateRange, day: Date) =>
   (startDate &&
@@ -66,7 +70,10 @@ export const isRangeSameDay = ({ startDate, endDate }: DateRange) => {
 
 type Falsy = false | null | undefined | 0 | '';
 
-export const parseOptionalDate = (date: Date | string | Falsy, defaultValue: Date) => {
+export const parseOptionalDate = (
+  date: Date | string | Falsy,
+  defaultValue: Date
+) => {
   if (date instanceof Date) {
     const parsed = toDate(date);
     if (isValid(parsed)) return parsed;
@@ -80,13 +87,20 @@ export const parseOptionalDate = (date: Date | string | Falsy, defaultValue: Dat
   return defaultValue;
 };
 
-export const getValidatedMonths = (range: DateRange, minDate: Date, maxDate: Date) => {
+export const getValidatedMonths = (
+  range: DateRange,
+  minDate: Date,
+  maxDate: Date
+) => {
   const { startDate, endDate } = range;
   if (startDate && endDate) {
     const newStart = max([startDate, minDate]);
     const newEnd = min([endDate, maxDate]);
 
-    return [newStart, isSameMonth(newStart, newEnd) ? addMonths(newStart, 1) : newEnd];
+    return [
+      newStart,
+      isSameMonth(newStart, newEnd) ? addMonths(newStart, 1) : newEnd,
+    ];
   }
   return [startDate, endDate];
 };
@@ -102,7 +116,11 @@ export const FormatDateForInput = (date: Date | null | undefined) => {
   return '';
 };
 
-export const maskDateFormatter = (value: string, mask: string, maskInputChar = '_') => {
+export const maskDateFormatter = (
+  value: string,
+  mask: string,
+  maskInputChar = '_'
+) => {
   const acceptRegexp = /[\d]/gi;
   return value
     .split('')
@@ -117,9 +135,14 @@ export const maskDateFormatter = (value: string, mask: string, maskInputChar = '
       const nextMaskChar = mask[i + 1];
 
       const acceptedChar = acceptRegexp.test(char) ? char : '';
-      const formattedChar = maskChar === maskInputChar ? acceptedChar : maskChar + acceptedChar;
+      const formattedChar =
+        maskChar === maskInputChar ? acceptedChar : maskChar + acceptedChar;
 
-      if (i === value.length - 1 && nextMaskChar && nextMaskChar !== maskInputChar) {
+      if (
+        i === value.length - 1 &&
+        nextMaskChar &&
+        nextMaskChar !== maskInputChar
+      ) {
         // add / after num input
         return formattedChar ? formattedChar + nextMaskChar : '';
       }
@@ -138,14 +161,20 @@ const relativeUnitMap: Record<string, (date: Date, amount: number) => Date> = {
 
 export function parseDateRangePickerValue(
   value: DateRangePickerValue,
-  parser: (value?: Date) => string,
+  parser: (value?: Date) => string
 ): { start: string; end: string } {
   if (value.type === 'absolute') {
-    return { start: parser(value.absolute.startDate), end: parser(value.absolute.endDate) };
+    return {
+      start: parser(value.absolute.startDate),
+      end: parser(value.absolute.endDate),
+    };
   } else {
     const unit = value.relative?.unit ?? 'minute';
     const relativeValue = value.relative?.value ?? 30;
 
-    return { start: parser(relativeUnitMap[unit](new Date(), relativeValue)), end: parser() };
+    return {
+      start: parser(relativeUnitMap[unit](new Date(), relativeValue)),
+      end: parser(),
+    };
   }
 }

@@ -88,13 +88,13 @@ def main():
         base_url=base_url,
         streaming=True,
     )
-    
+
     agent = create_agent(
         model=model,
         tools=[get_weather],
         system_prompt="You are a helpful assistant",
     )
-    
+
     result = agent.stream(
         {
             "messages": [
@@ -225,6 +225,7 @@ for chunk in model.stream("Tell me a story"):
 A complete example is available in the [examples/langchain](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/langchain) directory.
 
 The example includes:
+
 - Agent creation with tools
 - Streaming support
 - Resource configuration overrides

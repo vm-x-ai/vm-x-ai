@@ -42,6 +42,7 @@ DENY statements are evaluated first and take precedence over ALLOW statements. I
 Actions follow the pattern: `{module}:{operation}`
 
 **Available Operations:**
+
 - `create` - Create a new resource
 - `get` - Retrieve a specific resource
 - `list` - List all resources
@@ -49,12 +50,14 @@ Actions follow the pattern: `{module}:{operation}`
 - `delete` - Delete a resource
 
 **Examples:**
+
 - `workspace:create` - Create a workspace
 - `ai-connection:get` - Get an AI connection
 - `user:list` - List all users
 - `role:update` - Update a role
 
 **Wildcards:**
+
 - `*` - Matches all operations
 - `*:get` - Matches all "get" operations across all modules
 - `workspace:*` - Matches all operations for workspace module
@@ -64,6 +67,7 @@ Actions follow the pattern: `{module}:{operation}`
 Resources follow a hierarchical pattern: `{module}:{identifier}:{submodule}:{identifier}:...`
 
 **Examples:**
+
 - `workspace:*` - All workspaces
 - `workspace:production` - Specific workspace named "production"
 - `workspace:*:environment:*` - All environments in all workspaces
@@ -72,6 +76,7 @@ Resources follow a hierarchical pattern: `{module}:{identifier}:{submodule}:{ide
 - `workspace:production:environment:staging:ai-connection:openai` - Specific AI connection
 
 **Wildcards:**
+
 - `*` - Matches all resources
 - `workspace:*` - Matches all workspaces
 - `workspace:*:environment:*` - Matches all environments in all workspaces
@@ -86,6 +91,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}`
 
 **Actions:**
+
 - `workspace:create`
 - `workspace:get`
 - `workspace:list`
@@ -93,6 +99,7 @@ VM-X AI provides the following modules for policy configuration:
 - `workspace:delete`
 
 **Example:**
+
 ```json
 {
   "effect": "ALLOW",
@@ -107,6 +114,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}`
 
 **Actions:**
+
 - `environment:create`
 - `environment:get`
 - `environment:list`
@@ -114,6 +122,7 @@ VM-X AI provides the following modules for policy configuration:
 - `environment:delete`
 
 **Example:**
+
 ```json
 {
   "effect": "ALLOW",
@@ -128,6 +137,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-connection:${aiConnection.name}`
 
 **Actions:**
+
 - `ai-connection:create`
 - `ai-connection:get`
 - `ai-connection:list`
@@ -135,6 +145,7 @@ VM-X AI provides the following modules for policy configuration:
 - `ai-connection:delete`
 
 **Example:**
+
 ```json
 {
   "effect": "ALLOW",
@@ -149,6 +160,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-resource:${aiResource.name}`
 
 **Actions:**
+
 - `ai-resource:create`
 - `ai-resource:get`
 - `ai-resource:list`
@@ -156,6 +168,7 @@ VM-X AI provides the following modules for policy configuration:
 - `ai-resource:delete`
 
 **Example:**
+
 ```json
 {
   "effect": "ALLOW",
@@ -170,6 +183,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:api-key:${apiKey.name}`
 
 **Actions:**
+
 - `api-key:create`
 - `api-key:get`
 - `api-key:list`
@@ -182,9 +196,11 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion`
 
 **Actions:**
+
 - `completion:create`
 
 **Example:**
+
 ```json
 {
   "effect": "ALLOW",
@@ -199,6 +215,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-audit`
 
 **Actions:**
+
 - `completion-audit:get`
 - `completion-audit:list`
 
@@ -208,6 +225,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-metrics`
 
 **Actions:**
+
 - `completion-metrics:get`
 - `completion-metrics:list`
 
@@ -217,6 +235,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-usage`
 
 **Actions:**
+
 - `completion-usage:get`
 - `completion-usage:list`
 
@@ -226,6 +245,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:pool-definition`
 
 **Actions:**
+
 - `pool-definition:get`
 - `pool-definition:update`
 
@@ -235,6 +255,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `user:${user.email}`
 
 **Actions:**
+
 - `user:create`
 - `user:get`
 - `user:list`
@@ -247,6 +268,7 @@ VM-X AI provides the following modules for policy configuration:
 **Item Resource**: `role:${role.name}`
 
 **Actions:**
+
 - `role:create`
 - `role:get`
 - `role:list`
@@ -302,10 +324,7 @@ Allow full access to production environment only:
     {
       "effect": "ALLOW",
       "actions": ["*"],
-      "resources": [
-        "workspace:*:environment:production:*",
-        "workspace:*:environment:production"
-      ]
+      "resources": ["workspace:*:environment:production:*", "workspace:*:environment:production"]
     }
   ]
 }
@@ -320,11 +339,7 @@ Allow viewing and creating AI connections, but not updating or deleting:
   "statements": [
     {
       "effect": "ALLOW",
-      "actions": [
-        "ai-connection:create",
-        "ai-connection:get",
-        "ai-connection:list"
-      ],
+      "actions": ["ai-connection:create", "ai-connection:get", "ai-connection:list"],
       "resources": ["workspace:*:environment:*:ai-connection:*"]
     },
     {
@@ -374,7 +389,7 @@ flowchart TD
     B -->|No| D{Any ALLOW matches?}
     D -->|Yes| E[Access Granted]
     D -->|No| F[Access Denied]
-    
+
     style C fill:#ffebee
     style E fill:#e8f5e9
     style F fill:#ffebee
@@ -471,10 +486,7 @@ Restrict access to specific environments:
     {
       "effect": "ALLOW",
       "actions": ["*"],
-      "resources": [
-        "workspace:*:environment:production:*",
-        "workspace:*:environment:staging:*"
-      ]
+      "resources": ["workspace:*:environment:production:*", "workspace:*:environment:staging:*"]
     }
   ]
 }
@@ -562,4 +574,3 @@ Access the policy editor when creating or editing roles in the UI.
 - [Users](./users.md) - Learn about user management
 - [Workspaces and Environments](../features/workspaces-environments.md) - Understand workspace isolation
 - [AI Connections](../features/ai-connections.md) - Create AI provider connections
-

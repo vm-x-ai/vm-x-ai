@@ -104,7 +104,9 @@ export default function ActionMenu({
                 <ToggleOffIcon sx={{ color: grey[700], mr: 1 }} />
               )}
               <Typography color={grey[700]}>
-                {advancedEditing ? 'Advanced edit ON' + '\u00A0' : 'Advanced edit OFF'}
+                {advancedEditing
+                  ? 'Advanced edit ON' + '\u00A0'
+                  : 'Advanced edit OFF'}
               </Typography>
             </Grid>
           </Grid>

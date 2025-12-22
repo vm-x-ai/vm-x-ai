@@ -9,6 +9,7 @@ kubectl exec -it vm-x-ai-redis-cluster-0 -n vm-x-ai -- redis-cli cluster nodes
 ```
 
 **Expected**: All nodes should show FQDNs like:
+
 - `vm-x-ai-redis-cluster-0.vm-x-ai-redis-cluster:6379`
 - `vm-x-ai-redis-cluster-1.vm-x-ai-redis-cluster:6379`
 - `vm-x-ai-redis-cluster-2.vm-x-ai-redis-cluster:6379`
@@ -69,6 +70,7 @@ kubectl exec -it <api-pod-name> -n vm-x-ai -- env | grep REDIS
 ```
 
 Should show:
+
 - `REDIS_HOST=vm-x-ai-redis-cluster-0.vm-x-ai-redis-cluster`
 - `REDIS_PORT=6379`
 - `REDIS_MODE=cluster`
@@ -110,22 +112,27 @@ kubectl exec -it <api-pod-name> -n vm-x-ai -- getent hosts vm-x-ai-redis-cluster
 ## Common Issues and Fixes
 
 ### Issue: Nodes showing IP addresses instead of FQDNs
+
 **Fix**: The cluster-announce-ip command might not be working. Check if the command is actually setting it:
+
 ```bash
 kubectl exec -it vm-x-ai-redis-cluster-0 -n vm-x-ai -- ps aux | grep redis-server
 ```
 
 ### Issue: DNS resolution failing
+
 **Fix**: Check if CoreDNS is working and the service exists:
+
 ```bash
 kubectl get svc -n vm-x-ai | grep redis
 kubectl get endpoints -n vm-x-ai vm-x-ai-redis-cluster
 ```
 
 ### Issue: Cluster not fully initialized
+
 **Fix**: Check the init job:
+
 ```bash
 kubectl get jobs -n vm-x-ai | grep redis-cluster-init
 kubectl logs -n vm-x-ai -l app.kubernetes.io/component=redis --tail=50
 ```
-

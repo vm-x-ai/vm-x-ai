@@ -64,10 +64,13 @@ const defaultInput = JSON.stringify(
     },
   },
   null,
-  2,
+  2
 );
 
-export default function AdvancedEditor({ route, onChange }: AdvancedEditorProps) {
+export default function AdvancedEditor({
+  route,
+  onChange,
+}: AdvancedEditorProps) {
   const [compilationError, setCompilationError] = useState<string | null>(null);
   const [input, setInput] = useState<string>(defaultInput);
 
@@ -107,15 +110,24 @@ export default function AdvancedEditor({ route, onChange }: AdvancedEditorProps)
               onClick={() => {
                 try {
                   setCompilationError(null);
-                  const result = ejs.render(route.expression ?? defaultExpression, JSON.parse(input));
+                  const result = ejs.render(
+                    route.expression ?? defaultExpression,
+                    JSON.parse(input)
+                  );
                   if (typeof result !== 'boolean') {
-                    setCompilationError('Expression should return a boolean value');
+                    setCompilationError(
+                      'Expression should return a boolean value'
+                    );
                     return;
                   }
 
                   toast.success('Expression compiled successfully');
                 } catch (error) {
-                  setCompilationError(`\`\`\`log\n${(error as Error).name}\n\n${(error as Error).message}\n\`\`\``);
+                  setCompilationError(
+                    `\`\`\`log\n${(error as Error).name}\n\n${
+                      (error as Error).message
+                    }\n\`\`\``
+                  );
                 }
               }}
             >

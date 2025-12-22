@@ -1,5 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiExtraModels, ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AIProviderService } from './ai-provider.service';
 import {
   AIProviderConnectionAccordionComponentDto,

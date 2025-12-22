@@ -75,6 +75,7 @@ pnpm cdk deploy
 ```
 
 This will:
+
 - Create the VPC and networking infrastructure
 - Provision the ECS Fargate cluster
 - Create the Aurora PostgreSQL database
@@ -99,6 +100,7 @@ aws cloudformation describe-stacks \
 ```
 
 Or check the AWS Console for the Load Balancer DNS names:
+
 - **ApiUrl**: API Load Balancer DNS name
 - **UiUrl**: UI Load Balancer DNS name
 
@@ -111,26 +113,26 @@ graph TB
     Internet[Internet]
     API_ALB[API ALB<br/>Port 80]
     UI_ALB[UI ALB<br/>Port 80]
-    
+
     subgraph ECS["ECS Fargate Cluster"]
         API_Service[API Service]
         UI_Service[UI Service]
-        
+
         subgraph API_Task["API Task"]
             API_Container[API Container]
             API_OTEL[OTEL Collector]
         end
-        
+
         subgraph UI_Task["UI Task"]
             UI_Container[UI Container]
             UI_OTEL[OTEL Collector]
         end
     end
-    
+
     Aurora[(Aurora PostgreSQL)]
     ElastiCache[(ElastiCache<br/>Valkey)]
     Timestream[(Timestream Database)]
-    
+
     Internet --> API_ALB
     Internet --> UI_ALB
     API_ALB --> API_Service
@@ -142,7 +144,7 @@ graph TB
     API_Container --> Aurora
     API_Container --> ElastiCache
     API_Container --> Timestream
-    
+
     style Internet fill:#e3f2fd
     style API_ALB fill:#fff3e0
     style UI_ALB fill:#fff3e0
@@ -176,6 +178,7 @@ const vpc = new Vpc(this, 'VPC', {
 ```
 
 **Key Points:**
+
 - **CIDR**: `10.0.0.0/16` provides 65,536 IP addresses
 - **Availability Zones**: 3 AZs for high availability
 - **Subnets**: Public subnets only (add private subnets with NAT Gateway for production)
@@ -192,14 +195,11 @@ const database = new DatabaseCluster(this, 'Database', {
   vpc,
   clusterIdentifier: 'vm-x-ai-rds-cluster',
   vpcSubnets: {
-    subnetType: SubnetType.PUBLIC,  // Production: Use PRIVATE_WITH_EGRESS
+    subnetType: SubnetType.PUBLIC, // Production: Use PRIVATE_WITH_EGRESS
   },
   writer: ClusterInstance.provisioned('writer', {
-    publiclyAccessible: true,  // Production: Set to false
-    instanceType: InstanceType.of(
-      InstanceClass.BURSTABLE3,
-      InstanceSize.MEDIUM
-    ),
+    publiclyAccessible: true, // Production: Set to false
+    instanceType: InstanceType.of(InstanceClass.BURSTABLE3, InstanceSize.MEDIUM),
   }),
   credentials: Credentials.fromGeneratedSecret('vmxai', {
     secretName: 'vm-x-ai-database-secret',
@@ -209,6 +209,7 @@ const database = new DatabaseCluster(this, 'Database', {
 ```
 
 **Key Points:**
+
 - **Engine**: Aurora PostgreSQL 17.6
 - **Instance Type**: `db.t3.medium` (burstable performance)
 - **Credentials**: Auto-generated and stored in AWS Secrets Manager
@@ -219,15 +220,11 @@ const database = new DatabaseCluster(this, 'Database', {
 The stack creates a serverless Valkey (Redis-compatible) cache:
 
 ```typescript
-const redisSecurityGroup = new SecurityGroup(
-  this,
-  'ElastiCacheSecurityGroup',
-  {
-    vpc,
-    allowAllOutbound: true,
-    description: 'ElastiCache Security Group',
-  }
-);
+const redisSecurityGroup = new SecurityGroup(this, 'ElastiCacheSecurityGroup', {
+  vpc,
+  allowAllOutbound: true,
+  description: 'ElastiCache Security Group',
+});
 
 const redisCluster = new CfnServerlessCache(this, 'ServerlessCache', {
   engine: 'valkey',
@@ -239,6 +236,7 @@ const redisCluster = new CfnServerlessCache(this, 'ServerlessCache', {
 ```
 
 **Key Points:**
+
 - **Engine**: Valkey (Redis-compatible)
 - **Mode**: Serverless (auto-scaling)
 - **Network**: Public subnets (use private subnets in production)
@@ -255,6 +253,7 @@ const cluster = new Cluster(this, 'Cluster', {
 ```
 
 **Key Points:**
+
 - **Launch Type**: Fargate (serverless containers)
 - **No EC2 Management**: Fargate handles infrastructure
 
@@ -263,36 +262,29 @@ const cluster = new Cluster(this, 'Cluster', {
 The stack creates separate ALBs for API and UI:
 
 ```typescript
-const apiLoadBalancer = new ApplicationLoadBalancer(
-  this,
-  'API/LoadBalancer',
-  {
-    vpc,
-    loadBalancerName: 'vm-x-ai-api',
-    internetFacing: true,
-    vpcSubnets: {
-      subnetType: SubnetType.PUBLIC,
-    },
-    http2Enabled: true,
-  }
-);
+const apiLoadBalancer = new ApplicationLoadBalancer(this, 'API/LoadBalancer', {
+  vpc,
+  loadBalancerName: 'vm-x-ai-api',
+  internetFacing: true,
+  vpcSubnets: {
+    subnetType: SubnetType.PUBLIC,
+  },
+  http2Enabled: true,
+});
 
-const uiLoadBalancer = new ApplicationLoadBalancer(
-  this,
-  'UI/LoadBalancer',
-  {
-    vpc,
-    loadBalancerName: 'vm-x-ai-ui',
-    internetFacing: true,
-    vpcSubnets: {
-      subnetType: SubnetType.PUBLIC,
-    },
-    http2Enabled: true,
-  }
-);
+const uiLoadBalancer = new ApplicationLoadBalancer(this, 'UI/LoadBalancer', {
+  vpc,
+  loadBalancerName: 'vm-x-ai-ui',
+  internetFacing: true,
+  vpcSubnets: {
+    subnetType: SubnetType.PUBLIC,
+  },
+  http2Enabled: true,
+});
 ```
 
 **Key Points:**
+
 - **Separate ALBs**: One for API, one for UI
 - **HTTP/2**: Enabled for better performance
 - **Internet-facing**: Public access (use internal ALBs in production)
@@ -316,6 +308,7 @@ const uiTaskDefinition = new FargateTaskDefinition(this, 'UI/TaskDef', {
 ```
 
 **Key Points:**
+
 - **Memory**: 1024 MiB per task
 - **CPU**: 512 CPU units (0.5 vCPU)
 - **Containers**: Each task includes application container and OTEL collector sidecar
@@ -356,6 +349,7 @@ apiTaskDefinition.addContainer('API/Container', {
 ```
 
 **Key Points:**
+
 - **Image**: Uses published `vmxai/api:latest` image
 - **Secrets**: Retrieved from AWS Secrets Manager
 - **OpenTelemetry**: Enabled with sidecar collector
@@ -372,14 +366,15 @@ const apiService = new FargateService(this, 'API/Service', {
   enableExecuteCommand: true,
   desiredCount: 1,
   vpcSubnets: {
-    subnetType: SubnetType.PUBLIC,  // Production: Use PRIVATE_WITH_EGRESS
+    subnetType: SubnetType.PUBLIC, // Production: Use PRIVATE_WITH_EGRESS
   },
   taskDefinition: apiTaskDefinition,
-  assignPublicIp: true,  // Production: Set to false
+  assignPublicIp: true, // Production: Set to false
 });
 ```
 
 **Key Points:**
+
 - **Desired Count**: 1 task (can be scaled)
 - **Public IP**: Enabled for development (disable in production)
 - **Execute Command**: Enabled for debugging
@@ -407,6 +402,7 @@ apiListener.addTargets('API/Target', {
 ```
 
 **Key Points:**
+
 - **Health Checks**: Configured on `/healthcheck` endpoint
 - **Port**: 3000 for API, 3001 for UI
 - **Protocol**: HTTP (add HTTPS in production)
@@ -416,6 +412,7 @@ apiListener.addTargets('API/Target', {
 For the complete CDK stack implementation, see the [ECS example directory](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/aws-cdk-ecs).
 
 The example includes:
+
 - Complete CDK stack code
 - All infrastructure components
 - IAM roles and policies
@@ -436,8 +433,8 @@ Modify in `lib/ecs-stack.ts`:
 
 ```typescript
 const apiTaskDefinition = new FargateTaskDefinition(this, 'API/TaskDef', {
-  memoryLimitMiB: 2048,  // Increase memory
-  cpu: 1024,              // Increase CPU
+  memoryLimitMiB: 2048, // Increase memory
+  cpu: 1024, // Increase CPU
   family: 'vm-x-ai-api-task-definition',
 });
 ```
@@ -449,7 +446,7 @@ Default is 1 task per service. Modify:
 ```typescript
 const apiService = new FargateService(this, 'API/Service', {
   // ...
-  desiredCount: 2,  // Scale to 2 tasks
+  desiredCount: 2, // Scale to 2 tasks
 });
 ```
 
@@ -504,6 +501,7 @@ service:
 ```
 
 **Key Configuration Points:**
+
 - **Receivers**: OTLP (gRPC and HTTP), AWS X-Ray, and StatsD
 - **Processors**: Batch processing for traces and metrics
 - **Exporters**: AWS X-Ray for traces, CloudWatch EMF for metrics
@@ -513,10 +511,12 @@ service:
 OpenTelemetry can generate a large number of metrics with multiple dimensions (labels/tags). CloudWatch charges **$0.30 per metric per month**, and each unique combination of metric name and dimension values counts as a separate metric.
 
 **High-cardinality metrics** (metrics with many unique dimension combinations) can quickly become expensive. For example:
+
 - A metric with 3 dimensions, each with 10 possible values = up to 1,000 unique metrics
 - At $0.30/metric/month, this could cost $300/month for a single metric type
 
 **Recommendations:**
+
 - Monitor your CloudWatch metric count regularly
 - Consider reducing metric dimensions if costs become high
 - Use metric filtering or aggregation to reduce cardinality
@@ -524,9 +524,11 @@ OpenTelemetry can generate a large number of metrics with multiple dimensions (l
 - Set up CloudWatch billing alarms to track metric costs
 
 You can check your current metric count:
+
 ```bash
 aws cloudwatch list-metrics --namespace ECS/OTEL/VM-X-AI --query 'length(Metrics)'
 ```
+
 :::
 
 ## Accessing Services
@@ -534,10 +536,12 @@ aws cloudwatch list-metrics --namespace ECS/OTEL/VM-X-AI --query 'length(Metrics
 ### Application
 
 Access the application at the Load Balancer DNS names:
+
 - **UI**: `http://<ui-alb-dns-name>`
 - **API**: `http://<api-alb-dns-name>`
 
 Default credentials:
+
 - **Username**: `admin`
 - **Password**: `admin`
 
@@ -623,18 +627,21 @@ Estimated monthly costs for minimal production setup:
 
 :::important CloudWatch Metrics Cost
 CloudWatch metrics can become a significant cost driver, especially with OpenTelemetry. Each unique combination of metric name and dimension values is billed separately. For example:
+
 - 100 unique metrics = $30/month
 - 1,000 unique metrics = $300/month
 - 10,000 unique metrics = $3,000/month
 
 Monitor your metric count and consider:
+
 - Reducing metric dimensions
 - Filtering or aggregating metrics
 - Disabling unnecessary metrics
 - Setting up CloudWatch billing alarms
-:::
+  :::
 
 To reduce costs:
+
 - Use smaller task sizes (reduce CPU/memory)
 - Reduce desired count to 0 when not in use
 - Use Aurora Serverless v2 for variable workloads
@@ -694,6 +701,7 @@ pnpm cdk destroy
 **Warning**: This will delete all resources including databases and caches. Make sure you have backups if needed.
 
 **Note**: Some resources may need to be deleted manually:
+
 - ElastiCache serverless cache (may take time to delete)
 - Timestream database (must be empty before deletion)
 
@@ -764,4 +772,3 @@ Before deploying to production:
 - [AWS EKS Deployment](./aws-eks.md) - Alternative AWS deployment option
 - [Minikube Deployment](./minikube.md) - Local Kubernetes deployment
 - [ECS Example README](https://github.com/vm-x-ai/vm-x-ai/blob/main/examples/aws-cdk-ecs/README.md) - Detailed example documentation
-

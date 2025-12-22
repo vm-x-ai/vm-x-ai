@@ -19,15 +19,21 @@ export const migration: Migration = {
         col.notNull().defaultTo(sql`gen_random_uuid()`)
       )
       .addColumn('timestamp', 'timestamptz', (col) => col.notNull())
-      .addColumn('type', sql`COMPLETION_BATCH_REQUEST_TYPE`, (col) => col.notNull())
-      .addColumn('status', sql`COMPLETION_BATCH_REQUEST_STATUS`, (col) => col.notNull())
+      .addColumn('type', sql`COMPLETION_BATCH_REQUEST_TYPE`, (col) =>
+        col.notNull()
+      )
+      .addColumn('status', sql`COMPLETION_BATCH_REQUEST_STATUS`, (col) =>
+        col.notNull()
+      )
       .addColumn('callback_options', 'jsonb')
       .addColumn('completed', 'integer', (col) => col.notNull().defaultTo(0))
       .addColumn('failed', 'integer', (col) => col.notNull().defaultTo(0))
       .addColumn('running', 'integer', (col) => col.notNull().defaultTo(0))
       .addColumn('pending', 'integer', (col) => col.notNull().defaultTo(0))
       .addColumn('total_items', 'integer', (col) => col.notNull().defaultTo(0))
-      .addColumn('total_estimated_prompt_tokens', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('total_estimated_prompt_tokens', 'integer', (col) =>
+        col.notNull().defaultTo(0)
+      )
       .addColumn('total_prompt_tokens', 'integer', (col) =>
         col.notNull().defaultTo(0)
       )
@@ -83,7 +89,7 @@ export const migration: Migration = {
       .createIndex('idx_completion_batch_status')
       .on('completion_batch')
       .column('status')
-      .execute(); 
+      .execute();
 
     await db.schema
       .createIndex('idx_completion_batch_created_by_user_id')
@@ -104,9 +110,7 @@ export const migration: Migration = {
     await db.schema
       .dropIndex('idx_completion_batch_workspace_id_environment_id')
       .execute();
-    await db.schema
-      .dropIndex('idx_completion_batch_status')
-      .execute();
+    await db.schema.dropIndex('idx_completion_batch_status').execute();
     await db.schema
       .dropIndex('idx_completion_batch_created_by_user_id')
       .execute();

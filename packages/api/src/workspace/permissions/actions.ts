@@ -12,5 +12,5 @@ export enum WorkspaceActions {
   UNASSIGN = `${WORKSPACE_MODULE_NAME}:unassign`,
 }
 
-export const WORKSPACE_BASE_RESOURCE = 'workspace'
-export const WORKSPACE_RESOURCE_ITEM = `${WORKSPACE_BASE_RESOURCE}:\${workspace.name}`
+export const WORKSPACE_BASE_RESOURCE = 'workspace';
+export const WORKSPACE_RESOURCE_ITEM = `${WORKSPACE_BASE_RESOURCE}:\${workspace.name}`;

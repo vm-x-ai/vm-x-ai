@@ -51,7 +51,10 @@ export default function APIKeysTable({
     enabled: !!workspaceId && !!environmentId,
     initialData: initialData,
   });
-  const loading = useMemo(() => initialLoading || isLoading, [initialLoading, isLoading]);
+  const loading = useMemo(
+    () => initialLoading || isLoading,
+    [initialLoading, isLoading]
+  );
 
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<
     ApiKeyEntity | undefined

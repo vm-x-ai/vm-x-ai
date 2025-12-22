@@ -21,7 +21,10 @@ import {
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { ServiceError } from '../types';
 import { RoleGuard } from '../role/role.guard';
-import { POOL_DEFINITION_BASE_RESOURCE, PoolDefinitionActions } from './permissions/actions';
+import {
+  POOL_DEFINITION_BASE_RESOURCE,
+  PoolDefinitionActions,
+} from './permissions/actions';
 
 @UseGuards(WorkspaceMemberGuard())
 @Controller('pool-definition')
@@ -34,7 +37,9 @@ export class PoolDefinitionController {
   constructor(private readonly poolDefinitionService: PoolDefinitionService) {}
 
   @Get(':workspaceId/:environmentId')
-  @UseGuards(RoleGuard(PoolDefinitionActions.GET, POOL_DEFINITION_BASE_RESOURCE))
+  @UseGuards(
+    RoleGuard(PoolDefinitionActions.GET, POOL_DEFINITION_BASE_RESOURCE)
+  )
   @ApiOkResponse({
     type: PoolDefinitionEntity,
     description: 'Get a pool definition by workspace and environment',
@@ -62,7 +67,9 @@ export class PoolDefinitionController {
   }
 
   @Post(':workspaceId/:environmentId')
-  @UseGuards(RoleGuard(PoolDefinitionActions.UPDATE, POOL_DEFINITION_BASE_RESOURCE))
+  @UseGuards(
+    RoleGuard(PoolDefinitionActions.UPDATE, POOL_DEFINITION_BASE_RESOURCE)
+  )
   @ApiOkResponse({
     type: PoolDefinitionEntity,
     description: 'Created/updated a pool definition',
@@ -90,7 +97,9 @@ export class PoolDefinitionController {
   }
 
   @Delete(':workspaceId/:environmentId')
-  @UseGuards(RoleGuard(PoolDefinitionActions.DELETE, POOL_DEFINITION_BASE_RESOURCE))
+  @UseGuards(
+    RoleGuard(PoolDefinitionActions.DELETE, POOL_DEFINITION_BASE_RESOURCE)
+  )
   @ApiWorkspaceIdParam()
   @ApiOkResponse({
     description: 'Delete a pool definition',

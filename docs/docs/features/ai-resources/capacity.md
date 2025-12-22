@@ -55,6 +55,7 @@ Capacity can be defined for multiple time periods:
 ### Capacity Enforcement
 
 When `enforceCapacity` is `true`:
+
 - Resource-level capacity is checked **before** connection-level capacity
 - Requests exceeding resource capacity are rejected with `429 Too Many Requests`
 - Useful for:
@@ -63,6 +64,7 @@ When `enforceCapacity` is `true`:
   - Implementing tiered access levels
 
 When `enforceCapacity` is `false`:
+
 - Resource-level capacity is not enforced
 - Only connection-level capacity is checked
 - Useful for resources that should share connection capacity freely
@@ -86,23 +88,28 @@ Resource capacity is checked in the following order:
 Consider a connection with 100,000 TPM capacity and two resources:
 
 **Connection Configuration:**
+
 - Capacity: 100,000 TPM
 
 **Resource A:**
+
 - Capacity: 50,000 TPM
 - `enforceCapacity`: `true`
 
 **Resource B:**
+
 - Capacity: 30,000 TPM
 - `enforceCapacity`: `true`
 
 **Request Flow:**
 
 1. Request to Resource A (60,000 tokens)
+
    - Resource capacity check: 60,000 > 50,000 → **Rejected** (429)
    - Connection capacity check: Not reached (only 60,000 used)
 
 2. Request to Resource A (40,000 tokens)
+
    - Resource capacity check: 40,000 ≤ 50,000 → **Pass**
    - Connection capacity check: 40,000 ≤ 100,000 → **Pass**
    - Request proceeds
@@ -116,6 +123,7 @@ Consider a connection with 100,000 TPM capacity and two resources:
 ### 1. Set Realistic Limits
 
 Set capacity limits based on:
+
 - Expected usage patterns
 - Business requirements
 - Cost constraints
@@ -124,6 +132,7 @@ Set capacity limits based on:
 ### 2. Use Multiple Periods
 
 Define capacity for multiple periods:
+
 - **Minute**: For burst protection
 - **Hour**: For sustained usage limits
 - **Day**: For daily spending limits
@@ -131,6 +140,7 @@ Define capacity for multiple periods:
 ### 3. Balance Resource and Connection Capacity
 
 Ensure resource capacity doesn't exceed connection capacity:
+
 - Resource A: 50,000 TPM
 - Resource B: 30,000 TPM
 - Connection: 100,000 TPM
@@ -139,6 +149,7 @@ Ensure resource capacity doesn't exceed connection capacity:
 ### 4. Monitor Capacity Usage
 
 Regularly review:
+
 - Actual usage vs. configured limits
 - Rejection rates due to capacity
 - Capacity utilization patterns
@@ -147,6 +158,7 @@ Regularly review:
 ### 5. Use with Prioritization
 
 Combine resource capacity with prioritization:
+
 - Set resource capacity limits
 - Use prioritization to allocate capacity fairly
 - Ensure high-priority resources get capacity when needed
@@ -204,4 +216,3 @@ Both capacity types work together:
 - [Fallback](./fallback.md) - Configure automatic fallback
 - [AI Resources Overview](./index.md) - Return to AI Resources overview
 - [Prioritization](../prioritization.md) - Understand capacity prioritization
-

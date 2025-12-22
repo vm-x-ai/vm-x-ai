@@ -28,11 +28,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Security',
-      items: [
-        'security/roles',
-        'security/policy',
-        'security/users',
-      ],
+      items: ['security/roles', 'security/policy', 'security/users'],
     },
     {
       type: 'category',
@@ -58,10 +54,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Integrations',
-      items: [
-        'integrations/providers/index',
-        'features/langchain',
-      ],
+      items: ['integrations/providers/index', 'features/langchain'],
     },
   ],
 };

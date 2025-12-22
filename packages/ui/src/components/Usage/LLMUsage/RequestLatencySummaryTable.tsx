@@ -10,7 +10,9 @@ export type LLMRequestLatencySummaryTableProps = {
   data: CompletionUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<CompletionUsageQueryResultDto[] | undefined>;
+  autoRefreshAction?: () => Promise<
+    CompletionUsageQueryResultDto[] | undefined
+  >;
 };
 
 export function LLMRequestLatencySummaryTable({
@@ -39,7 +41,8 @@ export function LLMRequestLatencySummaryTable({
     {
       accessorKey: 'requestDuration',
       header: 'Duration (p99)',
-      Cell: ({ row: { original: row } }) => formatDuration((row.requestDuration as number) ?? 0),
+      Cell: ({ row: { original: row } }) =>
+        formatDuration((row.requestDuration as number) ?? 0),
     },
   ];
 

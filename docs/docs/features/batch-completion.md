@@ -1,6 +1,7 @@
 ---
 sidebar_position: 7
 ---
+
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
@@ -41,7 +42,7 @@ graph TB
     Client[Client Application] -->|POST /completion-batch| API[VM-X API]
     API -->|Create Batch| DB[(PostgreSQL)]
     API -->|Send Items| Redis[Redis Queue System]
-    
+
     subgraph Redis[Redis Queue System]
         MainQueue[Main Queue<br/>Sorted Set by Timestamp]
         ProcessingQueue[Processing Queue<br/>Items in Flight]
@@ -50,26 +51,26 @@ graph TB
         StandbyResources[Standby Resources<br/>Waiting for Capacity]
         BatchStream[Batch Stream<br/>SSE Events]
     end
-    
+
     Consumer[Batch Consumer Workers] -->|Lock Resource| Redis
     Consumer -->|Retrieve Items<br/>Respect Capacity| MainQueue
     Consumer -->|Move to Processing| ProcessingQueue
     Consumer -->|Track In-Flight| GlobalProcessing
-    
+
     Consumer -->|Check Capacity| CapacityService[Capacity Service]
     CapacityService -->|Query Usage| Redis
     CapacityService -->|Check Limits| DB
-    
+
     Consumer -->|No Capacity| StandbyResources
     StandbyResources -->|Capacity Available| ActiveResources
-    
+
     Consumer -->|Process Item| LLMProvider[AI Provider]
     LLMProvider -->|Response| Consumer
     Consumer -->|Update Status| DB
     Consumer -->|Emit Event| BatchStream
-    
+
     BatchStream -->|SSE| Client
-    
+
     style Redis fill:#f9f,stroke:#333,stroke-width:4px
     style Consumer fill:#bbf,stroke:#333,stroke-width:2px
     style CapacityService fill:#bfb,stroke:#333,stroke-width:2px
@@ -114,23 +115,23 @@ sequenceDiagram
     loop Consumer Processing Loop
         Consumer->>Redis: Get oldest active resources
         Redis-->>Consumer: Return resource list
-        
+
         par Process Multiple Resources
             Consumer->>Redis: Lock resource
             Redis-->>Consumer: Lock acquired
-            
+
             Consumer->>Capacity: Check available capacity
             Capacity->>Redis: Query usage metrics
             Capacity->>DB: Get capacity limits
             Capacity-->>Consumer: Available RPM/TPM
-            
+
             alt Capacity Available
                 Consumer->>Redis: Retrieve items from queue<br/>(respecting capacity)
                 Redis-->>Consumer: Return items
                 Consumer->>Redis: Move items to processing queue
                 Consumer->>Redis: Add to global processing queue
                 Consumer->>Redis: Unlock resource
-                
+
                 par Process Items Concurrently
                     Consumer->>DB: Update item status: RUNNING
                     Consumer->>LLM: Send completion request
@@ -203,6 +204,7 @@ The system checks capacity from multiple sources:
 - **Discovered Capacity**: Automatically discovered provider limits (if available)
 
 If capacity is exhausted:
+
 - Items remain in the main queue
 - Resource is moved to standby resources
 - Resource is reactivated when capacity becomes available
@@ -294,8 +296,8 @@ for line in response.iter_lines():
 ```javascript
 import axios from 'axios';
 
-const workspaceId = "6c41dc1b-910c-4358-beef-2c609d38db31";
-const environmentId = "6c1957ca-77ca-49b3-8fa1-0590281b8b44";
+const workspaceId = '6c41dc1b-910c-4358-beef-2c609d38db31';
+const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
 
 // Create batch with SYNC type
 const response = await axios.post(
@@ -306,27 +308,23 @@ const response = await axios.post(
       {
         resourceId: 'your-resource-id',
         request: {
-          messages: [
-            { role: 'user', content: 'Summarize this document: ...' }
-          ]
-        }
+          messages: [{ role: 'user', content: 'Summarize this document: ...' }],
+        },
       },
       {
         resourceId: 'your-resource-id',
         request: {
-          messages: [
-            { role: 'user', content: 'Extract key points from: ...' }
-          ]
-        }
-      }
-    ]
+          messages: [{ role: 'user', content: 'Extract key points from: ...' }],
+        },
+      },
+    ],
   },
   {
     headers: {
       Authorization: 'Bearer your-vmx-api-key',
       'Content-Type': 'application/json',
     },
-    responseType: 'stream'
+    responseType: 'stream',
   }
 );
 
@@ -416,12 +414,12 @@ while True:
         headers={"Authorization": "Bearer your-vmx-api-key"}
     )
     batch_status = status_response.json()
-    
+
     print(f"Progress: {batch_status['completedPercentage']}%")
-    
+
     if batch_status["status"] in ["COMPLETED", "FAILED"]:
         break
-    
+
     time.sleep(5)  # Poll every 5 seconds
 ```
 
@@ -431,8 +429,8 @@ while True:
 ```javascript
 import axios from 'axios';
 
-const workspaceId = "6c41dc1b-910c-4358-beef-2c609d38db31";
-const environmentId = "6c1957ca-77ca-49b3-8fa1-0590281b8b44";
+const workspaceId = '6c41dc1b-910c-4358-beef-2c609d38db31';
+const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
 
 // Create batch
 const { data: batch } = await axios.post(
@@ -443,18 +441,16 @@ const { data: batch } = await axios.post(
       {
         resourceId: 'your-resource-id',
         request: {
-          messages: [
-            { role: 'user', content: 'Process document...' }
-          ]
-        }
-      }
-    ]
+          messages: [{ role: 'user', content: 'Process document...' }],
+        },
+      },
+    ],
   },
   {
     headers: {
       Authorization: 'Bearer your-vmx-api-key',
       'Content-Type': 'application/json',
-    }
+    },
   }
 );
 
@@ -463,22 +459,19 @@ const batchId = batch.batchId;
 // Poll for status
 const pollStatus = async () => {
   while (true) {
-    const { data: batchStatus } = await axios.get(
-      `http://localhost:3000/v1/completion-batch/${workspaceId}/${environmentId}/${batchId}`,
-      {
-        headers: {
-          Authorization: 'Bearer your-vmx-api-key',
-        }
-      }
-    );
-    
+    const { data: batchStatus } = await axios.get(`http://localhost:3000/v1/completion-batch/${workspaceId}/${environmentId}/${batchId}`, {
+      headers: {
+        Authorization: 'Bearer your-vmx-api-key',
+      },
+    });
+
     console.log(`Progress: ${batchStatus.completedPercentage}%`);
-    
+
     if (['COMPLETED', 'FAILED'].includes(batchStatus.status)) {
       break;
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
+
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // Poll every 5 seconds
   }
 };
 
@@ -538,8 +531,8 @@ print(f"Batch created: {batch['batchId']}")
 ```javascript
 import axios from 'axios';
 
-const workspaceId = "6c41dc1b-910c-4358-beef-2c609d38db31";
-const environmentId = "6c1957ca-77ca-49b3-8fa1-0590281b8b44";
+const workspaceId = '6c41dc1b-910c-4358-beef-2c609d38db31';
+const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
 
 // Create batch with callback
 const { data: batch } = await axios.post(
@@ -549,26 +542,24 @@ const { data: batch } = await axios.post(
     callbackOptions: {
       url: 'https://your-app.com/batch-callback',
       headers: {
-        'X-API-Key': 'your-secret-key'
+        'X-API-Key': 'your-secret-key',
       },
-      events: ['ITEM_UPDATE', 'BATCH_UPDATE']
+      events: ['ITEM_UPDATE', 'BATCH_UPDATE'],
     },
     items: [
       {
         resourceId: 'your-resource-id',
         request: {
-          messages: [
-            { role: 'user', content: 'Process document...' }
-          ]
-        }
-      }
-    ]
+          messages: [{ role: 'user', content: 'Process document...' }],
+        },
+      },
+    ],
   },
   {
     headers: {
       Authorization: 'Bearer your-vmx-api-key',
       'Content-Type': 'application/json',
-    }
+    },
   }
 );
 
@@ -598,6 +589,7 @@ Override capacity limits for a specific batch:
 ```
 
 This allows you to:
+
 - Process batches at a slower rate to avoid overwhelming downstream systems
 - Allocate specific capacity to a batch for cost control
 - Test different rate limits without modifying AI Resource configuration
@@ -682,4 +674,3 @@ When using CALLBACK type, your endpoint receives HTTP POST requests:
 - [AI Connections](./ai-connections.md) - Configure AI Connections
 - [Capacity Management](./ai-resources/capacity.md) - Understand capacity limits
 - [Usage Monitoring](./usage.md) - Monitor batch usage and metrics
-

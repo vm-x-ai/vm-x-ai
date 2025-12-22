@@ -13,7 +13,11 @@ export default function UserMessage({ content }: UserMessageProps) {
   return (
     <BaseMessage
       avatar={
-        <Avatar alt="User" sx={{ bgcolor: 'var(--mui-palette-primary-main)' }} variant="rounded">
+        <Avatar
+          alt="User"
+          sx={{ bgcolor: 'var(--mui-palette-primary-main)' }}
+          variant="rounded"
+        >
           <PersonIcon />
         </Avatar>
       }

@@ -14,9 +14,7 @@ export type PageProps = {
   }>;
 };
 
-export default async function Page({
-  params,
-}: PageProps) {
+export default async function Page({ params }: PageProps) {
   const { workspaceId, environmentId, resourceId } = await params;
   const [resource, connections, providers] = await Promise.all([
     getAiResourceById({

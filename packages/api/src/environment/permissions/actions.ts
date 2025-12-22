@@ -8,5 +8,6 @@ export enum EnvironmentActions {
   DELETE = `${ENVIRONMENT_MODULE_NAME}:delete`,
 }
 
-export const ENVIRONMENT_BASE_RESOURCE = 'workspace:${workspace.name}:environment';
+export const ENVIRONMENT_BASE_RESOURCE =
+  'workspace:${workspace.name}:environment';
 export const ENVIRONMENT_RESOURCE_ITEM = `${ENVIRONMENT_BASE_RESOURCE}:\${environment.name}`;

@@ -52,7 +52,7 @@ export interface Config<T extends ClientOptions = ClientOptions>
 export interface RequestOptions<
   TData = unknown,
   ThrowOnError extends boolean = boolean,
-  Url extends string = string,
+  Url extends string = string
 > extends Config<{
       throwOnError: ThrowOnError;
     }>,
@@ -81,7 +81,7 @@ export interface RequestOptions<
 
 export interface ResolvedRequestOptions<
   ThrowOnError extends boolean = boolean,
-  Url extends string = string,
+  Url extends string = string
 > extends RequestOptions<unknown, ThrowOnError, Url> {
   serializedBody?: string;
 }
@@ -89,7 +89,7 @@ export interface ResolvedRequestOptions<
 export type RequestResult<
   TData = unknown,
   TError = unknown,
-  ThrowOnError extends boolean = boolean,
+  ThrowOnError extends boolean = boolean
 > = ThrowOnError extends true
   ? Promise<{
       data: TData extends Record<string, unknown> ? TData[keyof TData] : TData;
@@ -122,26 +122,26 @@ export interface ClientOptions {
 type MethodFn = <
   TData = unknown,
   TError = unknown,
-  ThrowOnError extends boolean = false,
+  ThrowOnError extends boolean = false
 >(
-  options: Omit<RequestOptions<TData, ThrowOnError>, 'method'>,
+  options: Omit<RequestOptions<TData, ThrowOnError>, 'method'>
 ) => RequestResult<TData, TError, ThrowOnError>;
 
 type SseFn = <
   TData = unknown,
   TError = unknown,
-  ThrowOnError extends boolean = false,
+  ThrowOnError extends boolean = false
 >(
-  options: Omit<RequestOptions<TData, ThrowOnError>, 'method'>,
+  options: Omit<RequestOptions<TData, ThrowOnError>, 'method'>
 ) => Promise<ServerSentEventsResult<TData, TError>>;
 
 type RequestFn = <
   TData = unknown,
   TError = unknown,
-  ThrowOnError extends boolean = false,
+  ThrowOnError extends boolean = false
 >(
   options: Omit<RequestOptions<TData, ThrowOnError>, 'method'> &
-    Pick<Required<RequestOptions<TData, ThrowOnError>>, 'method'>,
+    Pick<Required<RequestOptions<TData, ThrowOnError>>, 'method'>
 ) => RequestResult<TData, TError, ThrowOnError>;
 
 type BuildUrlFn = <
@@ -150,9 +150,9 @@ type BuildUrlFn = <
     path?: Record<string, unknown>;
     query?: Record<string, unknown>;
     url: string;
-  },
+  }
 >(
-  options: TData & Options<TData>,
+  options: TData & Options<TData>
 ) => string;
 
 export type Client = CoreClient<
@@ -174,7 +174,7 @@ export type Client = CoreClient<
  * to ensure your client always has the correct values.
  */
 export type CreateClientConfig<T extends ClientOptions = ClientOptions> = (
-  override?: Config<ClientOptions & T>,
+  override?: Config<ClientOptions & T>
 ) => Config<Required<ClientOptions> & T>;
 
 export interface TDataShape {
@@ -190,7 +190,7 @@ type OmitKeys<T, K> = Pick<T, Exclude<keyof T, K>>;
 export type Options<
   TData extends TDataShape = TDataShape,
   ThrowOnError extends boolean = boolean,
-  TResponse = unknown,
+  TResponse = unknown
 > = OmitKeys<
   RequestOptions<TResponse, ThrowOnError>,
   'body' | 'path' | 'query' | 'url'

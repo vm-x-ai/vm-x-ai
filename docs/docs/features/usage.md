@@ -33,6 +33,7 @@ Each audit log entry includes:
 
 1. Navigate to **Audit** in the UI
 2. Use filters to find specific requests:
+
    - Date range
    - Resource
    - Provider
@@ -72,6 +73,7 @@ Each audit log entry includes:
 ### Exporting Audit Logs
 
 Audit logs can be exported for:
+
 - Compliance requirements
 - Analysis in external tools
 - Backup and archival
@@ -92,6 +94,7 @@ Usage metrics are stored in a time-series database (QuestDB or AWS Timestream) f
 ### Accessing Usage Metrics
 
 Navigate to **Usage** in the UI to view:
+
 - Usage charts and graphs
 - Token usage over time
 - Request counts
@@ -99,7 +102,6 @@ Navigate to **Usage** in the UI to view:
 - Capacity utilization
 
 ![Usage Dashboard](/pages/usage-dashboard.png)
-
 
 ## OpenTelemetry Integration
 
@@ -146,6 +148,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 ### Request Volume
 
 Track request volume over time:
+
 - Requests per hour/day
 - Requests by resource
 - Requests by provider
@@ -153,6 +156,7 @@ Track request volume over time:
 ### Token Usage
 
 Monitor token usage:
+
 - Total tokens per period
 - Prompt vs. completion tokens
 - Token usage by resource
@@ -161,6 +165,7 @@ Monitor token usage:
 ### Error Rates
 
 Monitor error rates:
+
 - Error rate over time
 - Errors by provider
 - Errors by resource
@@ -169,11 +174,11 @@ Monitor error rates:
 ### Capacity Utilization
 
 Track capacity usage:
+
 - RPM utilization
 - TPM utilization
 - Capacity by resource
 - Capacity by connection
-
 
 ## Best Practices
 
@@ -217,6 +222,7 @@ Track capacity usage:
 ### Audit Logs
 
 Export audit logs for:
+
 - Compliance requirements
 - External analysis
 - Backup and archival
@@ -224,6 +230,7 @@ Export audit logs for:
 ### Usage Metrics
 
 Export usage metrics to:
+
 - Business intelligence tools
 - Performance analysis tools
 - Custom dashboards

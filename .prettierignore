@@ -3,3 +3,13 @@
 /coverage
 /.nx/cache
 /.nx/workspace-data
+
+# Docs
+/docs/build
+.docusaurus
+
+.venv
+.next
+cdk.out
+
+/helm/charts/vm-x-ai/templates

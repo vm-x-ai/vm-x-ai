@@ -58,7 +58,11 @@ export default function ConfirmDeleteUserDialog({
         maxWidth="md"
       >
         <DialogTitle id="confirm-delete-user-title">
-          Are you sure you want to delete <strong>{user.name} ({user.email})</strong>?
+          Are you sure you want to delete{' '}
+          <strong>
+            {user.name} ({user.email})
+          </strong>
+          ?
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="confirm-delete-user-description">

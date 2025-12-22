@@ -8,5 +8,6 @@ export enum AIResourceActions {
   DELETE = `${AI_RESOURCE_MODULE_NAME}:delete`,
 }
 
-export const AI_RESOURCE_BASE_RESOURCE = 'workspace:${workspace.name}:environment:${environment.name}:ai-resource';
+export const AI_RESOURCE_BASE_RESOURCE =
+  'workspace:${workspace.name}:environment:${environment.name}:ai-resource';
 export const AI_RESOURCE_RESOURCE_ITEM = `${AI_RESOURCE_BASE_RESOURCE}:\${resource.name}`;

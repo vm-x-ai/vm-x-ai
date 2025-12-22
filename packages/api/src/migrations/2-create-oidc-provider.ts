@@ -25,7 +25,7 @@ export const migration: Migration = {
       .on('oidc_provider')
       .column('expires_at')
       .execute();
-    
+
     await db.schema
       .createIndex('idx_oidc_provider_uid')
       .on('oidc_provider')

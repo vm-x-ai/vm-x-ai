@@ -7,7 +7,10 @@ export type AiResourceStore = {
 };
 
 export type AiResourceActions = {
-  setAiResourceChanges: (resourceId: string, changes: Partial<AiResourceEntity>) => void;
+  setAiResourceChanges: (
+    resourceId: string,
+    changes: Partial<AiResourceEntity>
+  ) => void;
 };
 
 export const aiResourceActions = <T extends AiResourceStore>(
@@ -15,7 +18,10 @@ export const aiResourceActions = <T extends AiResourceStore>(
   get: () => T
 ) => {
   return {
-    setAiResourceChanges: (resourceId: string, changes: Partial<AiResourceEntity>) => {
+    setAiResourceChanges: (
+      resourceId: string,
+      changes: Partial<AiResourceEntity>
+    ) => {
       set({
         ...get(),
         aiResource: {

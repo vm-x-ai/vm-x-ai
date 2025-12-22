@@ -389,7 +389,8 @@ export class CompletionAuditEntity {
   apiKeyId?: string | null;
 
   @ApiProperty({
-    description: 'The user ID related to the completion audit event (if applicable)',
+    description:
+      'The user ID related to the completion audit event (if applicable)',
     example: '123e4567-e89b-12d3-a456-426614174000',
     format: 'uuid',
     nullable: true,
@@ -401,7 +402,8 @@ export class CompletionAuditEntity {
   userId?: string | null;
 
   @ApiProperty({
-    description: 'The request payload of the completion audit event (openai chat completion request payload)',
+    description:
+      'The request payload of the completion audit event (openai chat completion request payload)',
     type: Object,
     additionalProperties: true,
     nullable: true,

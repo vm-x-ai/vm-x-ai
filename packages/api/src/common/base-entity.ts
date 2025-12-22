@@ -1,7 +1,7 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Type } from "class-transformer";
-import { IsDateString, IsNotEmpty, IsOptional } from "class-validator";
-import { UserRelationDto } from "../users/dto/user.dto";
+import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsDateString, IsNotEmpty, IsOptional } from 'class-validator';
+import { UserRelationDto } from '../users/dto/user.dto';
 
 export abstract class BaseEntity {
   @ApiProperty({

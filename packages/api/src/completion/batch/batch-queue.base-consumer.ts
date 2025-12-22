@@ -111,7 +111,7 @@ export abstract class CompletionBatchQueueBaseConsumer {
               workspaceId,
               environmentId,
               batchId,
-              resourceId,
+              resourceId
             );
             for (const item of items) {
               this.pendingTasks[item.payload.itemId] =

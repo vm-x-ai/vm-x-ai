@@ -118,6 +118,7 @@ pnpm cdk deploy --all
 ```
 
 This will:
+
 - Create the VPC and networking infrastructure
 - Provision the EKS cluster with all add-ons
 - Create the Aurora PostgreSQL database
@@ -253,6 +254,7 @@ This stack creates several AWS resources that incur costs:
 **Estimated total**: $300-500/month for a minimal production setup.
 
 To reduce costs:
+
 - Use smaller instance types
 - Disable optional components (Grafana, Jaeger, etc.)
 - Use single-AZ deployment (not recommended for production)
@@ -358,6 +360,7 @@ For production deployments, consider:
 ## Support
 
 For issues and questions:
+
 - Check the main [VM-X AI documentation](../../README.md)
 - Review the [Helm chart README](../../helm/charts/vm-x-ai/README.md)
 - Open an issue on GitHub
@@ -365,4 +368,3 @@ For issues and questions:
 ## License
 
 This example is part of the VM-X AI project and follows the same license.
-

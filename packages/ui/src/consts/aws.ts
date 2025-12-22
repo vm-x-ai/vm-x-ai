@@ -81,7 +81,10 @@ export const AWS_REGIONS = [
   },
 ];
 
-export const AWS_REGIONS_MAP = AWS_REGIONS.reduce<Record<string, string>>((acc, { label, value }) => {
-  acc[value] = label;
-  return acc;
-}, {});
+export const AWS_REGIONS_MAP = AWS_REGIONS.reduce<Record<string, string>>(
+  (acc, { label, value }) => {
+    acc[value] = label;
+    return acc;
+  },
+  {}
+);

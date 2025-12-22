@@ -5,7 +5,7 @@ export class ListEnvironmentDto {
   @ApiProperty({
     description: 'The workspace ID to list environments for',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsOptional()

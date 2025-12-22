@@ -19,7 +19,9 @@ export const migration: Migration = {
       .addColumn('response', 'jsonb')
       .addColumn('error_message', 'text')
       .addColumn('retry_count', 'integer', (col) => col.notNull().defaultTo(0))
-      .addColumn('estimated_prompt_tokens', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('estimated_prompt_tokens', 'integer', (col) =>
+        col.notNull().defaultTo(0)
+      )
       .addColumn('prompt_tokens', 'integer', (col) =>
         col.notNull().defaultTo(0)
       )
@@ -91,7 +93,9 @@ export const migration: Migration = {
     await db.schema
       .dropIndex('idx_completion_batch_items_workspace_id_environment_id')
       .execute();
-    await db.schema.dropIndex('idx_completion_batch_items_resource_id').execute();
+    await db.schema
+      .dropIndex('idx_completion_batch_items_resource_id')
+      .execute();
     await db.schema;
     await db.schema.dropIndex('idx_completion_batch_items_batch_id').execute();
     await db.schema.dropIndex('idx_completion_batch_items_status').execute();

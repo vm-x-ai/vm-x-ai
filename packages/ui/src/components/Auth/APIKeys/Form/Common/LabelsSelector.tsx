@@ -13,7 +13,12 @@ export type LabelsSelectorProps = {
   onBlur: () => void;
 };
 
-export default function LabelsSelector({ existingLabels, value, onChange, onBlur }: LabelsSelectorProps) {
+export default function LabelsSelector({
+  existingLabels,
+  value,
+  onChange,
+  onBlur,
+}: LabelsSelectorProps) {
   return (
     <Autocomplete
       value={value}
@@ -36,18 +41,32 @@ export default function LabelsSelector({ existingLabels, value, onChange, onBlur
       clearOnBlur
       handleHomeEndKeys
       onChange={async (_, newValue) => {
-        onChange(newValue.map((item) => (item.startsWith('Add "') ? item.slice(5, -1) : item)));
+        onChange(
+          newValue.map((item) =>
+            item.startsWith('Add "') ? item.slice(5, -1) : item
+          )
+        );
       }}
       onBlur={onBlur}
       disableCloseOnSelect
       renderTags={(value, getTagProps) =>
         value.map((option, index) => {
           const { key, ...tagProps } = getTagProps({ index });
-          return <Chip key={key} label={option} color="primary" {...tagProps} size="small" />;
+          return (
+            <Chip
+              key={key}
+              label={option}
+              color="primary"
+              {...tagProps}
+              size="small"
+            />
+          );
         })
       }
       renderOption={(props, option) => <li {...props}>{option}</li>}
-      renderInput={(params) => <TextField {...params} placeholder="Add groups" />}
+      renderInput={(params) => (
+        <TextField {...params} placeholder="Add groups" />
+      )}
     />
   );
 }

@@ -51,8 +51,8 @@ export async function LLMUsage({
         <Typography variant="h6">Token Usage</Typography>
         <Divider />
         <Typography variant="caption">
-          The following chart shows the total number of tokens used by the ai provider and
-          model.
+          The following chart shows the total number of tokens used by the ai
+          provider and model.
         </Typography>
       </Grid>
       <Grid size={12}>
@@ -88,8 +88,9 @@ export async function LLMUsage({
         <Typography variant="h6">Request details</Typography>
         <Divider />
         <Typography variant="caption">
-          The following chart show the total number of requests made to the resource grouped by success and error, and
-          in the second chart the failure reasons.
+          The following chart show the total number of requests made to the
+          resource grouped by success and error, and in the second chart the
+          failure reasons.
         </Typography>
       </Grid>
       <Grid size={12}>
@@ -126,7 +127,8 @@ export async function LLMUsage({
         <Typography variant="h6">Request Latency</Typography>
         <Divider />
         <Typography variant="caption">
-          The following chart shows the latency of the requests made to the resource.
+          The following chart shows the latency of the requests made to the
+          resource.
         </Typography>
       </Grid>
       <Grid size={12}>

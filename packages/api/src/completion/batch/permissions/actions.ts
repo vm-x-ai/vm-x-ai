@@ -7,5 +7,6 @@ export enum CompletionBatchActions {
   CANCEL = `${COMPLETION_BATCH_MODULE_NAME}:cancel`,
 }
 
-export const COMPLETION_BATCH_BASE_RESOURCE = 'workspace:${workspace.name}:environment:${environment.name}:completion-batch';
+export const COMPLETION_BATCH_BASE_RESOURCE =
+  'workspace:${workspace.name}:environment:${environment.name}:completion-batch';
 export const COMPLETION_BATCH_RESOURCE_ITEM = `${COMPLETION_BATCH_BASE_RESOURCE}:\${batch.id}`;

@@ -6,10 +6,7 @@ import SubTabs from '@/components/Tabs/SubTabs';
 import { useState } from 'react';
 import AIResourcePlayground from './Playground';
 import { ApiResponse } from '@/clients/types';
-import {
-  AiResourceEntity,
-  AiProviderDto,
-} from '@/clients/api';
+import { AiResourceEntity, AiProviderDto } from '@/clients/api';
 
 export type AIResourceTabsProps = {
   tabs: {

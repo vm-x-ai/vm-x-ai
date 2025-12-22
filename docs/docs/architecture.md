@@ -49,7 +49,7 @@ VM-X AI is built on a modern, scalable stack designed for production use. This p
 
 **Redis** (Single or Cluster mode)
 
-- **Purpose**: 
+- **Purpose**:
   - Capacity tracking (RPM, TPM counters)
   - Caching of AI connections and resources
   - Prioritization metrics storage
@@ -80,21 +80,21 @@ VM-X AI is built on a modern, scalable stack designed for production use. This p
 graph TB
     Internet[Internet]
     LB[Load Balancer / Ingress<br/>Istio Gateway / ALB / NLB]
-    
+
     UI1[UI Pod<br/>Next.js<br/>Port: 3001]
     API1[API Pod<br/>NestJS<br/>Port: 3000]
     API2[API Pod<br/>NestJS<br/>Port: 3000]
-    
+
     PG[(PostgreSQL<br/>Config & Audit)]
     Redis[(Redis<br/>Capacity & Cache)]
     QuestDB[(QuestDB<br/>Metrics)]
     KMS[AWS KMS<br/>Encryption]
-    
+
     Internet --> LB
     LB --> UI1
     LB --> API1
     LB --> API2
-    
+
     API1 --> PG
     API2 --> PG
     API1 --> Redis
@@ -103,7 +103,7 @@ graph TB
     API2 --> QuestDB
     API1 --> KMS
     API2 --> KMS
-    
+
     style Internet fill:#e3f2fd
     style LB fill:#fff3e0
     style UI1 fill:#e8f5e9
@@ -129,7 +129,7 @@ sequenceDiagram
     participant Routing as Routing Service
     participant Connection as AI Connection
     participant Provider as AI Provider
-    
+
     App->>VMX: OpenAI SDK Request<br/>baseURL: /v1/completion/{workspaceId}/{environmentId}
     VMX->>Auth: Validate API Key
     Auth-->>VMX: API Key Valid
@@ -151,8 +151,8 @@ The application uses the standard OpenAI SDK to make requests:
 ```typescript
 import OpenAI from 'openai';
 
-const workspaceId = "6c41dc1b-910c-4358-beef-2c609d38db31";
-const environmentId = "6c1957ca-77ca-49b3-8fa1-0590281b8b44";
+const workspaceId = '6c41dc1b-910c-4358-beef-2c609d38db31';
+const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
 
 const openai = new OpenAI({
   apiKey: 'vmx-api-key-here',
@@ -195,7 +195,7 @@ sequenceDiagram
     participant API
     participant OIDC as OIDC Provider
     participant DB
-    
+
     User->>UI: Click SSO Login
     UI->>OIDC: Redirect to OIDC Provider
     OIDC->>User: Authenticate
@@ -213,6 +213,7 @@ sequenceDiagram
 **OIDC Configuration:**
 
 Configure via environment variables:
+
 - `OIDC_FEDERATED_ISSUER`: OIDC issuer URL (required)
 - `OIDC_FEDERATED_CLIENT_ID`: OIDC client ID (required)
 - `OIDC_FEDERATED_CLIENT_SECRET`: OIDC client secret (optional)
@@ -260,7 +261,7 @@ sequenceDiagram
     participant API as VM-X AI API
     participant Vault as Vault Service
     participant Provider as AI Provider
-    
+
     API->>Vault: Decrypt Credentials
     Vault-->>API: Decrypted Credentials
     API->>Provider: Make Request
@@ -295,7 +296,7 @@ flowchart LR
     A[Request Complete] --> B[Update Redis Counters]
     A --> C[Push to QuestDB/Timestream]
     A --> D[Store Audit Log in PostgreSQL]
-    
+
     B --> E[Capacity Tracking]
     C --> F[Usage Metrics]
     D --> G[Audit Trail]
@@ -457,4 +458,3 @@ VM-X AI can be deployed in various environments:
 - **AWS ECS**: Complete CDK stack with ECS Fargate
 
 See the [Deployment Guides](../deployment/minikube) for detailed instructions.
-

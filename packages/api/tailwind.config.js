@@ -2,5 +2,4 @@
 module.exports = {
   content: ['./views/*.ejs', './views/**/*.ejs'],
   plugins: [],
-}
-
+};

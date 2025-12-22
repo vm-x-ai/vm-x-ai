@@ -13,7 +13,10 @@ export type PasswordFieldProps = {
   errorMessage?: string;
 } & TextFieldProps;
 
-function PasswordField({ errorMessage, ...field }: PasswordFieldProps, ref: React.ForwardedRef<HTMLInputElement>) {
+function PasswordField(
+  { errorMessage, ...field }: PasswordFieldProps,
+  ref: React.ForwardedRef<HTMLInputElement>
+) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (

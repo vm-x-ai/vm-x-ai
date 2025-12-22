@@ -1,11 +1,17 @@
-import { IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID } from "class-validator";
-import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class GlobalSecretEntity {
   @ApiProperty({
     description: 'The unique identifier for the global secret (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -17,7 +23,7 @@ export class GlobalSecretEntity {
   })
   @IsString()
   @IsNotEmpty()
-  name: string; 
+  name: string;
 
   @ApiProperty({
     description: 'The description of the global secret',
@@ -28,7 +34,7 @@ export class GlobalSecretEntity {
   })
   @IsString()
   @IsOptional()
-  description?: string | null
+  description?: string | null;
 
   @ApiProperty({
     description: 'The value of the global secret',
@@ -41,7 +47,7 @@ export class GlobalSecretEntity {
   @ApiProperty({
     description: 'The date and time the global secret was created',
     example: '2021-01-01T00:00:00.000Z',
-    format: 'date-time'
+    format: 'date-time',
   })
   @IsDateString()
   @IsNotEmpty()

@@ -25,7 +25,10 @@ import {
 import { MetricDto } from './dto/metric.dto';
 import { ServiceError } from '../../types';
 import { RoleGuard } from '../../role/role.guard';
-import { COMPLETION_METRICS_BASE_RESOURCE, CompletionMetricsActions } from './permissions/actions';
+import {
+  COMPLETION_METRICS_BASE_RESOURCE,
+  CompletionMetricsActions,
+} from './permissions/actions';
 
 @Controller('completion-metric')
 @ApiTags('Completion Metric')
@@ -39,7 +42,12 @@ export class CompletionMetricsController {
   ) {}
 
   @Get('/:workspaceId/:environmentId/:resourceId/error-rate')
-  @UseGuards(RoleGuard(CompletionMetricsActions.GET_ERROR_RATE, COMPLETION_METRICS_BASE_RESOURCE))
+  @UseGuards(
+    RoleGuard(
+      CompletionMetricsActions.GET_ERROR_RATE,
+      COMPLETION_METRICS_BASE_RESOURCE
+    )
+  )
   @ApiOkResponse({
     type: MetricDto,
     description: 'Get the error rate for an AI resource',

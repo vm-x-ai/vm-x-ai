@@ -1,5 +1,5 @@
-import { CompletionBatchItemEntity } from "../entity/batch-item.entity";
-import { CompletionBatchEntity } from "../entity/batch.entity";
+import { CompletionBatchItemEntity } from '../entity/batch-item.entity';
+import { CompletionBatchEntity } from '../entity/batch.entity';
 
 export type CompletionBatchStream =
   | {

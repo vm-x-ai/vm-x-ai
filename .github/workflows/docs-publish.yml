@@ -27,11 +27,11 @@ jobs:
         with:
           app_id: ${{ secrets.SEMANTIC_RELEASE_APP_ID }}
           private_key: ${{ secrets.SEMANTIC_RELEASE_PRIVATE_KEY }}
-      
+
       - name: Publish Docs
         run: pnpm nx run docs:deploy
         env:
-          GIT_USER: "vm-x-ai-release[bot]"
+          GIT_USER: 'vm-x-ai-release[bot]'
           GIT_PASS: ${{ steps.generate_token.outputs.token }}
-          GIT_USER_NAME: "vm-x-ai-release[bot]"
-          GIT_USER_EMAIL: "167465110+vm-x-ai-release[bot]@users.noreply.github.com"
+          GIT_USER_NAME: 'vm-x-ai-release[bot]'
+          GIT_USER_EMAIL: '167465110+vm-x-ai-release[bot]@users.noreply.github.com'

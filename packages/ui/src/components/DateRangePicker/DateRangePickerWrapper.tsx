@@ -36,7 +36,9 @@ export interface DateRangePickerWrapperProps {
   wrapperClassName?: string;
 }
 
-const DateRangePickerWrapper: React.FC<DateRangePickerWrapperProps> = (props: DateRangePickerWrapperProps) => {
+const DateRangePickerWrapper: React.FC<DateRangePickerWrapperProps> = (
+  props: DateRangePickerWrapperProps
+) => {
   const { closeOnClickOutside, wrapperClassName, toggle, open } = props;
 
   const handleToggle = () => {
@@ -46,11 +48,14 @@ const DateRangePickerWrapper: React.FC<DateRangePickerWrapperProps> = (props: Da
     toggle();
   };
 
-  const handleKeyPress = (event: React.KeyboardEvent) => event?.key === 'Escape' && handleToggle();
+  const handleKeyPress = (event: React.KeyboardEvent) =>
+    event?.key === 'Escape' && handleToggle();
 
   return (
     <DateRangePickerContainer>
-      {open && <DateRangeBackdrop onKeyPress={handleKeyPress} onClick={handleToggle} />}
+      {open && (
+        <DateRangeBackdrop onKeyPress={handleKeyPress} onClick={handleToggle} />
+      )}
 
       <DateRangePickerStyled className={wrapperClassName}>
         <DateRangePicker {...props} />

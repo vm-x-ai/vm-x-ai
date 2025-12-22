@@ -49,7 +49,10 @@ export default function Layout({ children, params }: LayoutProps) {
   ];
 
   return (
-    <SubTabs tabs={tabs} pathPattern={'^/workspaces/[^/]+/[^/]+/[^/]+/[^/]+/[^/]+'}>
+    <SubTabs
+      tabs={tabs}
+      pathPattern={'^/workspaces/[^/]+/[^/]+/[^/]+/[^/]+/[^/]+'}
+    >
       {children}
     </SubTabs>
   );

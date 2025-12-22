@@ -8,7 +8,9 @@ export type Top10TokenPerSecondTableProps = {
   data: CompletionUsageQueryResultDto[];
   autoRefresh: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<CompletionUsageQueryResultDto[] | undefined>;
+  autoRefreshAction?: () => Promise<
+    CompletionUsageQueryResultDto[] | undefined
+  >;
 };
 
 export function Top10TokenPerSecondTable({
@@ -32,7 +34,8 @@ export function Top10TokenPerSecondTable({
           accessorKey: 'tokensPerSecond',
           header: 'Average ms',
           enableGrouping: false,
-          Cell: ({ row: { original: row } }) => ((row.tokensPerSecond as number) ?? 0).toFixed(2),
+          Cell: ({ row: { original: row } }) =>
+            ((row.tokensPerSecond as number) ?? 0).toFixed(2),
         },
       ]}
       data={data}

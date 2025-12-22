@@ -9,5 +9,7 @@ export type PageProps = {
 
 export default async function Page({ params }: PageProps) {
   const { workspaceId, environmentId } = await params;
-  redirect(`/workspaces/${workspaceId}/${environmentId}/security/auth/role/overview`);
+  redirect(
+    `/workspaces/${workspaceId}/${environmentId}/security/auth/role/overview`
+  );
 }

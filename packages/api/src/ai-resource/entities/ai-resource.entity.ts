@@ -1,6 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 import { CapacityEntity } from '../../capacity/capacity.entity';
 import { AIResourceModelConfigEntity } from '../common/model.entity';
 import { AIResourceModelRoutingEntity } from '../common/routing.entity';
@@ -10,7 +18,7 @@ export class AIResourceEntity extends BaseEntity {
   @ApiProperty({
     description: 'Resource unique identifier',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -19,7 +27,7 @@ export class AIResourceEntity extends BaseEntity {
   @ApiProperty({
     description: 'Workspace ID associated with the resource',
     example: 'workspace-uuid-string',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   workspaceId: string;
@@ -27,7 +35,7 @@ export class AIResourceEntity extends BaseEntity {
   @ApiProperty({
     description: 'Environment ID associated with the resource',
     example: 'environment-uuid-string',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   environmentId: string;

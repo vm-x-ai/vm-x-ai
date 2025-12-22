@@ -7,7 +7,7 @@ export function setupOpenAPIDocumentation(app: INestApplication) {
   const oidcProvider = app.get(OidcProviderService);
   const configService = app.get(ConfigService);
   const baseUrl = configService.getOrThrow<string>('BASE_URL');
-  const basePath = configService.getOrThrow<string>('BASE_PATH')
+  const basePath = configService.getOrThrow<string>('BASE_PATH');
 
   const config = new DocumentBuilder()
     .setTitle('VM-X AI API')

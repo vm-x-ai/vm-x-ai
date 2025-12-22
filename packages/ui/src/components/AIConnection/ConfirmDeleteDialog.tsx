@@ -8,9 +8,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import {
-  AiConnectionEntity,
-} from '@/clients/api';
+import { AiConnectionEntity } from '@/clients/api';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   deleteAiConnectionMutation,
@@ -68,7 +66,9 @@ export default function ConfirmDeleteAIConnectionDialog({
         },
       });
 
-      router.push(`/workspaces/${workspaceId}/${environmentId}/ai-connections/overview`);
+      router.push(
+        `/workspaces/${workspaceId}/${environmentId}/ai-connections/overview`
+      );
       toast.success(`Connection ${aiConnection.name} has been deleted.`);
       handleClose();
     } catch (error) {

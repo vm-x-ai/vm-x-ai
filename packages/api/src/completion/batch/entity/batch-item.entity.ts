@@ -17,7 +17,7 @@ export class CompletionBatchItemEntity {
   @ApiProperty({
     description: 'The unique identifier for the workspace (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -26,7 +26,7 @@ export class CompletionBatchItemEntity {
   @ApiProperty({
     description: 'The unique identifier for the environment (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174001',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -35,7 +35,7 @@ export class CompletionBatchItemEntity {
   @ApiProperty({
     description: 'The unique identifier for the batch (UUID)',
     example: '223e4567-e89b-12d3-a456-426614174002',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -44,7 +44,7 @@ export class CompletionBatchItemEntity {
   @ApiProperty({
     description: 'The unique identifier for the batch item (UUID)',
     example: '323e4567-e89b-12d3-a456-426614174003',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()

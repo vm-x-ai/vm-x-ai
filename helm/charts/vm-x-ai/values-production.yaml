@@ -17,11 +17,11 @@ api:
   timeseriesDb:
     provider: aws-timestream
     awsTimestream:
-      databaseName: "vmxai-production"
+      databaseName: 'vmxai-production'
   encryption:
-    provider: aws-kms  # Recommended for production
+    provider: aws-kms # Recommended for production
     awsKms:
-      keyId: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+      keyId: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012'
 
 ui:
   replicaCount: 3
@@ -37,11 +37,14 @@ ui:
 postgresql:
   enabled: false
   external:
-    host: "postgres.example.com"
+    host: 'postgres.example.com'
     port: 5432
-    database: "vmxai"
-    username: "admin"
+    database: 'vmxai'
+    username: 'admin'
     # password should be set via secret
+
+  persistence:
+    storageClass: 'fast-ssd'
 
 # Use Redis cluster for production
 redis:
@@ -53,7 +56,7 @@ redis:
     persistence:
       enabled: true
       size: 50Gi
-      storageClass: "fast-ssd"
+      storageClass: 'fast-ssd'
 
 # Use external QuestDB or AWS Timestream (recommended for production)
 questdb:
@@ -84,12 +87,12 @@ ingress:
             protocol: HTTPS
           tls:
             mode: SIMPLE
-            credentialName: vm-x-ai-tls  # Must exist in istio-system namespace
-    
+            credentialName: vm-x-ai-tls # Must exist in istio-system namespace
+
     virtualService:
       gateways:
         - istio-system/vm-x-ai-gateway
-      
+
       trafficPolicy:
         loadBalancer:
           simple: LEAST_CONN
@@ -115,24 +118,19 @@ otel:
     persistence:
       enabled: true
       size: 100Gi
-      storageClass: "fast-ssd"
+      storageClass: 'fast-ssd'
   loki:
     enabled: true
     persistence:
       enabled: true
       size: 200Gi
-      storageClass: "fast-ssd"
+      storageClass: 'fast-ssd'
   grafana:
     enabled: true
     persistence:
       enabled: true
       size: 20Gi
-      storageClass: "fast-ssd"
-
-# Use proper storage classes
-postgresql:
-  persistence:
-    storageClass: "fast-ssd"
+      storageClass: 'fast-ssd'
 
 # Security: Use external secrets in production
 # Each secret can have its own method: "create", "external", or "eso"
@@ -141,20 +139,19 @@ secrets:
   database:
     method: external
     external:
-      secretName: "postgresql-credentials"  # Create this secret separately
-      passwordKey: "password"
+      secretName: 'postgresql-credentials' # Create this secret separately
+      passwordKey: 'password'
   questdb:
     method: external
     external:
-      secretName: "questdb-credentials"
-      passwordKey: "password"
+      secretName: 'questdb-credentials'
+      passwordKey: 'password'
   ui:
     method: create
   # Libsodium encryption key (only needed if using libsodium provider)
   # For production with AWS KMS, this section is not needed
   libsodium:
     method: create
-
 # Option 2: Use External Secrets Operator (uncomment to use)
 # secrets:
 #   database:

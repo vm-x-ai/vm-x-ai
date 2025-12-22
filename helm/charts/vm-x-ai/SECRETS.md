@@ -15,12 +15,14 @@ The External Secrets Operator syncs secrets from external secret management syst
 #### Setup
 
 1. Install External Secrets Operator:
+
 ```bash
 helm repo add external-secrets https://charts.external-secrets.io
 helm install external-secrets external-secrets/external-secrets -n external-secrets-system --create-namespace
 ```
 
 2. Create a SecretStore (example for AWS Secrets Manager):
+
 ```yaml
 apiVersion: external-secrets.io/v1beta1
 kind: SecretStore
@@ -39,36 +41,37 @@ spec:
 ```
 
 3. Configure the Helm chart:
+
 ```yaml
 secrets:
   database:
     method: eso
     externalSecrets:
-      secretKey: "vmxai/production/postgresql"
-      passwordKey: "password"
-      hostKey: "host"
-      portKey: "port"
-      databaseKey: "database"
-      usernameKey: "username"
+      secretKey: 'vmxai/production/postgresql'
+      passwordKey: 'password'
+      hostKey: 'host'
+      portKey: 'port'
+      databaseKey: 'database'
+      usernameKey: 'username'
   questdb:
     method: eso
     externalSecrets:
-      secretKey: "vmxai/production/questdb"
-      passwordKey: "password"
-      hostKey: "host"
-      portKey: "port"
-      databaseKey: "database"
-      usernameKey: "username"
+      secretKey: 'vmxai/production/questdb'
+      passwordKey: 'password'
+      hostKey: 'host'
+      portKey: 'port'
+      databaseKey: 'database'
+      usernameKey: 'username'
   ui:
     method: eso
     externalSecrets:
-      secretKey: "vmxai/production/ui"
-      authSecretKey: "auth-secret"
+      secretKey: 'vmxai/production/ui'
+      authSecretKey: 'auth-secret'
   libsodium:
     method: eso
     externalSecrets:
-      secretKey: "vmxai/production/libsodium-key"
-      encryptionKeyKey: "encryption-key"
+      secretKey: 'vmxai/production/libsodium-key'
+      encryptionKeyKey: 'encryption-key'
   # External Secrets Operator configuration (shared for all secrets using method: "eso")
   externalSecrets:
     enabled: true
@@ -86,34 +89,35 @@ secrets:
   database:
     method: external
     external:
-      secretName: "postgresql-credentials"
-      passwordKey: "password"
-      hostKey: "host"  # Optional, only if using external PostgreSQL
-      portKey: "port"  # Optional, only if using external PostgreSQL
-      databaseKey: "database"  # Optional, only if using external PostgreSQL
-      usernameKey: "username"  # Optional, only if using external PostgreSQL
+      secretName: 'postgresql-credentials'
+      passwordKey: 'password'
+      hostKey: 'host' # Optional, only if using external PostgreSQL
+      portKey: 'port' # Optional, only if using external PostgreSQL
+      databaseKey: 'database' # Optional, only if using external PostgreSQL
+      usernameKey: 'username' # Optional, only if using external PostgreSQL
   questdb:
     method: external
     external:
-      secretName: "questdb-credentials"
-      passwordKey: "password"
-      hostKey: "host"  # Optional, only if using external QuestDB
-      portKey: "port"  # Optional, only if using external QuestDB
-      databaseKey: "database"  # Optional, only if using external QuestDB
-      usernameKey: "username"  # Optional, only if using external QuestDB
+      secretName: 'questdb-credentials'
+      passwordKey: 'password'
+      hostKey: 'host' # Optional, only if using external QuestDB
+      portKey: 'port' # Optional, only if using external QuestDB
+      databaseKey: 'database' # Optional, only if using external QuestDB
+      usernameKey: 'username' # Optional, only if using external QuestDB
   ui:
     method: external
     external:
-      secretName: "ui-auth-secret"
-      authSecretKey: "auth-secret"
+      secretName: 'ui-auth-secret'
+      authSecretKey: 'auth-secret'
   libsodium:
     method: external
     external:
-      secretName: "libsodium-encryption-key"
-      encryptionKeyKey: "encryption-key"
+      secretName: 'libsodium-encryption-key'
+      encryptionKeyKey: 'encryption-key'
 ```
 
 Create secrets separately:
+
 ```bash
 kubectl create secret generic postgresql-credentials \
   --from-literal=password='your-secure-password' \
@@ -137,6 +141,7 @@ kubectl create secret generic ui-auth-secret \
 If using Bitnami Sealed Secrets:
 
 1. Create sealed secrets:
+
 ```bash
 kubectl create secret generic postgresql-credentials \
   --from-literal=password='your-password' \
@@ -145,18 +150,20 @@ kubectl create secret generic postgresql-credentials \
 ```
 
 2. Apply sealed secrets:
+
 ```bash
 kubectl apply -f postgresql-credentials-sealed.yaml
 ```
 
 3. Reference in values:
+
 ```yaml
 secrets:
   database:
     method: external
     external:
-      secretName: "postgresql-credentials"
-      passwordKey: "password"
+      secretName: 'postgresql-credentials'
+      passwordKey: 'password'
 ```
 
 ## Development vs Production
@@ -184,15 +191,15 @@ secrets:
 ```yaml
 secrets:
   database:
-    method: eso  # or "external"
+    method: eso # or "external"
     # ... configuration
   questdb:
-    method: eso  # or "external"
+    method: eso # or "external"
     # ... configuration
   ui:
-    method: create  # Less sensitive, can auto-generate
+    method: create # Less sensitive, can auto-generate
   libsodium:
-    method: eso  # or "external" if using libsodium provider
+    method: eso # or "external" if using libsodium provider
     # ... configuration
 ```
 
@@ -207,6 +214,7 @@ Secrets are automatically synced based on `refreshInterval`. Update the secret i
 ### With External Secrets
 
 Manually update the Kubernetes secret:
+
 ```bash
 kubectl create secret generic postgresql-credentials \
   --from-literal=password='new-password' \
@@ -215,6 +223,7 @@ kubectl create secret generic postgresql-credentials \
 ```
 
 Restart pods to pick up new secrets:
+
 ```bash
 kubectl rollout restart deployment/vm-x-ai-api -n vm-x-ai
 ```
@@ -234,6 +243,7 @@ kubectl rollout restart deployment/vm-x-ai-api -n vm-x-ai
 ### Secrets not found
 
 Check if secrets exist:
+
 ```bash
 kubectl get secrets -n vm-x-ai
 ```
@@ -241,6 +251,7 @@ kubectl get secrets -n vm-x-ai
 ### External Secrets Operator not syncing
 
 Check ExternalSecret status:
+
 ```bash
 kubectl get externalsecrets -n vm-x-ai
 kubectl describe externalsecret vm-x-ai-database -n vm-x-ai
@@ -249,9 +260,9 @@ kubectl describe externalsecret vm-x-ai-database -n vm-x-ai
 ### Pods failing to start
 
 Check pod events:
+
 ```bash
 kubectl describe pod <pod-name> -n vm-x-ai
 ```
 
 Look for errors related to secret mounting or environment variables.
-

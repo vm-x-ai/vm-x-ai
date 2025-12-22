@@ -75,6 +75,7 @@ Roles manage permissions using granular policies. Each role defines:
 - **Effect**: Whether to allow or deny the action (ALLOW or DENY)
 
 Roles support wildcards for flexible permission management:
+
 - `*` matches any value
 - `?` matches a single character
 
@@ -108,6 +109,7 @@ An AI Connection encapsulates:
 #### 🔐 **Secure Credential Storage**
 
 Credentials are encrypted at rest using either:
+
 - **AWS KMS**: For production environments (recommended)
 - **Libsodium**: For local development and small deployments
 
@@ -143,7 +145,6 @@ Define custom capacity limits per connection:
 
 VM-X AI automatically discovers rate limits from provider responses and stores them as "discovered capacity". This helps you understand actual provider limits and optimize your usage.
 
-
 ## AI Resources
 
 An **AI Resource** represents a logical endpoint that your applications use to make AI requests. It defines which provider/model to use, routing rules, fallback behavior, and capacity allocation.
@@ -165,6 +166,7 @@ An AI Resource is the abstraction your applications interact with. It includes:
 Route requests to different models based on conditions. VM-X AI provides a comprehensive set of routing conditions:
 
 **Available Routing Expressions:**
+
 - `tokens.input` - Number of input tokens in the request
 - `request.allMessagesContent.length` - Total character length of all messages
 - `request.lastMessage.content` - Content of the last user message
@@ -174,12 +176,14 @@ Route requests to different models based on conditions. VM-X AI provides a compr
 - `errorRate(10)` - Error rate in the last 10 minutes
 
 **Available Comparators:**
+
 - `LESS_THAN` - Field is less than value
 - `GREATER_THAN` - Field is greater than value
 - `CONTAINS` - Field contains value (for strings)
 - `PATTERN` - Field matches regex pattern (for strings)
 
 **Example: Route based on input token count**
+
 ```json
 {
   "routing": {
@@ -205,6 +209,7 @@ Route requests to different models based on conditions. VM-X AI provides a compr
 ```
 
 **Example: Route based on error rate**
+
 ```json
 {
   "routing": {
@@ -230,6 +235,7 @@ Route requests to different models based on conditions. VM-X AI provides a compr
 ```
 
 **Example: Route based on tools usage**
+
 ```json
 {
   "routing": {
@@ -256,6 +262,7 @@ Route requests to different models based on conditions. VM-X AI provides a compr
 ```
 
 **Example: Route based on message content**
+
 ```json
 {
   "routing": {
@@ -281,6 +288,7 @@ Route requests to different models based on conditions. VM-X AI provides a compr
 ```
 
 **Example: Route based on character length**
+
 ```json
 {
   "routing": {
@@ -328,6 +336,7 @@ Configure fallback models that are automatically used if the primary model fails
 ```
 
 Fallback happens automatically on:
+
 - Provider errors (5xx status codes)
 - Rate limit errors (429)
 - Timeout errors
@@ -351,6 +360,7 @@ Define capacity limits specific to a resource:
 ```
 
 This allows you to:
+
 - Limit usage per resource independently
 - Control costs by resource
 - Implement tiered access levels
@@ -361,10 +371,7 @@ Assign API keys to resources to control access:
 
 ```json
 {
-  "assignApiKeys": [
-    "api-key-id-1",
-    "api-key-id-2"
-  ]
+  "assignApiKeys": ["api-key-id-1", "api-key-id-2"]
 }
 ```
 
@@ -377,37 +384,37 @@ graph TB
     W[Workspace]
     E1[Environment: Production]
     E2[Environment: Development]
-    
+
     AR1[AI Resource]
     AC1[AI Connection OpenAI]
     AC2[AI Connection Groq]
     AC3[AI Connection Bedrock]
-    
+
     R1[admin Role]
     R2[power-user Role]
     R3[read-only Role]
-    
+
     U1[User 1]
     U2[User 2]
-    
+
     W --> E1
     W --> E2
-    
+
     E1 --> AR1
     AR1 --> AC1
     AR1 --> AC2
     AR1 --> AC3
-    
+
     W -.->|Members| M1[Owner]
     W -.->|Members| M2[Member]
-    
+
     U1 -.->|Has| R1
     U2 -.->|Has| R2
-    
+
     R1 -.->|Global| System[System-wide Permissions]
     R2 -.->|Global| System
     R3 -.->|Global| System
-    
+
     style W fill:#e1f5ff
     style E1 fill:#fff4e1
     style E2 fill:#fff4e1

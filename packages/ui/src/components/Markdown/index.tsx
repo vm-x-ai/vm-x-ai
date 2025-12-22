@@ -14,7 +14,10 @@ export type BaseMessageProps = {
   blinkingCursor?: boolean;
 };
 
-export default function Markdown({ children, blinkingCursor }: BaseMessageProps) {
+export default function Markdown({
+  children,
+  blinkingCursor,
+}: BaseMessageProps) {
   return (
     <BaseMarkdown
       remarkPlugins={[remarkGfm]}
@@ -46,7 +49,11 @@ export default function Markdown({ children, blinkingCursor }: BaseMessageProps)
               {String(children).replace(/\n$/, '')}
             </SyntaxHighlighter>
           ) : (
-            <code {...rest} className={className} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            <code
+              {...rest}
+              className={className}
+              style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+            >
               {children}
             </code>
           );

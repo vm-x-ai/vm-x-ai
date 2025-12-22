@@ -10,7 +10,9 @@ export type LLMRequestSummaryTableProps = {
   data: CompletionUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<CompletionUsageQueryResultDto[] | undefined>;
+  autoRefreshAction?: () => Promise<
+    CompletionUsageQueryResultDto[] | undefined
+  >;
 };
 
 export function LLMRequestSummaryTable({
@@ -39,12 +41,14 @@ export function LLMRequestSummaryTable({
     {
       accessorKey: 'success',
       header: 'Success',
-      Cell: ({ row: { original: row } }) => numberWithCommas((row.successCount as number) ?? 0),
+      Cell: ({ row: { original: row } }) =>
+        numberWithCommas((row.successCount as number) ?? 0),
     },
     {
       accessorKey: 'error',
       header: 'Error',
-      Cell: ({ row: { original: row } }) => numberWithCommas((row.errorCount as number) ?? 0),
+      Cell: ({ row: { original: row } }) =>
+        numberWithCommas((row.errorCount as number) ?? 0),
     },
   ];
 

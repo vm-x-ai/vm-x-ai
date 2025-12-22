@@ -15,7 +15,7 @@ export class ApiKeyEntity extends BaseEntity {
   @ApiProperty({
     description: 'The unique identifier for the API key (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -24,7 +24,7 @@ export class ApiKeyEntity extends BaseEntity {
   @ApiProperty({
     description: 'The workspace that the API key is associated with',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -33,7 +33,7 @@ export class ApiKeyEntity extends BaseEntity {
   @ApiProperty({
     description: 'The environment that the API key is associated with',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()

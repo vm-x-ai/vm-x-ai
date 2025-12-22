@@ -27,7 +27,8 @@ export class DatabaseService implements OnModuleInit, OnApplicationShutdown {
     private readonly configService: ConfigService,
     private readonly migrationsService: MigrationsService
   ) {
-    const databaseSSL = this.configService.get<boolean>('DATABASE_SSL') ?? false;
+    const databaseSSL =
+      this.configService.get<boolean>('DATABASE_SSL') ?? false;
     const sslConfig = databaseSSL
       ? {
           rejectUnauthorized: false, // AWS RDS uses self-signed certificates

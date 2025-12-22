@@ -1,7 +1,11 @@
 'use client';
 
 import { CompletionUsageQueryResultDto } from '@/clients/api';
-import { MaterialReactTable, type MRT_ColumnDef, useMaterialReactTable } from 'material-react-table';
+import {
+  MaterialReactTable,
+  type MRT_ColumnDef,
+  useMaterialReactTable,
+} from 'material-react-table';
 import React, { useEffect, useState } from 'react';
 
 export type BaseSummaryTableProps = {
@@ -10,7 +14,9 @@ export type BaseSummaryTableProps = {
   data: CompletionUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<CompletionUsageQueryResultDto[] | undefined>;
+  autoRefreshAction?: () => Promise<
+    CompletionUsageQueryResultDto[] | undefined
+  >;
 };
 
 export function BaseSummaryTable({

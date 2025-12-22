@@ -5,7 +5,7 @@ export class ListApiKeyDto {
   @ApiProperty({
     description: 'The workspace ID to list API keys for',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsOptional()
@@ -14,7 +14,7 @@ export class ListApiKeyDto {
   @ApiProperty({
     description: 'The environment ID to list API keys for',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsOptional()

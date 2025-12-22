@@ -11,10 +11,7 @@ import { AppGuard, GlobalGuard } from './auth.guard';
 import { VaultModule } from '../vault/vault.module';
 
 @Module({
-  imports: [
-    UsersModule,
-    VaultModule,
-  ],
+  imports: [UsersModule, VaultModule],
   controllers: [OidcInteractionController],
   providers: [
     AuthService,

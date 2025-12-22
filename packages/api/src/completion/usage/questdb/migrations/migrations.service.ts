@@ -21,7 +21,7 @@ import { DB } from '../storage/entities';
 export class QuestDBMigrationsService extends BaseMigrationsService {
   constructor(logger: PinoLogger, configService: ConfigService) {
     super(logger, configService, 'DATABASE_HOST', 'questdb');
-    
+
     const questdb = new Kysely<DB>({
       dialect: new PostgresDialect({
         pool: new Pool({

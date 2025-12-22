@@ -26,7 +26,12 @@ import React, { useState } from 'react';
 import { MARKERS } from './DateRangePicker';
 import DefinedRanges from './DefinedRanges';
 import Month from './Month';
-import type { DefinedRange, Setter, NavigationAction, DateRangePickerValue } from './types';
+import type {
+  DefinedRange,
+  Setter,
+  NavigationAction,
+  DateRangePickerValue,
+} from './types';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -129,13 +134,24 @@ const Menu: React.FunctionComponent<MenuProps> = ({
 }) => {
   const [tab, setTab] = useState(value.type ?? 'absolute');
   const { startDate, endDate } = value.absolute;
-  const canNavigateCloser = differenceInCalendarMonths(secondMonth, firstMonth) >= 2;
-  const commonProps = { dateRange: value.absolute, handlers, helpers, maxDate, minDate };
+  const canNavigateCloser =
+    differenceInCalendarMonths(secondMonth, firstMonth) >= 2;
+  const commonProps = {
+    dateRange: value.absolute,
+    handlers,
+    helpers,
+    maxDate,
+    minDate,
+  };
 
   return (
     <Paper elevation={5} square>
       <TabContext value={tab}>
-        <TabList variant="fullWidth" aria-label="date picker tabs" onChange={(_, newValue) => setTab(newValue)}>
+        <TabList
+          variant="fullWidth"
+          aria-label="date picker tabs"
+          onChange={(_, newValue) => setTab(newValue)}
+        >
           <Tab label="Relative" value="relative" />
           <Tab label="Absolute" value="absolute" />
         </TabList>
@@ -150,14 +166,18 @@ const Menu: React.FunctionComponent<MenuProps> = ({
               <StyledHeader container alignItems="center">
                 <StyledHeaderItem>
                   <Typography variant="subtitle1">
-                    {startDate ? format(startDate, 'MMMM dd, yyyy') : 'Start Date'}
+                    {startDate
+                      ? format(startDate, 'MMMM dd, yyyy')
+                      : 'Start Date'}
                   </Typography>
                 </StyledHeaderItem>
                 <StyledHeaderItem>
                   <ArrowRightAlt color="action" />
                 </StyledHeaderItem>
                 <StyledHeaderItem>
-                  <Typography variant="subtitle1">{endDate ? format(endDate, 'MMMM dd, yyyy') : 'End Date'}</Typography>
+                  <Typography variant="subtitle1">
+                    {endDate ? format(endDate, 'MMMM dd, yyyy') : 'End Date'}
+                  </Typography>
                 </StyledHeaderItem>
               </StyledHeader>
               <Divider />
@@ -260,7 +280,11 @@ const Menu: React.FunctionComponent<MenuProps> = ({
                           },
                         });
                       }}
-                      value={value.relative?.unit === 'minute' ? value.relative.value : null}
+                      value={
+                        value.relative?.unit === 'minute'
+                          ? value.relative.value
+                          : null
+                      }
                       exclusive
                       aria-label="Minutes"
                       fullWidth
@@ -293,7 +317,11 @@ const Menu: React.FunctionComponent<MenuProps> = ({
                           },
                         });
                       }}
-                      value={value.relative?.unit === 'hour' ? value.relative.value : null}
+                      value={
+                        value.relative?.unit === 'hour'
+                          ? value.relative.value
+                          : null
+                      }
                       aria-label="Hours"
                       fullWidth
                     >
@@ -325,7 +353,11 @@ const Menu: React.FunctionComponent<MenuProps> = ({
                           },
                         });
                       }}
-                      value={value.relative?.unit === 'day' ? value.relative.value : null}
+                      value={
+                        value.relative?.unit === 'day'
+                          ? value.relative.value
+                          : null
+                      }
                       exclusive
                       aria-label="Day"
                       fullWidth
@@ -358,7 +390,11 @@ const Menu: React.FunctionComponent<MenuProps> = ({
                           },
                         });
                       }}
-                      value={value.relative?.unit === 'week' ? value.relative.value : null}
+                      value={
+                        value.relative?.unit === 'week'
+                          ? value.relative.value
+                          : null
+                      }
                       exclusive
                       aria-label="Weeks"
                       fullWidth
@@ -428,7 +464,13 @@ const Menu: React.FunctionComponent<MenuProps> = ({
           </Box>
         </TabPanel>
       </TabContext>
-      <Grid container spacing={2} paddingLeft={3} paddingRight={3} paddingBottom={3}>
+      <Grid
+        container
+        spacing={2}
+        paddingLeft={3}
+        paddingRight={3}
+        paddingBottom={3}
+      >
         <Grid size={12}>
           <Divider />
         </Grid>

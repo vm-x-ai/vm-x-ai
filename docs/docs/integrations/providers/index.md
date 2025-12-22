@@ -20,21 +20,22 @@ VM-X AI currently supports the following providers:
 
 The following table compares features across all supported providers:
 
-| Feature | OpenAI | Anthropic | Google Gemini | Groq | AWS Bedrock |
-|---------|--------|-----------|---------------|------|-------------|
-| **Authentication** | API Key | API Key | API Key | API Key | IAM Role |
-| **Streaming** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Tools/Function Calling** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Non-Streaming** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **OpenAI-Compatible API** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Rate Limit Handling** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Error Retry Logic** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Usage Tracking** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Multiple Models** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Feature                    | OpenAI  | Anthropic | Google Gemini | Groq    | AWS Bedrock |
+| -------------------------- | ------- | --------- | ------------- | ------- | ----------- |
+| **Authentication**         | API Key | API Key   | API Key       | API Key | IAM Role    |
+| **Streaming**              | ✅      | ✅        | ✅            | ✅      | ✅          |
+| **Tools/Function Calling** | ✅      | ✅        | ✅            | ✅      | ✅          |
+| **Non-Streaming**          | ✅      | ✅        | ✅            | ✅      | ✅          |
+| **OpenAI-Compatible API**  | ✅      | ✅        | ✅            | ✅      | ✅          |
+| **Rate Limit Handling**    | ✅      | ✅        | ✅            | ✅      | ✅          |
+| **Error Retry Logic**      | ✅      | ✅        | ✅            | ✅      | ✅          |
+| **Usage Tracking**         | ✅      | ✅        | ✅            | ✅      | ✅          |
+| **Multiple Models**        | ✅      | ✅        | ✅            | ✅      | ✅          |
 
 ### Feature Descriptions
 
 - **Authentication**: Method used to authenticate with the provider
+
   - **API Key**: Standard API key authentication
   - **IAM Role**: AWS IAM role-based authentication (Bedrock only)
 
@@ -82,4 +83,3 @@ For detailed provider-specific documentation, see the individual provider pages.
 - **AWS Bedrock Provider** - Configure AWS Bedrock connections
 - **AI Connections** - Learn about AI Connections
 - **AI Resources** - Learn about AI Resources
-

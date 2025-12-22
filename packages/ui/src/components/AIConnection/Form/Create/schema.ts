@@ -4,10 +4,7 @@ import {
   ProviderFieldsetFormSchema,
 } from '../Common/schema';
 import { FormActionState } from '@/types';
-import {
-  AiConnectionEntity,
-  AiResourceEntity,
-} from '@/clients/api';
+import { AiConnectionEntity, AiResourceEntity } from '@/clients/api';
 import { ApiResponse } from '@/clients/types';
 
 export const quickSchema = z.object({

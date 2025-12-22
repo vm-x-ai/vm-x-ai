@@ -61,9 +61,9 @@ response = client.chat.completions.create(
 ```javascript
 import OpenAI from 'openai';
 
-const workspaceId = "6c41dc1b-910c-4358-beef-2c609d38db31";
-const environmentId = "6c1957ca-77ca-49b3-8fa1-0590281b8b44";
-const resourceName = "your-resource-name"; // The name of your AI Resource
+const workspaceId = '6c41dc1b-910c-4358-beef-2c609d38db31';
+const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
+const resourceName = 'your-resource-name'; // The name of your AI Resource
 
 const openai = new OpenAI({
   apiKey: 'your-vmx-api-key',
@@ -71,7 +71,7 @@ const openai = new OpenAI({
 });
 
 const completion = await openai.chat.completions.create({
-  model: resourceName,  // Your AI Resource name
+  model: resourceName, // Your AI Resource name
   messages: [{ role: 'user', content: 'Hello!' }],
 });
 
@@ -116,6 +116,7 @@ Only requests with assigned API keys can access the resource. If no API keys are
 ### 1. Start Simple
 
 Begin with:
+
 - A single primary model
 - No routing (or simple routing)
 - At least one fallback model
@@ -125,6 +126,7 @@ Add complexity as needed.
 ### 2. Test Routing Conditions
 
 Before deploying:
+
 - Test routing conditions with sample requests
 - Verify routing logic works as expected
 - Monitor routing decisions in audit logs
@@ -132,6 +134,7 @@ Before deploying:
 ### 3. Configure Fallback Chains
 
 Always have:
+
 - At least one fallback model for critical resources
 - Fallback models from different providers
 - Fallback models with different cost profiles
@@ -139,6 +142,7 @@ Always have:
 ### 4. Set Resource Capacity
 
 Use resource-level capacity to:
+
 - Control costs per resource
 - Ensure fair usage across resources
 - Implement tiered access levels
@@ -146,6 +150,7 @@ Use resource-level capacity to:
 ### 5. Use API Keys for Access Control
 
 Assign API keys to resources to:
+
 - Control who can access which resources
 - Implement multi-tenant access
 - Track usage by API key
@@ -181,4 +186,3 @@ Assign API keys to resources to:
 - [AI Connections](../ai-connections.md) - Learn about AI Connections
 - [Prioritization](../prioritization.md) - Understand capacity prioritization
 - [Usage](../usage.md) - Monitor usage and metrics
-

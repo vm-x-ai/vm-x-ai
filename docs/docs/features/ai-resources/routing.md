@@ -36,7 +36,8 @@ Automatically switch to a different provider when error rates exceed a threshold
 
 **How it works**: The routing condition uses `errorRate(10)` to calculate the error percentage over the last 5 minutes. When this percentage exceeds 10% (using the `GREATER_THAN` comparator), all subsequent requests are routed to the specified Groq connection and model until the error rate drops below the threshold.
 
-**Benefits**: 
+**Benefits**:
+
 - Automatic failover without manual intervention
 - Reduces downtime during provider outages
 - Helps maintain service reliability
@@ -52,6 +53,7 @@ Route requests that include function calling or tool usage to models that suppor
 **How it works**: The routing condition checks `request.toolsCount` using the `GREATER_THAN` comparator with a value of 0. When a request includes one or more tools (toolsCount > 0), it routes to the specified Groq connection and model.
 
 **Benefits**:
+
 - Guarantees tool-enabled requests use compatible models
 - Prevents tool-related errors from using incompatible models
 - Optimizes costs by only using premium models when needed
@@ -102,7 +104,8 @@ VM-X AI provides a comprehensive set of routing conditions based on request char
 
 Use traffic splitting for A/B testing, gradual rollouts, or canary deployments. This example routes 50% of requests matching the condition (input tokens > 0) to Groq with `openai/gpt-oss-20b`, while the other 50% use the default primary model.
 
-**Use Case**: 
+**Use Case**:
+
 - **A/B Testing**: Compare performance, quality, or cost between different models
 - **Gradual Rollouts**: Safely introduce new models by starting with a small percentage of traffic
 - **Canary Deployments**: Test new models in production with limited exposure
@@ -110,6 +113,7 @@ Use traffic splitting for A/B testing, gradual rollouts, or canary deployments. 
 **How it works**: The routing condition matches any requests, but the `traffic` field limits this route to only 50% of matching requests. The remaining 50% of matching requests continue to use the primary model. This creates a controlled split where you can monitor and compare both models' performance.
 
 **Best Practices**:
+
 - Start with a low percentage (10-20%) when testing new models
 - Monitor error rates, latency, and quality metrics for both routes
 - Gradually increase the percentage as confidence grows
@@ -124,6 +128,7 @@ The `traffic` field specifies the percentage (0-100) of matching requests that s
 ### 1. Start with Simple Conditions
 
 Begin with basic routing:
+
 - Token-based routing (small vs. large requests)
 - Tool-based routing (requests with/without tools)
 - Error rate-based routing (fallback when errors are high)
@@ -131,6 +136,7 @@ Begin with basic routing:
 ### 2. Test Routing Conditions
 
 Before deploying:
+
 - Test routing conditions with sample requests
 - Verify routing logic works as expected
 - Monitor routing decisions in audit logs
@@ -138,6 +144,7 @@ Before deploying:
 ### 3. Use Traffic Splitting for Rollouts
 
 Gradually roll out new models:
+
 - Start with low traffic percentage (10-20%)
 - Monitor performance and errors
 - Gradually increase traffic percentage
@@ -146,6 +153,7 @@ Gradually roll out new models:
 ### 4. Monitor Routing Decisions
 
 Regularly review:
+
 - Which routes are being used most
 - Routing decision patterns
 - Performance differences between routes
@@ -172,4 +180,3 @@ Regularly review:
 - [Fallback](./fallback.md) - Configure automatic fallback
 - [Capacity](./capacity.md) - Set resource-level capacity limits
 - [AI Resources Overview](./index.md) - Return to AI Resources overview
-

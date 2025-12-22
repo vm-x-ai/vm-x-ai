@@ -127,6 +127,7 @@ pnpm cdk deploy
 ```
 
 This will:
+
 - Create the VPC and networking infrastructure
 - Provision the ECS Fargate cluster
 - Create the Aurora PostgreSQL database
@@ -151,6 +152,7 @@ aws cloudformation describe-stacks \
 ```
 
 Or check the AWS Console:
+
 - **ApiUrl**: Look for the API Load Balancer DNS name
 - **UiUrl**: Look for the UI Load Balancer DNS name
 
@@ -172,7 +174,7 @@ The default Application's username and password are `admin` and `admin`.
 
 ### Application Components
 
-- **VM-X AI API Service**: 
+- **VM-X AI API Service**:
   - Service name: `vm-x-ai-api`
   - Task definition: `vm-x-ai-api-task-definition`
   - Container port: 3000
@@ -204,6 +206,7 @@ The default Application's username and password are `admin` and `admin`.
 ### Application
 
 Access the main application at the UI Load Balancer DNS name:
+
 - **UI**: `http://<ui-alb-dns-name>`
 - **API**: `http://<api-alb-dns-name>`
 
@@ -276,6 +279,7 @@ This stack creates several AWS resources that incur costs:
 **Estimated total**: $200-400/month for a minimal production setup.
 
 To reduce costs:
+
 - Use smaller task sizes (reduce CPU/memory)
 - Reduce desired count to 0 when not in use
 - Use Aurora Serverless v2 for variable workloads
@@ -293,6 +297,7 @@ pnpm cdk destroy
 **Warning**: This will delete all resources including databases and caches. Make sure you have backups if needed.
 
 **Note**: Some resources may need to be deleted manually:
+
 - ElastiCache serverless cache (may take time to delete)
 - Timestream database (must be empty before deletion)
 
@@ -304,8 +309,8 @@ Edit the task definitions in `lib/ecs-stack.ts`:
 
 ```typescript
 const apiTaskDefinition = new FargateTaskDefinition(this, 'API/TaskDef', {
-  memoryLimitMiB: 2048,  // Increase memory
-  cpu: 1024,              // Increase CPU
+  memoryLimitMiB: 2048, // Increase memory
+  cpu: 1024, // Increase CPU
   family: 'vm-x-ai-api-task-definition',
 });
 ```
@@ -315,7 +320,7 @@ const apiTaskDefinition = new FargateTaskDefinition(this, 'API/TaskDef', {
 ```typescript
 const apiService = new FargateService(this, 'API/Service', {
   // ...
-  desiredCount: 2,  // Scale to 2 tasks
+  desiredCount: 2, // Scale to 2 tasks
 });
 ```
 
@@ -395,6 +400,7 @@ Before deploying to production:
 ## Support
 
 For issues and questions:
+
 - Check the main [VM-X AI documentation](../../README.md)
 - Review the [Helm chart README](../../helm/charts/vm-x-ai/README.md) for application configuration
 - Open an issue on GitHub
@@ -402,4 +408,3 @@ For issues and questions:
 ## License
 
 This example is part of the VM-X AI project and follows the same license.
-

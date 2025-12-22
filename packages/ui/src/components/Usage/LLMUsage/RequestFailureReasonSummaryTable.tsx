@@ -10,7 +10,9 @@ export type LLMRequestFailureReasonSummaryTableProps = {
   data: CompletionUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<CompletionUsageQueryResultDto[] | undefined>;
+  autoRefreshAction?: () => Promise<
+    CompletionUsageQueryResultDto[] | undefined
+  >;
 };
 
 export function LLMRequestFailureReasonSummaryTable({
@@ -43,7 +45,8 @@ export function LLMRequestFailureReasonSummaryTable({
     {
       accessorKey: 'errorCount',
       header: 'Count',
-      Cell: ({ row: { original: row } }) => numberWithCommas((row.errorCount as number) ?? 0),
+      Cell: ({ row: { original: row } }) =>
+        numberWithCommas((row.errorCount as number) ?? 0),
     },
   ];
 

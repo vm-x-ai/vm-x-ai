@@ -34,8 +34,7 @@ export class GroqProvider extends OpenAIProvider {
                 type: 'string',
                 format: 'secret',
                 title: 'Groq API Key',
-                placeholder:
-                  'e.g. gsk_1234567890abcdef1234567890abcdef',
+                placeholder: 'e.g. gsk_1234567890abcdef1234567890abcdef',
                 description:
                   'Go to [Groq Dev Console](https://console.groq.com/keys) to create a Groq API Key, e.g. gsk_..........',
               },

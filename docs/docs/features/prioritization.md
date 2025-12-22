@@ -99,6 +99,7 @@ When a request is made:
 ```
 
 This configuration:
+
 - Reserves 70% of capacity for production resources
 - Allows production to use up to 100% if available
 - Allows development to use up to 30% if available
@@ -131,6 +132,7 @@ The algorithm uses the following configurable parameters:
 #### Scale-Up Logic
 
 For each pool, the algorithm:
+
 1. Calculates consumed tokens: `(connection capacity) × (current allocation %)`
 2. Calculates scale-up threshold: `consumed tokens × 50%`
 3. If window tokens > threshold:
@@ -141,6 +143,7 @@ For each pool, the algorithm:
 #### Scale-Down Logic
 
 For pools that recently scaled up:
+
 1. Checks if current usage is less than allocated capacity
 2. Verifies cooldown period has passed (5 seconds)
 3. Scales down to the maximum of: actual usage percentage, min reservation
@@ -148,6 +151,7 @@ For pools that recently scaled up:
 #### Capacity Redistribution
 
 When a high-priority pool needs to scale up but capacity is full:
+
 - Lower-priority pools (those ranked after the scaling pool) are scaled down
 - Scale-down respects min reservations
 - Only pools that are above their min reservation can be scaled down
@@ -160,16 +164,19 @@ Given a connection with 100,000 TPM capacity and two pools:
 - **Processing Documents** (low priority): Min 0%, Max 50%
 
 **Scenario 1: Low Chat Usage**
+
 - Chat uses 30,000 TPM (30% of capacity)
 - Chat allocation: 50% (min reservation)
 - Processing Documents can use up to 50,000 TPM (50% max reservation)
 
 **Scenario 2: High Chat Usage**
+
 - Chat uses 80,000 TPM (80% of capacity)
 - Chat allocation scales up to 80%
 - Processing Documents can use up to 20,000 TPM (remaining 20%)
 
 **Scenario 3: Chat Needs More Capacity**
+
 - Chat needs 90,000 TPM but only 80% allocated
 - Chat scales up to 90% (within max 100%)
 - Processing Documents scales down to 10% (within min 0%)
@@ -190,6 +197,7 @@ For most production scenarios, the default values (30s window, 50% threshold) pr
 ### 1. Define Clear Pools
 
 Group resources logically:
+
 - By environment (production, staging, development)
 - By priority (high, medium, low)
 - By team or project
@@ -204,6 +212,7 @@ Group resources logically:
 ### 3. Monitor Allocation
 
 Regularly review:
+
 - Actual allocation vs. configured reservations
 - Resource usage patterns
 - Capacity utilization
@@ -212,6 +221,7 @@ Regularly review:
 ### 4. Adjust Based on Usage
 
 Update pool definitions based on:
+
 - Actual usage patterns
 - Business priorities
 - Cost considerations
@@ -220,6 +230,7 @@ Update pool definitions based on:
 ### 5. Test Changes
 
 Before deploying:
+
 - Test pool definition changes
 - Verify allocation works as expected
 - Monitor for issues

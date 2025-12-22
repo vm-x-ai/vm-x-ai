@@ -1,12 +1,25 @@
 import type { GridProps } from '@mui/material';
 import { Paper, Grid, Typography, styled } from '@mui/material';
-import { getDate, isSameMonth, isToday, format, isWithinInterval } from 'date-fns';
+import {
+  getDate,
+  isSameMonth,
+  isToday,
+  format,
+  isWithinInterval,
+} from 'date-fns';
 import * as React from 'react';
 import Day from './Day';
 import Header from './Header';
 import type { DateRange } from './types';
 import { NavigationAction } from './types';
-import { chunks, getDaysInMonth, isStartOfRange, isEndOfRange, inDateRange, isRangeSameDay } from './utils';
+import {
+  chunks,
+  getDaysInMonth,
+  isStartOfRange,
+  isEndOfRange,
+  inDateRange,
+  isRangeSameDay,
+} from './utils';
 
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -73,8 +86,12 @@ const Month: React.FunctionComponent<MonthProps> = ({
           setDate={setDate}
           nextDisabled={!forward}
           prevDisabled={!back}
-          onClickPrevious={() => handlers.onMonthNavigate(marker, NavigationAction.Previous)}
-          onClickNext={() => handlers.onMonthNavigate(marker, NavigationAction.Next)}
+          onClickPrevious={() =>
+            handlers.onMonthNavigate(marker, NavigationAction.Previous)
+          }
+          onClickNext={() =>
+            handlers.onMonthNavigate(marker, NavigationAction.Next)
+          }
         />
 
         <WeekDaysContainer container direction="row" component="div">
@@ -92,7 +109,8 @@ const Month: React.FunctionComponent<MonthProps> = ({
                 const isStart = isStartOfRange(dateRange, day);
                 const isEnd = isEndOfRange(dateRange, day);
                 const isRangeOneDay = isRangeSameDay(dateRange);
-                const highlighted = inDateRange(dateRange, day) || helpers.inHoverRange(day);
+                const highlighted =
+                  inDateRange(dateRange, day) || helpers.inHoverRange(day);
 
                 return (
                   <Day

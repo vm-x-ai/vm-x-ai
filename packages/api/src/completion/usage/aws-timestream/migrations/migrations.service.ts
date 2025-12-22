@@ -17,7 +17,7 @@ import { TimestreamWriteClient } from '@aws-sdk/client-timestream-write';
 export class AWSTimestreamMigrationsService extends BaseMigrationsService {
   constructor(logger: PinoLogger, configService: ConfigService) {
     super(logger, configService, 'DATABASE_HOST', 'aws-timestream');
-    
+
     const region = this.configService.getOrThrow<string>('AWS_REGION');
     const writeClient = new TimestreamWriteClient({ region });
     const databaseName = this.configService.getOrThrow(

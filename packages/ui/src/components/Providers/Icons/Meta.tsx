@@ -7,7 +7,12 @@ export type MetaIconProps = {
 
 export default function MetaIcon({ width, height }: MetaIconProps) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={width} height={height} viewBox="0 0 287.56 191">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={width}
+      height={height}
+      viewBox="0 0 287.56 191"
+    >
       <defs>
         <linearGradient
           id="linear-gradient"

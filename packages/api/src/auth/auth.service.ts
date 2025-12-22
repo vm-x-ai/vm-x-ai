@@ -6,7 +6,7 @@ import { PasswordService } from './password.service';
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly passwordService: PasswordService,
+    private readonly passwordService: PasswordService
   ) {}
 
   async validateUser(username: string, password: string) {

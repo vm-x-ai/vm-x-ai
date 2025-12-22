@@ -11,7 +11,12 @@ import {
   serializeObjectParam,
   serializePrimitiveParam,
 } from '../core/pathSerializer.gen';
-import type { Client, ClientOptions, Config, RequestOptions } from './types.gen';
+import type {
+  Client,
+  ClientOptions,
+  Config,
+  RequestOptions,
+} from './types.gen';
 
 interface PathSerializer {
   path: Record<string, unknown>;
@@ -55,7 +60,7 @@ const defaultPathSerializer = ({ path, url: _url }: PathSerializer) => {
       if (Array.isArray(value)) {
         url = url.replace(
           match,
-          serializeArrayParam({ explode, name, style, value }),
+          serializeArrayParam({ explode, name, style, value })
         );
         continue;
       }
@@ -69,7 +74,7 @@ const defaultPathSerializer = ({ path, url: _url }: PathSerializer) => {
             style,
             value: value as Record<string, unknown>,
             valueOnly: true,
-          }),
+          })
         );
         continue;
       }
@@ -80,13 +85,13 @@ const defaultPathSerializer = ({ path, url: _url }: PathSerializer) => {
           `;${serializePrimitiveParam({
             name,
             value: value as string,
-          })}`,
+          })}`
         );
         continue;
       }
 
       const replaceValue = encodeURIComponent(
-        style === 'label' ? `.${value as string}` : (value as string),
+        style === 'label' ? `.${value as string}` : (value as string)
       );
       url = url.replace(match, replaceValue);
     }
@@ -149,7 +154,7 @@ export const createQuerySerializer = <T = unknown>({
  * Infers parseAs value from provided Content-Type header.
  */
 export const getParseAs = (
-  contentType: string | null,
+  contentType: string | null
 ): Exclude<Config['parseAs'], 'auto'> => {
   if (!contentType) {
     // If no Content-Type header is provided, the best we can do is return the raw response body,
@@ -176,7 +181,7 @@ export const getParseAs = (
 
   if (
     ['application/', 'audio/', 'image/', 'video/'].some((type) =>
-      cleanContent.startsWith(type),
+      cleanContent.startsWith(type)
     )
   ) {
     return 'blob';
@@ -193,7 +198,7 @@ const checkForExistence = (
   options: Pick<RequestOptions, 'auth' | 'query'> & {
     headers: Headers;
   },
-  name?: string,
+  name?: string
 ): boolean => {
   if (!name) {
     return false;
@@ -330,7 +335,7 @@ export const mergeHeaders = (
         // content value in OpenAPI specification is 'application/json'
         mergedHeaders.set(
           key,
-          typeof value === 'object' ? JSON.stringify(value) : (value as string),
+          typeof value === 'object' ? JSON.stringify(value) : (value as string)
         );
       }
     }
@@ -341,14 +346,14 @@ export const mergeHeaders = (
 type ErrInterceptor<Err, Res, Options> = (
   error: Err,
   response: Res,
-  options: Options,
+  options: Options
 ) => Err | Promise<Err>;
 
 type ReqInterceptor<Options> = (options: Options) => void | Promise<void>;
 
 type ResInterceptor<Res, Options> = (
   response: Res,
-  options: Options,
+  options: Options
 ) => Res | Promise<Res>;
 
 class Interceptors<Interceptor> {
@@ -379,7 +384,7 @@ class Interceptors<Interceptor> {
 
   update(
     id: number | Interceptor,
-    fn: Interceptor,
+    fn: Interceptor
   ): number | Interceptor | false {
     const index = this.getInterceptorIndex(id);
     if (this.fns[index]) {
@@ -428,7 +433,7 @@ const defaultHeaders = {
 };
 
 export const createConfig = <T extends ClientOptions = ClientOptions>(
-  override: Config<Omit<ClientOptions, keyof T> & T> = {},
+  override: Config<Omit<ClientOptions, keyof T> & T> = {}
 ): Config<Omit<ClientOptions, keyof T> & T> => ({
   ...jsonBodySerializer,
   headers: defaultHeaders,

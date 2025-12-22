@@ -84,7 +84,7 @@ export function throwServiceError(
   errorCode: ErrorCode,
   errorArgs: Record<string, unknown> = {},
   details: Record<string, unknown> = {},
-  error?: Error,
+  error?: Error
 ): never {
   const errorMessage = _.template(ERROR_MESSAGES[errorCode])(errorArgs);
   throw new HttpException(

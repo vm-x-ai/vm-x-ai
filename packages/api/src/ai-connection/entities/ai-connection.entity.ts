@@ -20,7 +20,7 @@ export class AIConnectionEntity<
   @ApiProperty({
     description: 'The unique identifier for the AI connection (UUID)',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -29,7 +29,7 @@ export class AIConnectionEntity<
   @ApiProperty({
     description: 'The workspace that the AI connection is associated with',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()
@@ -38,7 +38,7 @@ export class AIConnectionEntity<
   @ApiProperty({
     description: 'The environment that the AI connection is associated with',
     example: '123e4567-e89b-12d3-a456-426614174000',
-    format: 'uuid'
+    format: 'uuid',
   })
   @IsUUID('4')
   @IsNotEmpty()

@@ -34,7 +34,10 @@ import { ApiKeyEntity } from '../api-key/entities/api-key.entity';
 import { WorkspaceMemberGuard } from '../workspace/workspace.guard';
 import { isAsyncIterable } from '../utils/async';
 import { RoleGuard } from '../role/role.guard';
-import { COMPLETION_BASE_RESOURCE, CompletionActions } from './permissions/actions';
+import {
+  COMPLETION_BASE_RESOURCE,
+  CompletionActions,
+} from './permissions/actions';
 
 const transformPipe = new ValidationPipe({
   transform: true,

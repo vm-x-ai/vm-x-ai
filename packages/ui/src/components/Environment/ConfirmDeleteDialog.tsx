@@ -20,9 +20,10 @@ export default function ConfirmDeleteEnvironmentDialog({
   onClose,
 }: ConfirmDeleteEnvironmentDialogProps) {
   const [open, setOpen] = useState(true);
-  const { mutateAsync: deleteEnvironment, isPending: deletingEnvironment } = useMutation({
-    ...deleteEnvironmentMutation({}),
-  });
+  const { mutateAsync: deleteEnvironment, isPending: deletingEnvironment } =
+    useMutation({
+      ...deleteEnvironmentMutation({}),
+    });
 
   const handleClose = () => {
     setOpen(false);
@@ -59,7 +60,8 @@ export default function ConfirmDeleteEnvironmentDialog({
         maxWidth="md"
       >
         <DialogTitle id="confirm-delete-environment-title">
-          Are you sure you want to delete <strong>{environment.name}</strong> environment?
+          Are you sure you want to delete <strong>{environment.name}</strong>{' '}
+          environment?
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="confirm-delete-environment-description">

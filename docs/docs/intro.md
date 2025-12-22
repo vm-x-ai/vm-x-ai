@@ -23,33 +23,43 @@ VM-X AI is a server and UI application that acts as a **routing and management l
 As AI adoption grows, organizations face several critical challenges:
 
 ### 1. **Provider Fragmentation**
+
 Managing multiple AI providers (OpenAI, Anthropic, Google, Groq, AWS Bedrock) requires:
+
 - Different SDKs and authentication methods
 - Separate rate limiting and capacity management
 - Manual failover logic in application code
 - Inconsistent error handling
 
 ### 2. **Cost Optimization**
+
 Without intelligent routing, you may:
+
 - Use expensive models for simple tasks
 - Miss opportunities to use cost-effective providers
 - Lack visibility into actual usage and costs
 
 ### 3. **Reliability and Availability**
+
 Single points of failure can cause:
+
 - Service disruptions when a provider is down
 - No automatic failover mechanisms
 - Difficult capacity planning and scaling
 
 ### 4. **Security and Compliance**
+
 Managing AI credentials and access requires:
+
 - Secure credential storage and encryption
 - Audit trails for compliance
 - Fine-grained access control
 - API key management
 
 ### 5. **Observability**
+
 Understanding AI usage patterns requires:
+
 - Request-level audit logs
 - Time-series metrics for capacity planning
 - Integration with existing observability stacks
@@ -58,38 +68,45 @@ Understanding AI usage patterns requires:
 ## Key Benefits
 
 ### 🎯 **Centralized Management**
+
 - Single API endpoint for all AI providers
 - Unified credential management with encryption
 - Consistent interface regardless of provider
 
 ### 🚀 **Intelligent Routing**
+
 - Route based on request characteristics (token count, error rates, tools usage)
 - Support for complex routing rules with advanced expressions
 - Traffic splitting for A/B testing and gradual rollouts
 
 ### 🔄 **High Availability**
+
 - Automatic fallback to alternative providers
 - Configurable fallback chains
 - Resilience to provider outages
 
 ### 📊 **Capacity Control**
+
 - Define custom capacity limits (RPM, TPM) per connection
 - Resource-level capacity enforcement
 - Prioritization algorithms for fair capacity allocation
 
 ### 🔐 **Security First**
+
 - AWS KMS or Libsodium encryption for credentials
 - API key management with resource-level access control
 - Complete audit trail for all requests
 - OIDC Federated Login support for enterprise SSO
 
 ### 📈 **Observability**
+
 - Every request stored in audit logs
 - Time-series metrics for usage analysis
 - OpenTelemetry integration for distributed tracing
 - Export to QuestDB, AWS Timestream, or any OpenTelemetry-compatible backend
 
 ### 🔌 **OpenAI Compatibility**
+
 - Use the standard OpenAI SDK
 - Drop-in replacement for OpenAI API
 - No code changes required to switch providers
@@ -99,26 +116,31 @@ Understanding AI usage patterns requires:
 VM-X AI is ideal for:
 
 ### ✅ **Multi-Provider Strategies**
+
 - You use multiple AI providers and want to optimize costs and performance
 - You need to route requests intelligently based on workload characteristics
 - You want to avoid vendor lock-in
 
 ### ✅ **Enterprise Requirements**
+
 - You need comprehensive audit logs for compliance
 - You require fine-grained capacity management and prioritization
 - You need secure credential management with encryption
 
 ### ✅ **High Availability Needs**
+
 - You cannot afford downtime from provider outages
 - You need automatic failover mechanisms
 - You want to distribute load across multiple providers
 
 ### ✅ **Cost Optimization**
+
 - You want to use cost-effective providers for appropriate workloads
 - You need visibility into usage patterns and costs
 - You want to enforce capacity limits to control spending
 
 ### ✅ **Observability and Monitoring**
+
 - You need detailed metrics and traces for AI workloads
 - You want to integrate with existing observability stacks (Datadog, Prometheus, etc.)
 - You need time-series data for capacity planning

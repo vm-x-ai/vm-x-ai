@@ -62,6 +62,7 @@ The completion API uses workspace and environment IDs in the endpoint path:
 ```
 
 This ensures:
+
 - Complete isolation between workspaces
 - Complete isolation between environments
 - No risk of cross-environment data access
@@ -71,9 +72,9 @@ This ensures:
 ```javascript
 import OpenAI from 'openai';
 
-const workspaceId = "6c41dc1b-910c-4358-beef-2c609d38db31";
-const environmentId = "6c1957ca-77ca-49b3-8fa1-0590281b8b44";
-const resourceName = "chat-completion";
+const workspaceId = '6c41dc1b-910c-4358-beef-2c609d38db31';
+const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
+const resourceName = 'chat-completion';
 
 const openai = new OpenAI({
   baseURL: `http://localhost:3000/v1/completion/${workspaceId}/${environmentId}`,
@@ -82,7 +83,7 @@ const openai = new OpenAI({
 
 const completion = await openai.chat.completions.create({
   model: resourceName, // VM-X Resource Name
-  messages: [{ role: "user", content: "Hello!" }],
+  messages: [{ role: 'user', content: 'Hello!' }],
 });
 ```
 
@@ -91,6 +92,7 @@ const completion = await openai.chat.completions.create({
 ### 1. Organize by Purpose
 
 Create workspaces for:
+
 - Different organizations or teams
 - Different projects
 - Different business units
@@ -98,6 +100,7 @@ Create workspaces for:
 ### 2. Use Environments for Lifecycle
 
 Create environments for:
+
 - **Development**: Testing and development
 - **Staging**: Pre-production testing
 - **Production**: Live production workloads
@@ -105,6 +108,7 @@ Create environments for:
 ### 3. Separate Credentials
 
 Use different AI Connections for:
+
 - Different environments (separate API keys)
 - Different providers
 - Different regions
@@ -112,6 +116,7 @@ Use different AI Connections for:
 ### 4. Isolate Resources
 
 Create separate AI Resources for:
+
 - Different use cases
 - Different cost tiers
 - Different performance requirements
@@ -135,8 +140,8 @@ Create separate AI Resources for:
 
 1. Navigate to the **Workspaces** from the sidebar
 2. Click on the edit icon next to the workspace
-2. Click **Members**
-3. Click on the remove icon next to the member
+3. Click **Members**
+4. Click on the remove icon next to the member
 
 ## Troubleshooting
 

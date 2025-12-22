@@ -1,11 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsDate,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsDate, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { PublicCompletionBatchRequestStatus } from '../../../storage/entities.generated';
 import { completionBatchRequestStatusValues } from '../entity/batch.entity';
 

@@ -239,7 +239,11 @@ export default function CreateUserForm({ submitAction }: CreateUserFormProps) {
                             margin="normal"
                             type={showPassword ? 'text' : 'password'}
                             fullWidth
-                            label={form.watch('state') === UserState.CHANGE_PASSWORD ? "Confirm Initial Password" : "Confirm Password"}
+                            label={
+                              form.watch('state') === UserState.CHANGE_PASSWORD
+                                ? 'Confirm Initial Password'
+                                : 'Confirm Password'
+                            }
                             error={
                               !!form.formState.errors.confirmPassword?.message
                             }

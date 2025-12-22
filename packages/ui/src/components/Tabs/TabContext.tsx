@@ -10,7 +10,9 @@ export type TabContextProps = {
 
 export default function TabContext({ children, pathPattern }: TabContextProps) {
   const pathname = usePathname();
-  const match = pathPattern ? pathname?.match(new RegExp(pathPattern))?.[0] : pathname;
+  const match = pathPattern
+    ? pathname?.match(new RegExp(pathPattern))?.[0]
+    : pathname;
 
   return <MUITabContext value={match || ''}>{children}</MUITabContext>;
 }

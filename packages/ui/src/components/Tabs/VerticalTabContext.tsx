@@ -10,9 +10,15 @@ export type VerticalTabContextProps = {
   sx?: SxProps<Theme>;
 };
 
-export default function VerticalTabContext({ children, pathPattern, sx }: VerticalTabContextProps) {
+export default function VerticalTabContext({
+  children,
+  pathPattern,
+  sx,
+}: VerticalTabContextProps) {
   const pathname = usePathname();
-  const match = pathPattern ? pathname?.match(new RegExp(pathPattern))?.[0] : pathname;
+  const match = pathPattern
+    ? pathname?.match(new RegExp(pathPattern))?.[0]
+    : pathname;
 
   return (
     <Tabs

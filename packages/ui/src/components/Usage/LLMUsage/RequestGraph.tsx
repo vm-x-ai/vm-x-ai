@@ -175,7 +175,12 @@ export async function LLMRequestGraph({
                   workspaceId,
                   environmentId,
                 },
-                body: getUsageBody(aggregations, granularity, filters, datePickerValue),
+                body: getUsageBody(
+                  aggregations,
+                  granularity,
+                  filters,
+                  datePickerValue
+                ),
               });
               if (result.error) {
                 return undefined;
@@ -216,7 +221,11 @@ export async function LLMRequestGraph({
                     workspaceId,
                     environmentId,
                   },
-                  body: getTableUsageBody(aggregations, filters, datePickerValue),
+                  body: getTableUsageBody(
+                    aggregations,
+                    filters,
+                    datePickerValue
+                  ),
                 });
                 if (result.error) {
                   return undefined;

@@ -19,9 +19,9 @@ export const useRoutePattern = () => {
           part
             .replace(/\//g, '\\/')
             .replace(/\[.*\]/g, '[^\\/]')
-            .replace(/\]/g, ']+'),
+            .replace(/\]/g, ']+')
         )
-        .join('/')}`,
+        .join('/')}`
     );
     const match = pathname ? regExp.exec(pathname) : null;
     if (pathname && match) {

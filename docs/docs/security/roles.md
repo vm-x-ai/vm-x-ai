@@ -39,6 +39,7 @@ Roles support wildcards for flexible permission management:
 - `?` matches a single character
 
 Examples:
+
 - `workspace:*` matches all workspaces
 - `workspace:production` matches only the "production" workspace
 - `*:get` matches all "get" actions
@@ -106,6 +107,7 @@ Can only read/list resources:
 1. Navigate to **Settings** → **Roles**
 2. Click **Create Role**
 3. Fill in role details:
+
    - **Name**: Role name
    - **Description**: Role description
    - **Policy**: Define policy statements
@@ -120,6 +122,7 @@ Can only read/list resources:
 Actions follow the pattern: `{module}:{operation}`
 
 Common actions:
+
 - `workspace:create`, `workspace:get`, `workspace:list`, `workspace:update`, `workspace:delete`
 - `environment:create`, `environment:get`, `environment:list`, `environment:update`, `environment:delete`
 - `ai-connection:create`, `ai-connection:get`, `ai-connection:list`, `ai-connection:update`, `ai-connection:delete`
@@ -133,6 +136,7 @@ Common actions:
 Resources follow the pattern: `{module}:{identifier}:{submodule}:{identifier}:...`
 
 Examples:
+
 - `workspace:*` - All workspaces
 - `workspace:production` - Specific workspace
 - `workspace:*:environment:*` - All environments in all workspaces
@@ -166,6 +170,7 @@ Examples:
 ### 3. Organize by Function
 
 Create roles for:
+
 - Different job functions (developer, operator, viewer)
 - Different teams
 - Different access levels
@@ -198,4 +203,3 @@ If a role is not working:
 - [Policy Guide](./policy.md) - Detailed guide on creating role policies
 - [Users](./users.md) - Learn about user management
 - [Workspaces and Environments](../features/workspaces-environments.md) - Learn about workspace and environment isolation
-

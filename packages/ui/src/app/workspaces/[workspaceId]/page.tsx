@@ -27,5 +27,7 @@ export default async function Page({ params }: PageProps) {
     redirect(`/getting-started?workspaceId=${workspaceId}`);
   }
 
-  redirect(`/workspaces/${workspaceId}/${data[0].environmentId}/ai-connections/overview`);
+  redirect(
+    `/workspaces/${workspaceId}/${data[0].environmentId}/ai-connections/overview`
+  );
 }
