@@ -105,20 +105,35 @@
     }
   },
   "release": {
-    "releaseTagPattern": "{projectName}-{version}",
+    "projectsRelationship": "fixed",
     "git": {
       "commitMessage": "chore(release): publish [no ci]"
     },
+    "version": {
+      "conventionalCommits": true
+    },
+    "changelog": {
+      "projectChangelogs": {
+        "file": false
+      }
+    },
     "groups": {
-      "apps": {
-        "projects": ["api", "ui"],
-        "projectsRelationship": "independent",
+      "packages": {
+        "releaseTag": {
+          "pattern": "v{version}",
+          "requireSemver": true,
+          "preferDockerVersion": false
+        },
+        "projects": ["packages/**"],
+        "projectsRelationship": "fixed",
         "docker": {
-          "skipVersionActions": true,
-          "groupPreVersionCommand": "pnpm nx affected --target=docker:build"
+          "versionSchemes": {
+            "production": "{versionActionsVersion}"
+          },
+          "groupPreVersionCommand": "pnpm nx run-many --all --target=docker:build"
         },
         "changelog": {
-          "projectChangelogs": true
+          "createRelease": "github"
         }
       }
     }

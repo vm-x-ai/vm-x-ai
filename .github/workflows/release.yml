@@ -1,0 +1,81 @@
+name: Release Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: write
+  id-token: write
+  pull-requests: write
+  issues: write
+  statuses: write
+  checks: write
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SEMANTIC_RELEASE_APP_ID }}
+          private_key: ${{ secrets.SEMANTIC_RELEASE_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: git config
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        shell: bash
+        run: |
+          git remote rm origin
+          git remote add origin https://vm-x-ai:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+          git symbolic-ref HEAD refs/heads/main
+          git config --global push.autoSetupRemote true
+          git config user.name "vm-x-ai-release[bot]"
+          git config user.email "167465110+vm-x-ai-release[bot]@users.noreply.github.com"
+
+      - name: Docker hub login
+        run: |
+          echo "${{ secrets.DOCKER_HUB_PAT }}" | docker login -u vmxai --password-stdin
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.14.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - uses: oNaiPs/secrets-to-env-action@v1.5
+        with:
+          secrets: ${{ toJSON(secrets) }}
+
+      - name: Release
+        run: |
+          pnpm nx release --yes
+          git push --follow-tags
+        env:
+          GITHUB_TOKEN: ${{ steps.setup_release.outputs.token }}
+
+      # By default, Nx release only releases the version tag (e.g. 1.0.0)
+      # It does not add the "latest" tag to the Docker image.
+      - name: Publish Docker Latest Tags
+        run: |
+          pnpm nx run-many --target=docker:publish:latest --all
