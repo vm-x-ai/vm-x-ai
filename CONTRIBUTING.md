@@ -35,6 +35,7 @@ docker-compose up
 ```
 
 This will start:
+
 - PostgreSQL (port 5440)
 - Redis Cluster (port 7001)
 - QuestDB (port 8812)
@@ -131,6 +132,113 @@ VM-X AI is an Nx monorepo with the following main packages:
 3. **Update documentation** if needed
 4. **Submit a pull request** with a clear description of your changes
 
+## Updating UI Client Types
+
+When you make changes to the API (e.g., adding new endpoints, modifying request/response schemas), you need to regenerate the TypeScript client types used by the UI.
+
+1. **Ensure the API server is running** (it must be accessible at `http://localhost:3000`)
+
+2. **Generate the client types**:
+
+```bash
+pnpm nx run ui:gen-client
+```
+
+This command reads the OpenAPI/Swagger specification from `http://localhost:3000/docs-json` and generates TypeScript client code in `packages/ui/src/clients/api`.
+
+The configuration for this process is in `packages/ui/openapi-ts.api.config.ts`.
+
+## Database Types and Migrations
+
+### Generating Database Types
+
+After making database schema changes (via migrations), you should regenerate the TypeScript database types to reflect the new schema.
+
+1. **Ensure the database is running and migrations are up to date**
+
+2. **Generate the database types**:
+
+```bash
+pnpm nx run api:codegen
+```
+
+This command uses `kysely-codegen` to introspect your PostgreSQL database and generate TypeScript types in `packages/api/src/storage/entities.generated.ts`.
+
+The configuration for this process is in `packages/api/.kysely-codegenrc.ts`.
+
+### Adding a Migration
+
+When you need to modify the database schema, you should create a new migration file:
+
+1. **Create a new migration file** in `packages/api/src/migrations/`
+
+   The file should be named with a sequential number followed by a descriptive name, for example:
+
+   - `16-add-user-preferences-table.ts`
+   - `17-update-workspace-schema.ts`
+
+2. **Define the migration** with `up` and `down` methods:
+
+```typescript
+import { Kysely, Migration, sql } from 'kysely';
+import { DB } from '../storage/entities.generated';
+
+export const migration: Migration = {
+  async up(db: Kysely<DB>): Promise<void> {
+    // Define the schema changes here
+    await db.schema
+      .createTable('user_preferences')
+      .addColumn('preference_id', 'uuid', (col) => col.primaryKey().defaultTo(sql`gen_random_uuid()`))
+      .addColumn('user_id', 'uuid', (col) => col.notNull().references('users.id'))
+      .addColumn('key', 'text', (col) => col.notNull())
+      .addColumn('value', 'text')
+      .addColumn('created_at', 'timestamp', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
+      .execute();
+
+    // Add indexes if needed
+    await db.schema.createIndex('idx_user_preferences_user_id').on('user_preferences').column('user_id').execute();
+  },
+
+  async down(db: Kysely<unknown>): Promise<void> {
+    // Define how to rollback the migration
+    await db.schema.dropIndex('idx_user_preferences_user_id').execute();
+    await db.schema.dropTable('user_preferences').execute();
+  },
+};
+```
+
+3. **Register the migration** in `packages/api/src/migrations/migrations.service.ts`:
+
+   Add an import at the top:
+
+   ```typescript
+   import { migration as migration16 } from './16-add-user-preferences-table';
+   ```
+
+   Add the migration to the `ListMigrationProvider` object:
+
+   ```typescript
+   provider: new ListMigrationProvider({
+     // ... existing migrations ...
+     '15': migration15,
+     '16': migration16,  // Add your new migration here
+   }),
+   ```
+
+4. **Run the migration**:
+
+```bash
+pnpm nx run api:migrate
+```
+
+5. **Regenerate database types** (as described above):
+
+```bash
+pnpm nx run api:codegen
+```
+
+**Note**: Migration numbers should be sequential and match the order in which they should be applied. Always test migrations in a local environment before committing.
+
 ## Building
 
 ```bash
@@ -174,4 +282,3 @@ pnpm nx run docs:build
 - Review existing issues and discussions
 
 Thank you for contributing to VM-X AI! 🚀
-
