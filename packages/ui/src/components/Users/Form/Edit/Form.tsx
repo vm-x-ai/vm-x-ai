@@ -58,7 +58,7 @@ export default function EditUserForm({
   }, [router, state]);
 
   const form = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       ...user,
     },
@@ -83,6 +83,15 @@ export default function EditUserForm({
                 } as unknown as React.FormEvent<HTMLFormElement>);
               }}
               noValidate
+              // This is an admin user-management form (an operator
+              // setting another user's password) — not the operator's
+              // own login. Stopping browser autofill + 1Password from
+              // detecting it as a login keeps the "save login?" prompt
+              // from firing on every sidebar navigation.
+              autoComplete="off"
+              data-1p-ignore="true"
+              data-bwignore
+              data-lpignore="true"
             >
               <Grid size={12}>
                 <Typography variant="h6">Edit User</Typography>
@@ -305,7 +314,12 @@ export default function EditUserForm({
                   </Grid>
                 </Grid>
               </Grid>
-              <Grid size={12} marginTop="1rem">
+              <Grid
+                size={12}
+                sx={{
+                  marginTop: '1rem',
+                }}
+              >
                 <SubmitButton label="Save" submittingLabel="Saving..." />
               </Grid>
             </form>

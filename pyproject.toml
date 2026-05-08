@@ -1,12 +1,26 @@
 [project]
 name = "nx-workspace"
 version = "1.0.0"
-dependencies = [ "langchain-vm-x-ai-example" ]
+dependencies = [
+  "langchain-vm-x-ai-example",
+  "claude-agent-sdk-vm-x-ai-example-python",
+  "api-completion-vm-x-ai-example",
+]
 
 [tool.uv.workspace]
-members = [ "examples/langchain" ]
+members = [
+  "examples/langchain",
+  "examples/claude-agent-sdk-python",
+  "examples/api-completion",
+]
 
 [tool.uv.sources.langchain-vm-x-ai-example]
+workspace = true
+
+[tool.uv.sources.claude-agent-sdk-vm-x-ai-example-python]
+workspace = true
+
+[tool.uv.sources.api-completion-vm-x-ai-example]
 workspace = true
 
 [dependency-groups]

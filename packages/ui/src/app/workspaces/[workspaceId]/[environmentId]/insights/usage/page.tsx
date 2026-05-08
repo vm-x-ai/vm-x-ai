@@ -13,7 +13,11 @@ import {
   parseAsJson,
 } from 'nuqs/server';
 import React from 'react';
-import { getApiKeys, GranularityUnit } from '@/clients/api';
+import {
+  getApiKeys,
+  getRequestAuditMetadataKeys,
+  GranularityUnit,
+} from '@/clients/api';
 
 export type PageProps = {
   params: Promise<{
@@ -40,6 +44,28 @@ const filtersParser = parseAsJson<Record<string, string[]>>((value) => {
   return value;
 }).withDefault({});
 
+const metadataGroupByParser = parseAsJson<string[]>((value) => {
+  if (typeof value === 'string') {
+    return JSON.parse(value);
+  }
+  return value;
+}).withDefault([]);
+
+// Per-chart group-by override. Shape: { "<chartId>": ["tenantId", ...] }.
+// When a chart's array is non-empty it overrides the page-wide
+// `metadataGroupBy` for that chart only — lets users pin different
+// dimensions per visualisation without losing the page-wide default.
+const chartGroupByParser = parseAsJson<Record<string, string[]>>((value) => {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  return value;
+}).withDefault({});
+
 export default async function Page({ params, searchParams }: PageProps) {
   const { workspaceId, environmentId } = await params;
   const queryParams = await searchParams;
@@ -56,16 +82,29 @@ export default async function Page({ params, searchParams }: PageProps) {
     start: startDateParser,
     end: endDateParser,
     filters: filtersParser,
+    metadataGroupBy: metadataGroupByParser,
+    chartGroupBy: chartGroupByParser,
   });
 
   const loadQueryParams = await loadSearchParams(queryParams ?? {});
 
-  const { response, ...apiKeys } = await getApiKeys({
-    path: {
-      workspaceId,
-      environmentId,
-    },
-  });
+  const [apiKeysResult, metadataKeysResult] = await Promise.all([
+    getApiKeys({
+      path: {
+        workspaceId,
+        environmentId,
+      },
+    }),
+    getRequestAuditMetadataKeys({
+      path: {
+        workspaceId,
+        environmentId,
+      },
+    }),
+  ]);
+
+  const { response, ...apiKeys } = apiKeysResult;
+  const metadataKeys = metadataKeysResult.data ?? [];
 
   const granularity = loadQueryParams.granularity as GranularityUnit;
   const datePickerValue = {
@@ -104,7 +143,12 @@ export default async function Page({ params, searchParams }: PageProps) {
   return (
     <Grid container spacing={3}>
       <Grid size={12}>
-        <UsageHeader apiKeys={apiKeys} />
+        <UsageHeader
+          workspaceId={workspaceId}
+          environmentId={environmentId}
+          apiKeys={apiKeys}
+          metadataKeys={metadataKeys}
+        />
       </Grid>
       <Grid size={12}>
         <LLMUsage
@@ -115,6 +159,9 @@ export default async function Page({ params, searchParams }: PageProps) {
           autoRefresh={autoRefresh}
           autoRefreshInterval={autoRefreshInterval}
           filters={filters}
+          metadataGroupBy={loadQueryParams.metadataGroupBy ?? []}
+          chartGroupBy={loadQueryParams.chartGroupBy ?? {}}
+          metadataKeys={metadataKeys}
           searchParams={queryParams}
         />
       </Grid>

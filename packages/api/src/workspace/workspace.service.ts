@@ -14,6 +14,7 @@ import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
 import { AssignWorkspaceUsersDto } from './dto/assign-user.dto';
 import { UnassignWorkspaceUsersDto } from './dto/unassign-user.dto';
 import { WorkspaceUserDto } from './dto/workspace-user.dto';
+import { camelCaseEmbeds } from '../storage/embed-case';
 
 @Injectable()
 export class WorkspaceService {
@@ -55,7 +56,7 @@ export class WorkspaceService {
     includesUsers,
     includesEnvironments,
   }: ListWorkspaceDto): Promise<WorkspaceEntity[]> {
-    return await this.db.reader
+    const rows = await this.db.reader
       .selectFrom('workspaces')
       .selectAll('workspaces')
       .$if(!!includesUsers, this.db.includeEntityControlUsers('workspaces'))
@@ -78,6 +79,12 @@ export class WorkspaceService {
       )
       .orderBy('createdAt', 'desc')
       .execute();
+    // Top-level columns are already camelCased by the plugin; the
+    // `environments` aggregate from `jsonArrayFrom` and the
+    // `createdByUser`/`updatedByUser` embeds are not, so map them.
+    return rows.map((row) =>
+      camelCaseEmbeds(row, ['environments', 'createdByUser', 'updatedByUser'])
+    );
   }
 
   public async getById(
@@ -104,13 +111,17 @@ export class WorkspaceService {
   ): Promise<WorkspaceEntity | undefined> {
     const workspace = await this.cache.wrap(
       this.getWorkspaceCacheKey(workspaceId, includesUser),
-      () =>
-        this.db.reader
+      async () => {
+        const row = await this.db.reader
           .selectFrom('workspaces')
           .selectAll('workspaces')
           .$if(includesUser, this.db.includeEntityControlUsers('workspaces'))
           .where('workspaceId', '=', workspaceId)
-          .executeTakeFirst()
+          .executeTakeFirst();
+        return row
+          ? camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+          : undefined;
+      }
     );
 
     if (throwOnNotFound && !workspace) {
@@ -123,7 +134,7 @@ export class WorkspaceService {
   }
 
   public async getMembers(workspaceId: string): Promise<WorkspaceUserDto[]> {
-    return await this.db.reader
+    const rows = await this.db.reader
       .selectFrom('workspaceUsers')
       .selectAll('workspaceUsers')
       .where('workspaceId', '=', workspaceId)
@@ -140,6 +151,9 @@ export class WorkspaceService {
           .as('addedByUser'),
       ])
       .execute();
+    return rows.map((row) =>
+      camelCaseEmbeds(row, ['workspace', 'user', 'addedByUser'])
+    );
   }
 
   public async getByIds(workspaceIds: string[]): Promise<WorkspaceEntity[]> {

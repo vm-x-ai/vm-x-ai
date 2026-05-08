@@ -44,6 +44,9 @@ export enum ErrorCode {
   COMPLETION_BATCH_ITEM_NOT_FOUND = 'COMPLETION_BATCH_ITEM_NOT_FOUND',
   ROLE_NOT_FOUND = 'ROLE_NOT_FOUND',
   NOT_AUTHORIZED = 'NOT_AUTHORIZED',
+  GENERIC_ENTITY_NOT_FOUND = 'GENERIC_ENTITY_NOT_FOUND',
+  GENERIC_VALIDATION = 'GENERIC_VALIDATION',
+  MODEL_PRICING_NOT_FOUND = 'MODEL_PRICING_NOT_FOUND',
 }
 
 export type ServiceError = {
@@ -1092,9 +1095,13 @@ export type AiProviderConnectionEditorComponentDto = {
 
 export type AiProviderLogoDto = {
   /**
-   * The URL of the AI provider logo
+   * The URL of the AI provider logo (default / light theme)
    */
   url: string;
+  /**
+   * Optional dark-theme variant. UI consumers should fall back to `url` when this is not set.
+   */
+  darkUrl?: string | null;
 };
 
 export type AiProviderConnectionDto = {
@@ -1242,9 +1249,21 @@ export type AiResourceModelConfigEntity = {
    */
   model: string;
   /**
-   * The AI connection ID of the AI resource model
+   * The AI connection ID of the AI resource model. Either `connectionId` or `connectionName` must be provided. When both are set, `connectionId` wins. The service stores `connectionId` after resolution — the runtime payload that reaches the dispatcher always carries a resolved UUID.
    */
-  connectionId: string;
+  connectionId?: string | null;
+  /**
+   * The AI connection NAME of the AI resource model — convenient when sending `vmx.resourceConfigOverrides` from a caller that does not know connection UUIDs. The gateway resolves it to a UUID against the workspace + environment scope before dispatch. Either `connectionId` or `connectionName` must be provided. When both are set, `connectionId` wins.
+   */
+  connectionName?: string | null;
+  /**
+   * Maximum number of SDK-internal retries the provider client should perform on transient failures (5xx, throttling). Per-model so operators can tune the chattier fallback paths separately. Defaults to `0` (no internal retry — the gateway falls through to the next model immediately).
+   */
+  maxRetries?: number | null;
+  /**
+   * Per-model timeout in milliseconds. Composes with the request-level `vmx.timeoutMs` — whichever is smaller wins so a tight per-request budget is not silently widened by a generous model setting (and vice-versa). Useful when a fallback model needs a tighter deadline than the primary so it can fail fast.
+   */
+  timeoutMs?: number | null;
 };
 
 /**
@@ -1281,9 +1300,21 @@ export type AiResourceRoutingModelConfig = {
    */
   model: string;
   /**
-   * The AI connection ID of the AI resource model
+   * The AI connection ID of the AI resource model. Either `connectionId` or `connectionName` must be provided. When both are set, `connectionId` wins. The service stores `connectionId` after resolution — the runtime payload that reaches the dispatcher always carries a resolved UUID.
    */
-  connectionId: string;
+  connectionId?: string | null;
+  /**
+   * The AI connection NAME of the AI resource model — convenient when sending `vmx.resourceConfigOverrides` from a caller that does not know connection UUIDs. The gateway resolves it to a UUID against the workspace + environment scope before dispatch. Either `connectionId` or `connectionName` must be provided. When both are set, `connectionId` wins.
+   */
+  connectionName?: string | null;
+  /**
+   * Maximum number of SDK-internal retries the provider client should perform on transient failures (5xx, throttling). Per-model so operators can tune the chattier fallback paths separately. Defaults to `0` (no internal retry — the gateway falls through to the next model immediately).
+   */
+  maxRetries?: number | null;
+  /**
+   * Per-model timeout in milliseconds. Composes with the request-level `vmx.timeoutMs` — whichever is smaller wins so a tight per-request budget is not silently widened by a generous model setting (and vice-versa). Useful when a fallback model needs a tighter deadline than the primary so it can fail fast.
+   */
+  timeoutMs?: number | null;
   /**
    * Traffic percentage sent to this model config, empty means all traffic
    */
@@ -1417,6 +1448,12 @@ export type AiResourceEntity = {
    * Whether capacity is enforced for requests to this resource
    */
   enforceCapacity: boolean;
+  /**
+   * Default request arguments merged into every chat-completions / responses request that targets this resource. Caller-supplied fields win — these only fill in unspecified ones. Example: pin reasoning_effort=high so a routed o-series model always reasons hard, or set temperature=0 for deterministic resources.
+   */
+  defaultArgs?: {
+    [key: string]: unknown;
+  } | null;
 };
 
 export type CreateAiResourceDto = {
@@ -1456,6 +1493,12 @@ export type CreateAiResourceDto = {
    * Whether capacity is enforced for requests to this resource
    */
   enforceCapacity: boolean;
+  /**
+   * Default request arguments merged into every chat-completions / responses request that targets this resource. Caller-supplied fields win — these only fill in unspecified ones. Example: pin reasoning_effort=high so a routed o-series model always reasons hard, or set temperature=0 for deterministic resources.
+   */
+  defaultArgs?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * The API keys to assign to the AI resource
    */
@@ -1499,6 +1542,12 @@ export type UpdateAiResourceDto = {
    * Whether capacity is enforced for requests to this resource
    */
   enforceCapacity?: boolean;
+  /**
+   * Default request arguments merged into every chat-completions / responses request that targets this resource. Caller-supplied fields win — these only fill in unspecified ones. Example: pin reasoning_effort=high so a routed o-series model always reasons hard, or set temperature=0 for deterministic resources.
+   */
+  defaultArgs?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * The API keys to assign to the AI resource
    */
@@ -1782,6 +1831,150 @@ export type UpsertPoolDefinitionDto = {
   definition: Array<PoolDefinitionEntry>;
 };
 
+export type ExtraCompletionRequestDto = {
+  /**
+   * The correlation ID for tracing requests
+   */
+  correlationId: {
+    [key: string]: unknown;
+  };
+  /**
+   * The index of the secondary model to use
+   */
+  secondaryModelIndex: {
+    [key: string]: unknown;
+  };
+  /**
+   * The resource config overrides
+   */
+  resourceConfigOverrides: {
+    [key: string]: unknown;
+  };
+  /**
+   * Custom metadata key/value pairs attached to the request for filtering and grouping
+   */
+  metadata: {
+    [key: string]: string;
+  } | null;
+  /**
+   * Per-request timeout in milliseconds. The gateway builds an AbortSignal from this and threads it down to the provider SDK so the upstream call is cancelled (and tokens freed) when it elapses. Capped at 600000ms (10 min).
+   */
+  timeoutMs: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Provider-native fields that override the parsed request body. Useful when the OpenAI / Anthropic compatible endpoint does not natively support a feature of the upstream provider (e.g. Perplexity `search_recency_filter`, Anthropic `top_k`, Gemini `safetySettings`). These fields are merged AFTER `defaultArgs` and the parsed body, so they take precedence over both — even for structured fields like `messages` and `tools`.
+   */
+  providerArgs: {
+    [key: string]: unknown;
+  } | null;
+};
+
+export type ResponsesRequestDto = {
+  /**
+   * Model name. Use the AI Resource name, "default", or "<connection_name>/<model_name>".
+   */
+  model: string;
+  /**
+   * Input — either a string (treated as a single user turn) or an array of Responses-API input items (messages, function_calls, function_call_outputs, reasoning).
+   */
+  input:
+    | string
+    | Array<{
+        [key: string]: unknown;
+      }>;
+  /**
+   * System / developer instructions. Prepended to the message list.
+   */
+  instructions?: string | null;
+  /**
+   * Sampling temperature (0..2)
+   */
+  temperature?: number | null;
+  /**
+   * Top-p nucleus sampling
+   */
+  top_p?: number | null;
+  /**
+   * Maximum number of output tokens
+   */
+  max_output_tokens?: number | null;
+  /**
+   * Stop sequences
+   */
+  stop?: string | Array<string> | null;
+  /**
+   * Response text/format config. Use {format: {type:"json_schema", name, schema}} or {format:{type:"json_object"}}.
+   */
+  text?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Reasoning config: {effort: "low"|"medium"|"high", summary?: "auto"|"concise"|"detailed"}.
+   */
+  reasoning?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Tools (function tools only currently supported).
+   */
+  tools?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Tool choice control
+   */
+  tool_choice?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Stream the response as Server-Sent Events
+   */
+  stream?: boolean | null;
+  /**
+   * Request timeout (ms)
+   */
+  timeout?: number | null;
+  /**
+   * Whether OpenAI should store the response. Ignored by VM-X.
+   */
+  store?: boolean | null;
+  /**
+   * ID of a previous response to continue from (Responses API conversational state). Forwarded as a passthrough hint to providers that support it.
+   */
+  previous_response_id?: string | null;
+  /**
+   * Free-form metadata key/value pairs. Forwarded to providers and included on the audit row.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Allow parallel tool invocations. Defaults to true.
+   */
+  parallel_tool_calls?: boolean | null;
+  /**
+   * Cache key — drives the Responses API prompt cache. Forwarded to providers that honour it.
+   */
+  prompt_cache_key?: string | null;
+  /**
+   * Conversation truncation strategy. Defaults to "disabled".
+   */
+  truncation?: string | null;
+  /**
+   * Service tier — `auto`, `default`, `flex`, `priority`, or `scale`. Forwarded to providers.
+   */
+  service_tier?: string | null;
+  /**
+   * VM-X-specific options (correlationId, metadata, overrides).
+   */
+  vmx?: ExtraCompletionRequestDto | null;
+};
+
+export type AnthropicMessagesRequestDto = {
+  [key: string]: unknown;
+};
+
 export type MetricDto = {
   /**
    * The error rate of the metric
@@ -1801,7 +1994,7 @@ export type MetricDto = {
   totalRequests: number;
 };
 
-export type CompletionAuditFallbackEventEntity = {
+export type RequestAuditFallbackEventEntity = {
   /**
    * The timestamp of the Audit event
    */
@@ -1821,12 +2014,12 @@ export type CompletionAuditFallbackEventEntity = {
 /**
  * The event type of the Audit event
  */
-export enum CompletionAuditEventType {
+export enum RequestAuditEventType {
   FALLBACK = 'FALLBACK',
   ROUTING = 'ROUTING',
 }
 
-export type CompletionAuditRoutingEventEntity = {
+export type RequestAuditRoutingEventEntity = {
   /**
    * The timestamp of the Audit event
    */
@@ -1834,7 +2027,7 @@ export type CompletionAuditRoutingEventEntity = {
   /**
    * The event type of the Audit event
    */
-  type: CompletionAuditEventType;
+  type: RequestAuditEventType;
   /**
    * The data of the Audit event
    */
@@ -1843,12 +2036,13 @@ export type CompletionAuditRoutingEventEntity = {
   };
 };
 
-export enum CompletionAuditType {
+export enum RequestAuditType {
   COMPLETION = 'COMPLETION',
   COMPLETION_BATCH = 'COMPLETION_BATCH',
+  RESPONSES = 'RESPONSES',
 }
 
-export type CompletionAuditEntity = {
+export type RequestAuditEntity = {
   /**
    * The unique identifier for the completion audit event (UUID)
    */
@@ -1872,7 +2066,7 @@ export type CompletionAuditEntity = {
   /**
    * The type of the completion audit event
    */
-  type: CompletionAuditType;
+  type: RequestAuditType;
   /**
    * The status code of the completion audit event
    */
@@ -1932,9 +2126,15 @@ export type CompletionAuditEntity = {
    */
   userId?: string | null;
   /**
-   * The request payload of the completion audit event (openai chat completion request payload)
+   * The request payload of the completion audit event in the format the client sent (`openai`, `anthropic`, or `responses`).
    */
   requestPayload?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * The body the provider SDK actually saw on the wire — captured pre-flight so it is available even when the SDK call fails. Differs from `requestPayload` when the provider converted the format internally (e.g. OpenAI client sent Anthropic-shape and the gateway routed to a Claude-on-Bedrock-Invoke connection that received Anthropic shape verbatim).
+   */
+  providerRequestPayload?: {
     [key: string]: unknown;
   } | null;
   /**
@@ -1947,6 +2147,114 @@ export type CompletionAuditEntity = {
    * The headers of the completion audit data
    */
   responseHeaders?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Number of prompt tokens
+   */
+  promptTokens?: number | null;
+  /**
+   * Number of output tokens generated by the model
+   */
+  outputTokens?: number | null;
+  /**
+   * Total number of tokens
+   */
+  totalTokens?: number | null;
+  /**
+   * Number of cached input tokens
+   */
+  cachedTokens?: number | null;
+  /**
+   * Number of reasoning tokens
+   */
+  reasoningTokens?: number | null;
+  /**
+   * Anthropic prompt-cache write tokens (bills at a higher rate than regular input tokens)
+   */
+  cacheCreationInputTokens?: number | null;
+  /**
+   * 5-minute-TTL cache creation tokens
+   */
+  cacheCreationEphemeral5mTokens?: number | null;
+  /**
+   * 1-hour-TTL cache creation tokens
+   */
+  cacheCreationEphemeral1hTokens?: number | null;
+  /**
+   * Anthropic web_search tool invocation count
+   */
+  serverToolUseWebSearchRequests?: number | null;
+  /**
+   * Anthropic code_execution tool invocation count
+   */
+  serverToolUseCodeExecutionRequests?: number | null;
+  /**
+   * OpenAI audio output tokens
+   */
+  audioTokens?: number | null;
+  /**
+   * OpenAI predicted-output tokens accepted by the model
+   */
+  acceptedPredictionTokens?: number | null;
+  /**
+   * OpenAI predicted-output tokens rejected by the model
+   */
+  rejectedPredictionTokens?: number | null;
+  /**
+   * OpenAI system fingerprint for reproducibility
+   */
+  systemFingerprint?: string | null;
+  /**
+   * Service tier the upstream actually charged at (Anthropic / OpenAI)
+   */
+  serviceTier?: string | null;
+  /**
+   * Tokens generated per second
+   */
+  tokensPerSecond?: number | null;
+  /**
+   * Time to generate the first token (milliseconds)
+   */
+  timeToFirstToken?: number | null;
+  /**
+   * Total request duration (milliseconds)
+   */
+  requestDuration?: number | null;
+  /**
+   * Time spent in the AI provider API (milliseconds)
+   */
+  providerDuration?: number | null;
+  /**
+   * Time spent in the gate service (milliseconds)
+   */
+  gateDuration?: number | null;
+  /**
+   * Time spent in routing (milliseconds)
+   */
+  routingDuration?: number | null;
+  /**
+   * Number of errors (1 if request errored, 0 otherwise)
+   */
+  errorCount?: number | null;
+  /**
+   * Number of successes (1 if request succeeded, 0 otherwise)
+   */
+  successCount?: number | null;
+  /**
+   * Provider message identifier (response id)
+   */
+  messageId?: string | null;
+  /**
+   * Custom metadata attached to the request
+   */
+  metadata: {
+    [key: string]: string;
+  } | null;
+  /**
+   * Cost breakdown for the request
+   */
+  cost: {
     [key: string]: unknown;
   } | null;
 };
@@ -1967,13 +2275,13 @@ export type ListAuditResponseDto = {
   /**
    * The data
    */
-  data: Array<CompletionAuditEntity>;
+  data: Array<RequestAuditEntity>;
 };
 
 /**
  * Operator for the filter
  */
-export enum CompletionUsageDimensionOperator {
+export enum RequestUsageDimensionOperator {
   EQ = 'eq',
   NEQ = 'neq',
   IN = 'in',
@@ -1985,11 +2293,11 @@ export enum CompletionUsageDimensionOperator {
   IS_NOT = 'is_not',
 }
 
-export type CompletionUsageDimensionFilterDto = {
+export type RequestUsageDimensionFilterDto = {
   /**
    * Operator for the filter
    */
-  operator: CompletionUsageDimensionOperator;
+  operator: RequestUsageDimensionOperator;
   /**
    * Value or values to compare against
    */
@@ -2016,7 +2324,7 @@ export enum GranularityUnit {
 /**
  * Dimensions to group results by
  */
-export enum CompletionDimensions {
+export enum RequestDimensions {
   WORKSPACE_ID = 'workspaceId',
   ENVIRONMENT_ID = 'environmentId',
   CONNECTION_ID = 'connectionId',
@@ -2033,7 +2341,7 @@ export enum CompletionDimensions {
   USER_ID = 'userId',
 }
 
-export type CompletionUsageQueryDateRangeDto = {
+export type RequestUsageQueryDateRangeDto = {
   /**
    * Start date (inclusive) of the date range for the query
    */
@@ -2044,46 +2352,53 @@ export type CompletionUsageQueryDateRangeDto = {
   end: string;
 };
 
-export type CompletionUsageQueryFilterDto = {
+export type RequestUsageQueryFilterDto = {
   /**
    * Date range to filter the usage data
    */
-  dateRange: CompletionUsageQueryDateRangeDto;
+  dateRange: RequestUsageQueryDateRangeDto;
   /**
    * Dimensions and their filters
    */
   fields: {
-    time?: CompletionUsageDimensionFilterDto;
-    workspaceId?: CompletionUsageDimensionFilterDto;
-    environmentId?: CompletionUsageDimensionFilterDto;
-    connectionId?: CompletionUsageDimensionFilterDto;
-    resourceId?: CompletionUsageDimensionFilterDto;
-    provider?: CompletionUsageDimensionFilterDto;
-    model?: CompletionUsageDimensionFilterDto;
-    requestId?: CompletionUsageDimensionFilterDto;
-    messageId?: CompletionUsageDimensionFilterDto;
-    failureReason?: CompletionUsageDimensionFilterDto;
-    statusCode?: CompletionUsageDimensionFilterDto;
-    correlationId?: CompletionUsageDimensionFilterDto;
-    apiKeyId?: CompletionUsageDimensionFilterDto;
-    sourceIp?: CompletionUsageDimensionFilterDto;
-    userId?: CompletionUsageDimensionFilterDto;
-    promptTokens?: CompletionUsageDimensionFilterDto;
-    completionTokens?: CompletionUsageDimensionFilterDto;
-    totalTokens?: CompletionUsageDimensionFilterDto;
-    tokensPerSecond?: CompletionUsageDimensionFilterDto;
-    timeToFirstToken?: CompletionUsageDimensionFilterDto;
-    requestCount?: CompletionUsageDimensionFilterDto;
-    errorCount?: CompletionUsageDimensionFilterDto;
-    successCount?: CompletionUsageDimensionFilterDto;
-    requestDuration?: CompletionUsageDimensionFilterDto;
-    providerDuration?: CompletionUsageDimensionFilterDto;
-    gateDuration?: CompletionUsageDimensionFilterDto;
-    routingDuration?: CompletionUsageDimensionFilterDto;
+    time?: RequestUsageDimensionFilterDto;
+    workspaceId?: RequestUsageDimensionFilterDto;
+    environmentId?: RequestUsageDimensionFilterDto;
+    connectionId?: RequestUsageDimensionFilterDto;
+    resourceId?: RequestUsageDimensionFilterDto;
+    provider?: RequestUsageDimensionFilterDto;
+    model?: RequestUsageDimensionFilterDto;
+    requestId?: RequestUsageDimensionFilterDto;
+    messageId?: RequestUsageDimensionFilterDto;
+    failureReason?: RequestUsageDimensionFilterDto;
+    statusCode?: RequestUsageDimensionFilterDto;
+    correlationId?: RequestUsageDimensionFilterDto;
+    apiKeyId?: RequestUsageDimensionFilterDto;
+    sourceIp?: RequestUsageDimensionFilterDto;
+    userId?: RequestUsageDimensionFilterDto;
+    promptTokens?: RequestUsageDimensionFilterDto;
+    outputTokens?: RequestUsageDimensionFilterDto;
+    totalTokens?: RequestUsageDimensionFilterDto;
+    cachedTokens?: RequestUsageDimensionFilterDto;
+    reasoningTokens?: RequestUsageDimensionFilterDto;
+    tokensPerSecond?: RequestUsageDimensionFilterDto;
+    timeToFirstToken?: RequestUsageDimensionFilterDto;
+    requestCount?: RequestUsageDimensionFilterDto;
+    errorCount?: RequestUsageDimensionFilterDto;
+    successCount?: RequestUsageDimensionFilterDto;
+    requestDuration?: RequestUsageDimensionFilterDto;
+    providerDuration?: RequestUsageDimensionFilterDto;
+    gateDuration?: RequestUsageDimensionFilterDto;
+    routingDuration?: RequestUsageDimensionFilterDto;
+    totalCost?: RequestUsageDimensionFilterDto;
+    inputCost?: RequestUsageDimensionFilterDto;
+    outputCost?: RequestUsageDimensionFilterDto;
+    cachedCost?: RequestUsageDimensionFilterDto;
+    reasoningCost?: RequestUsageDimensionFilterDto;
   };
 };
 
-export type CompletionUsageQueryDto = {
+export type RequestUsageQueryDto = {
   /**
    * Granularity unit for aggregation (time bucket size)
    */
@@ -2097,8 +2412,10 @@ export type CompletionUsageQueryDto = {
    */
   agg: {
     promptTokens?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
-    completionTokens?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
+    outputTokens?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
     totalTokens?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
+    cachedTokens?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
+    reasoningTokens?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
     tokensPerSecond?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
     timeToFirstToken?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
     requestCount?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
@@ -2108,11 +2425,20 @@ export type CompletionUsageQueryDto = {
     providerDuration?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
     gateDuration?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
     routingDuration?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
+    totalCost?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
+    inputCost?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
+    outputCost?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
+    cachedCost?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
+    reasoningCost?: 'sum' | 'avg' | 'min' | 'max' | 'p99' | 'p95' | 'p90';
   };
   /**
    * Dimensions to group results by
    */
-  dimensions: Array<CompletionDimensions>;
+  dimensions: Array<RequestDimensions>;
+  /**
+   * Custom metadata dimensions to additionally group by, each prefixed with "metadata." (e.g. "metadata.tenant_id"). Merged into the effective dimensions list server-side; backed by JSONB extraction on request_audit.metadata.
+   */
+  metadataDimensions?: Array<string> | null;
   /**
    * Maximum number of records to return
    */
@@ -2120,7 +2446,7 @@ export type CompletionUsageQueryDto = {
   /**
    * Filter for the query
    */
-  filter: CompletionUsageQueryFilterDto;
+  filter: RequestUsageQueryFilterDto;
   /**
    * Order by the query
    */
@@ -2141,8 +2467,10 @@ export type CompletionUsageQueryDto = {
     sourceIp?: 'asc' | 'desc';
     userId?: 'asc' | 'desc';
     promptTokens?: 'asc' | 'desc';
-    completionTokens?: 'asc' | 'desc';
+    outputTokens?: 'asc' | 'desc';
     totalTokens?: 'asc' | 'desc';
+    cachedTokens?: 'asc' | 'desc';
+    reasoningTokens?: 'asc' | 'desc';
     tokensPerSecond?: 'asc' | 'desc';
     timeToFirstToken?: 'asc' | 'desc';
     requestCount?: 'asc' | 'desc';
@@ -2152,10 +2480,15 @@ export type CompletionUsageQueryDto = {
     providerDuration?: 'asc' | 'desc';
     gateDuration?: 'asc' | 'desc';
     routingDuration?: 'asc' | 'desc';
+    totalCost?: 'asc' | 'desc';
+    inputCost?: 'asc' | 'desc';
+    outputCost?: 'asc' | 'desc';
+    cachedCost?: 'asc' | 'desc';
+    reasoningCost?: 'asc' | 'desc';
   } | null;
 };
 
-export type CompletionUsageDimensionValueDto = {
+export type RequestUsageDimensionValueDto = {
   /**
    * Dimension value
    */
@@ -2170,7 +2503,7 @@ export type CompletionUsageDimensionValueDto = {
   displayName: string;
 };
 
-export type CompletionUsageQueryResultDto = {
+export type RequestUsageQueryResultDto = {
   /**
    * Time bucket truncated to the granularity unit
    */
@@ -2180,13 +2513,41 @@ export type CompletionUsageQueryResultDto = {
    */
   promptTokens?: number | null;
   /**
-   * Completion output tokens
+   * Output tokens generated by the model
    */
-  completionTokens?: number | null;
+  outputTokens?: number | null;
   /**
    * Total number of tokens
    */
   totalTokens?: number | null;
+  /**
+   * Number of cached input tokens
+   */
+  cachedTokens?: number | null;
+  /**
+   * Number of reasoning tokens
+   */
+  reasoningTokens?: number | null;
+  /**
+   * Total cost (USD)
+   */
+  totalCost?: number | null;
+  /**
+   * Input/prompt token cost (USD)
+   */
+  inputCost?: number | null;
+  /**
+   * Output/completion token cost (USD)
+   */
+  outputCost?: number | null;
+  /**
+   * Cached input token cost (USD)
+   */
+  cachedCost?: number | null;
+  /**
+   * Reasoning token cost (USD)
+   */
+  reasoningCost?: number | null;
   /**
    * Tokens generated per second
    */
@@ -2254,31 +2615,31 @@ export type CompletionUsageQueryResultDto = {
   /**
    * Workspace Identifier
    */
-  workspaceId?: CompletionUsageDimensionValueDto | null;
+  workspaceId?: RequestUsageDimensionValueDto | null;
   /**
    * Environment Identifier
    */
-  environmentId?: CompletionUsageDimensionValueDto | null;
+  environmentId?: RequestUsageDimensionValueDto | null;
   /**
    * AI Connection Identifier
    */
-  connectionId?: CompletionUsageDimensionValueDto | null;
+  connectionId?: RequestUsageDimensionValueDto | null;
   /**
    * AI Resource Identifier
    */
-  resourceId?: CompletionUsageDimensionValueDto | null;
+  resourceId?: RequestUsageDimensionValueDto | null;
   /**
    * Provider name
    */
-  provider?: CompletionUsageDimensionValueDto | null;
+  provider?: RequestUsageDimensionValueDto | null;
   /**
    * API key identifier used for the request
    */
-  apiKeyId?: CompletionUsageDimensionValueDto | null;
+  apiKeyId?: RequestUsageDimensionValueDto | null;
   /**
    * User Identifier
    */
-  userId?: CompletionUsageDimensionValueDto | null;
+  userId?: RequestUsageDimensionValueDto | null;
 };
 
 export type CreateCompletionBatchItemDto = {
@@ -2486,9 +2847,9 @@ export type CompletionBatchItemRelationDto = {
    */
   estimatedPromptTokens: number;
   /**
-   * Number of completion tokens used
+   * Number of output tokens generated by the model
    */
-  completionTokens: number;
+  outputTokens: number;
   /**
    * Number of prompt tokens used
    */
@@ -2577,9 +2938,9 @@ export type CompletionBatchDto = {
    */
   totalPromptTokens: number;
   /**
-   * The total number of completion tokens in the batch request
+   * The total number of output tokens in the batch request
    */
-  totalCompletionTokens: number;
+  totalOutputTokens: number;
   /**
    * The total number of items in the batch request
    */
@@ -2668,9 +3029,9 @@ export type CompletionBatchItemEntity = {
    */
   estimatedPromptTokens: number;
   /**
-   * Number of completion tokens used
+   * Number of output tokens generated by the model
    */
-  completionTokens: number;
+  outputTokens: number;
   /**
    * Number of prompt tokens used
    */
@@ -2693,11 +3054,77 @@ export type CompletionBatchItemEntity = {
   createdAt: string;
 };
 
+export type ModelPricingEntity = {
+  /**
+   * Pricing entry identifier (UUID)
+   */
+  pricingId: string;
+  /**
+   * AI provider identifier
+   */
+  provider: string;
+  /**
+   * Model name (exact match)
+   */
+  model: string;
+  /**
+   * Cost per input/prompt token (USD)
+   */
+  inputCostPerToken: number;
+  /**
+   * Cost per output/completion token (USD)
+   */
+  outputCostPerToken: number;
+  /**
+   * Cost per cached input token (USD)
+   */
+  cachedInputCostPerToken?: number | null;
+  /**
+   * Cost per reasoning token (USD)
+   */
+  reasoningCostPerToken?: number | null;
+  /**
+   * Origin of this row. 'SYSTEM' rows are managed by the pricing sync (refreshed from the canonical JSON on a schedule). 'USER' rows are operator overrides via this API and are never overwritten by the sync.
+   */
+  source: 'SYSTEM' | 'USER';
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+};
+
+export type CreateModelPricingDto = {
+  [key: string]: unknown;
+};
+
+export type UpdateModelPricingDto = {
+  [key: string]: unknown;
+};
+
+export type ImportModelPricingResultDto = {
+  /**
+   * `provider/model` keys that were inserted because no existing row matched. New rows are tagged source = 'USER' regardless of any `source` value in the file (the importer ignores the column).
+   */
+  created: Array<string>;
+  /**
+   * `provider/model` keys that existed and had at least one cost field change. The row's source is promoted to 'USER' on every update so the next pricing sync doesn't clobber the operator's edit.
+   */
+  updated: Array<string>;
+  /**
+   * `provider/model` keys that existed and matched the file's costs exactly. Source is left untouched — a 'SYSTEM' row stays 'SYSTEM', so the pricing sync can keep refreshing it.
+   */
+  unchanged: Array<string>;
+  /**
+   * Total rows processed.
+   */
+  total: number;
+};
+
 export type HealthcheckControllerHealthcheckData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/healthcheck';
+  url: '/api/healthcheck';
 };
 
 export type HealthcheckControllerHealthcheckResponses = {
@@ -2714,7 +3141,7 @@ export type GetUsersData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/v1/user';
+  url: '/api/v1/user';
 };
 
 export type GetUsersErrors = {
@@ -2739,7 +3166,7 @@ export type CreateUserData = {
   body: CreateUserDto;
   path?: never;
   query?: never;
-  url: '/v1/user';
+  url: '/api/v1/user';
 };
 
 export type CreateUserErrors = {
@@ -2769,7 +3196,7 @@ export type DeleteUserData = {
     userId: string;
   };
   query?: never;
-  url: '/v1/user/{userId}';
+  url: '/api/v1/user/{userId}';
 };
 
 export type DeleteUserErrors = {
@@ -2797,7 +3224,7 @@ export type GetUserByIdData = {
     userId: string;
   };
   query?: never;
-  url: '/v1/user/{userId}';
+  url: '/api/v1/user/{userId}';
 };
 
 export type GetUserByIdErrors = {
@@ -2828,7 +3255,7 @@ export type UpdateUserData = {
     userId: string;
   };
   query?: never;
-  url: '/v1/user/{userId}';
+  url: '/api/v1/user/{userId}';
 };
 
 export type UpdateUserErrors = {
@@ -2853,7 +3280,7 @@ export type GetPermissionsData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/v1/role/permissions';
+  url: '/api/v1/role/permissions';
 };
 
 export type GetPermissionsErrors = {
@@ -2885,7 +3312,7 @@ export type GetRolesData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/role';
+  url: '/api/v1/role';
 };
 
 export type GetRolesErrors = {
@@ -2910,7 +3337,7 @@ export type CreateRoleData = {
   body: CreateRoleDto;
   path?: never;
   query?: never;
-  url: '/v1/role';
+  url: '/api/v1/role';
 };
 
 export type CreateRoleErrors = {
@@ -2940,7 +3367,7 @@ export type DeleteRoleData = {
     roleId: string;
   };
   query?: never;
-  url: '/v1/role/{roleId}';
+  url: '/api/v1/role/{roleId}';
 };
 
 export type DeleteRoleErrors = {
@@ -2977,7 +3404,7 @@ export type GetRoleByIdData = {
      */
     includesMembers?: boolean;
   };
-  url: '/v1/role/{roleId}';
+  url: '/api/v1/role/{roleId}';
 };
 
 export type GetRoleByIdErrors = {
@@ -3008,7 +3435,7 @@ export type UpdateRoleData = {
     roleId: string;
   };
   query?: never;
-  url: '/v1/role/{roleId}';
+  url: '/api/v1/role/{roleId}';
 };
 
 export type UpdateRoleErrors = {
@@ -3038,7 +3465,7 @@ export type GetRoleMembersData = {
     roleId: string;
   };
   query?: never;
-  url: '/v1/role/{roleId}/members';
+  url: '/api/v1/role/{roleId}/members';
 };
 
 export type GetRoleMembersErrors = {
@@ -3070,7 +3497,7 @@ export type AssignUsersToRoleData = {
     roleId: string;
   };
   query?: never;
-  url: '/v1/role/{roleId}/assign';
+  url: '/api/v1/role/{roleId}/assign';
 };
 
 export type AssignUsersToRoleErrors = {
@@ -3099,7 +3526,7 @@ export type UnassignUsersFromRoleData = {
     roleId: string;
   };
   query?: never;
-  url: '/v1/role/{roleId}/unassign';
+  url: '/api/v1/role/{roleId}/unassign';
 };
 
 export type UnassignUsersFromRoleErrors = {
@@ -3125,7 +3552,7 @@ export type OidcInteractionControllerShowInteractionData = {
     uid: string;
   };
   query?: never;
-  url: '/interaction/{uid}';
+  url: '/api/interaction/{uid}';
 };
 
 export type OidcInteractionControllerShowInteractionResponses = {
@@ -3141,7 +3568,7 @@ export type OidcInteractionControllerShowChangePasswordInteractionData = {
     uid: string;
   };
   query?: never;
-  url: '/interaction/{uid}/change-password';
+  url: '/api/interaction/{uid}/change-password';
 };
 
 export type OidcInteractionControllerShowChangePasswordInteractionResponses = {
@@ -3157,7 +3584,7 @@ export type OidcInteractionControllerSubmitChangePasswordData = {
     uid: string;
   };
   query?: never;
-  url: '/interaction/{uid}/change-password';
+  url: '/api/interaction/{uid}/change-password';
 };
 
 export type OidcInteractionControllerSubmitChangePasswordResponses = {
@@ -3173,7 +3600,7 @@ export type OidcInteractionControllerLoginData = {
     uid: string;
   };
   query?: never;
-  url: '/interaction/{uid}/login';
+  url: '/api/interaction/{uid}/login';
 };
 
 export type OidcInteractionControllerLoginResponses = {
@@ -3189,7 +3616,7 @@ export type OidcInteractionControllerConsentData = {
     uid: string;
   };
   query?: never;
-  url: '/interaction/{uid}/consent';
+  url: '/api/interaction/{uid}/consent';
 };
 
 export type OidcInteractionControllerConsentResponses = {
@@ -3203,7 +3630,7 @@ export type OidcInteractionControllerFederatedCallbackData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/interaction/federated/callback';
+  url: '/api/interaction/federated/callback';
 };
 
 export type OidcInteractionControllerFederatedCallbackResponses = {
@@ -3219,7 +3646,7 @@ export type OidcInteractionControllerFederatedInteractionData = {
     uid: string;
   };
   query?: never;
-  url: '/interaction/{uid}/federated';
+  url: '/api/interaction/{uid}/federated';
 };
 
 export type OidcInteractionControllerFederatedInteractionResponses = {
@@ -3242,7 +3669,7 @@ export type GetWorkspacesData = {
      */
     includesEnvironments?: boolean;
   };
-  url: '/v1/workspace';
+  url: '/api/v1/workspace';
 };
 
 export type GetWorkspacesErrors = {
@@ -3268,7 +3695,7 @@ export type CreateWorkspaceData = {
   body: CreateWorkspaceDto;
   path?: never;
   query?: never;
-  url: '/v1/workspace';
+  url: '/api/v1/workspace';
 };
 
 export type CreateWorkspaceErrors = {
@@ -3300,7 +3727,7 @@ export type DeleteWorkspaceData = {
     workspaceId: string;
   };
   query?: never;
-  url: '/v1/workspace/{workspaceId}';
+  url: '/api/v1/workspace/{workspaceId}';
 };
 
 export type DeleteWorkspaceErrors = {
@@ -3334,7 +3761,7 @@ export type GetWorkspaceByIdData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/workspace/{workspaceId}';
+  url: '/api/v1/workspace/{workspaceId}';
 };
 
 export type GetWorkspaceByIdErrors = {
@@ -3366,7 +3793,7 @@ export type UpdateWorkspaceData = {
     workspaceId: string;
   };
   query?: never;
-  url: '/v1/workspace/{workspaceId}';
+  url: '/api/v1/workspace/{workspaceId}';
 };
 
 export type UpdateWorkspaceErrors = {
@@ -3398,7 +3825,7 @@ export type GetWorkspaceMembersData = {
     workspaceId: string;
   };
   query?: never;
-  url: '/v1/workspace/{workspaceId}/members';
+  url: '/api/v1/workspace/{workspaceId}/members';
 };
 
 export type GetWorkspaceMembersErrors = {
@@ -3434,7 +3861,7 @@ export type UpdateMemberRoleData = {
     userId: string;
   };
   query?: never;
-  url: '/v1/workspace/{workspaceId}/members/{userId}/role';
+  url: '/api/v1/workspace/{workspaceId}/members/{userId}/role';
 };
 
 export type UpdateMemberRoleErrors = {
@@ -3463,7 +3890,7 @@ export type AssignUsersToWorkspaceData = {
     workspaceId: string;
   };
   query?: never;
-  url: '/v1/workspace/{workspaceId}/assign';
+  url: '/api/v1/workspace/{workspaceId}/assign';
 };
 
 export type AssignUsersToWorkspaceErrors = {
@@ -3492,7 +3919,7 @@ export type UnassignUsersFromWorkspaceData = {
     workspaceId: string;
   };
   query?: never;
-  url: '/v1/workspace/{workspaceId}/unassign';
+  url: '/api/v1/workspace/{workspaceId}/unassign';
 };
 
 export type UnassignUsersFromWorkspaceErrors = {
@@ -3526,7 +3953,7 @@ export type GetEnvironmentsData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/environment/{workspaceId}';
+  url: '/api/v1/environment/{workspaceId}';
 };
 
 export type GetEnvironmentsErrors = {
@@ -3558,7 +3985,7 @@ export type CreateEnvironmentData = {
     workspaceId: string;
   };
   query?: never;
-  url: '/v1/environment/{workspaceId}';
+  url: '/api/v1/environment/{workspaceId}';
 };
 
 export type CreateEnvironmentErrors = {
@@ -3591,7 +4018,7 @@ export type DeleteEnvironmentData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/environment/{workspaceId}/{environmentId}';
+  url: '/api/v1/environment/{workspaceId}/{environmentId}';
 };
 
 export type DeleteEnvironmentErrors = {
@@ -3629,7 +4056,7 @@ export type GetEnvironmentByIdData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/environment/{workspaceId}/{environmentId}';
+  url: '/api/v1/environment/{workspaceId}/{environmentId}';
 };
 
 export type GetEnvironmentByIdErrors = {
@@ -3665,7 +4092,7 @@ export type UpdateEnvironmentData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/environment/{workspaceId}/{environmentId}';
+  url: '/api/v1/environment/{workspaceId}/{environmentId}';
 };
 
 export type UpdateEnvironmentErrors = {
@@ -3706,7 +4133,7 @@ export type GetAiConnectionsData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/ai-connection/{workspaceId}/{environmentId}';
+  url: '/api/v1/ai-connection/{workspaceId}/{environmentId}';
 };
 
 export type GetAiConnectionsErrors = {
@@ -3742,7 +4169,7 @@ export type CreateAiConnectionData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/ai-connection/{workspaceId}/{environmentId}';
+  url: '/api/v1/ai-connection/{workspaceId}/{environmentId}';
 };
 
 export type CreateAiConnectionErrors = {
@@ -3776,7 +4203,7 @@ export type DeleteAiConnectionData = {
     connectionId: string;
   };
   query?: never;
-  url: '/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}';
+  url: '/api/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}';
 };
 
 export type DeleteAiConnectionErrors = {
@@ -3818,7 +4245,7 @@ export type GetAiConnectionByIdData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}';
+  url: '/api/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}';
 };
 
 export type GetAiConnectionByIdErrors = {
@@ -3855,7 +4282,7 @@ export type UpdateAiConnectionData = {
     connectionId: string;
   };
   query?: never;
-  url: '/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}';
+  url: '/api/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}';
 };
 
 export type UpdateAiConnectionErrors = {
@@ -3882,7 +4309,7 @@ export type GetAiProvidersData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/v1/ai-provider';
+  url: '/api/v1/ai-provider';
 };
 
 export type GetAiProvidersErrors = {
@@ -3927,7 +4354,7 @@ export type GetAiResourcesData = {
      */
     connectionId?: string;
   };
-  url: '/v1/ai-resource/{workspaceId}/{environmentId}';
+  url: '/api/v1/ai-resource/{workspaceId}/{environmentId}';
 };
 
 export type GetAiResourcesErrors = {
@@ -3963,7 +4390,7 @@ export type CreateAiResourceData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/ai-resource/{workspaceId}/{environmentId}';
+  url: '/api/v1/ai-resource/{workspaceId}/{environmentId}';
 };
 
 export type CreateAiResourceErrors = {
@@ -3997,7 +4424,7 @@ export type DeleteAiResourceData = {
     resourceId: string;
   };
   query?: never;
-  url: '/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}';
+  url: '/api/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}';
 };
 
 export type DeleteAiResourceErrors = {
@@ -4039,7 +4466,7 @@ export type GetAiResourceByIdData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}';
+  url: '/api/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}';
 };
 
 export type GetAiResourceByIdErrors = {
@@ -4076,7 +4503,7 @@ export type UpdateAiResourceData = {
     resourceId: string;
   };
   query?: never;
-  url: '/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}';
+  url: '/api/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}';
 };
 
 export type UpdateAiResourceErrors = {
@@ -4117,7 +4544,7 @@ export type GetApiKeysData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/api-key/{workspaceId}/{environmentId}';
+  url: '/api/v1/api-key/{workspaceId}/{environmentId}';
 };
 
 export type GetApiKeysErrors = {
@@ -4151,7 +4578,7 @@ export type CreateApiKeyData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/api-key/{workspaceId}/{environmentId}';
+  url: '/api/v1/api-key/{workspaceId}/{environmentId}';
 };
 
 export type CreateApiKeyErrors = {
@@ -4184,7 +4611,7 @@ export type DeleteApiKeyData = {
     apiKeyId: string;
   };
   query?: never;
-  url: '/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}';
+  url: '/api/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}';
 };
 
 export type DeleteApiKeyErrors = {
@@ -4225,7 +4652,7 @@ export type GetApiKeyByIdData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}';
+  url: '/api/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}';
 };
 
 export type GetApiKeyByIdErrors = {
@@ -4261,7 +4688,7 @@ export type UpdateApiKeyData = {
     apiKeyId: string;
   };
   query?: never;
-  url: '/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}';
+  url: '/api/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}';
 };
 
 export type UpdateApiKeyErrors = {
@@ -4293,7 +4720,7 @@ export type DeletePoolDefinitionData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/pool-definition/{workspaceId}/{environmentId}';
+  url: '/api/v1/pool-definition/{workspaceId}/{environmentId}';
 };
 
 export type DeletePoolDefinitionErrors = {
@@ -4331,7 +4758,7 @@ export type GetPoolDefinitionData = {
      */
     includesUsers?: boolean;
   };
-  url: '/v1/pool-definition/{workspaceId}/{environmentId}';
+  url: '/api/v1/pool-definition/{workspaceId}/{environmentId}';
 };
 
 export type GetPoolDefinitionErrors = {
@@ -4367,7 +4794,7 @@ export type UpdatePoolDefinitionData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/pool-definition/{workspaceId}/{environmentId}';
+  url: '/api/v1/pool-definition/{workspaceId}/{environmentId}';
 };
 
 export type UpdatePoolDefinitionErrors = {
@@ -4405,10 +4832,70 @@ export type CompletionData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/completion/{workspaceId}/{environmentId}/chat/completions';
+  url: '/api/v1/completion/{workspaceId}/{environmentId}/chat/completions';
 };
 
 export type CompletionResponses = {
+  201: unknown;
+};
+
+export type ResponsesData = {
+  body: ResponsesRequestDto;
+  path: {
+    /**
+     * The ID of the workspace
+     */
+    workspaceId: string;
+    /**
+     * The ID of the environment
+     */
+    environmentId: string;
+  };
+  query?: never;
+  url: '/api/v1/completion/{workspaceId}/{environmentId}/responses';
+};
+
+export type ResponsesResponses = {
+  201: unknown;
+};
+
+export type AnthropicMessagesData = {
+  body: AnthropicMessagesRequestDto;
+  path: {
+    /**
+     * The ID of the workspace
+     */
+    workspaceId: string;
+    /**
+     * The ID of the environment
+     */
+    environmentId: string;
+  };
+  query?: never;
+  url: '/api/v1/completion/{workspaceId}/{environmentId}/anthropic/messages';
+};
+
+export type AnthropicMessagesResponses = {
+  201: unknown;
+};
+
+export type AnthropicMessagesV1AliasData = {
+  body: AnthropicMessagesRequestDto;
+  path: {
+    /**
+     * The ID of the workspace
+     */
+    workspaceId: string;
+    /**
+     * The ID of the environment
+     */
+    environmentId: string;
+  };
+  query?: never;
+  url: '/api/v1/completion/{workspaceId}/{environmentId}/anthropic/v1/messages';
+};
+
+export type AnthropicMessagesV1AliasResponses = {
   201: unknown;
 };
 
@@ -4432,7 +4919,7 @@ export type GetCompletionErrorRateData = {
     aiConnectionId: string;
     model: string;
   };
-  url: '/v1/completion-metric/{workspaceId}/{environmentId}/{resourceId}/error-rate';
+  url: '/api/v1/completion-metric/{workspaceId}/{environmentId}/{resourceId}/error-rate';
 };
 
 export type GetCompletionErrorRateErrors = {
@@ -4455,7 +4942,7 @@ export type GetCompletionErrorRateResponses = {
 export type GetCompletionErrorRateResponse =
   GetCompletionErrorRateResponses[keyof GetCompletionErrorRateResponses];
 
-export type GetCompletionAuditData = {
+export type GetRequestAuditData = {
   body?: never;
   path: {
     /**
@@ -4471,11 +4958,15 @@ export type GetCompletionAuditData = {
     /**
      * The type of audit to list
      */
-    type?: CompletionAuditType;
+    type?: RequestAuditType;
     /**
      * The connection ID to list audits for
      */
     connectionId?: string | null;
+    /**
+     * Filter by the gateway-assigned request id (the value the gateway returns on the `x-vmx-request-id` response header). Used by the playground to deep-link a chat reply to its audit row.
+     */
+    requestId?: string | null;
     /**
      * The resource to list audits for
      */
@@ -4504,32 +4995,48 @@ export type GetCompletionAuditData = {
      * The page size to list audits for
      */
     pageSize?: number | null;
+    /**
+     * Metadata key to filter on (must be set together with metadataValue). Filters rows where vmx.metadata[key] = metadataValue. Single-pair convenience for the legacy URL shape — for multi-pair AND filters, use metadataFilters.
+     */
+    metadataKey?: string | null;
+    /**
+     * Metadata value to filter on (paired with metadataKey).
+     */
+    metadataValue?: string | null;
+    /**
+     * JSON object of metadata key/value pairs to AND together. Each entry filters rows where vmx.metadata[key] = value. Encoded as a JSON string when sent as a query param, e.g. metadataFilters={"team":"growth","env":"prod"}. Combined with the singular metadataKey/metadataValue if both are set.
+     */
+    metadataFilters?: string | null;
+    /**
+     * Field to group rows by client-side. Either "correlationId" or a metadata key prefixed with "metadata.", e.g. "metadata.tenant_id".
+     */
+    groupBy?: string | null;
   };
-  url: '/v1/completion-audit/{workspaceId}/{environmentId}';
+  url: '/api/v1/request-audit/{workspaceId}/{environmentId}';
 };
 
-export type GetCompletionAuditErrors = {
+export type GetRequestAuditErrors = {
   /**
    * Server Error
    */
   500: ServiceError;
 };
 
-export type GetCompletionAuditError =
-  GetCompletionAuditErrors[keyof GetCompletionAuditErrors];
+export type GetRequestAuditError =
+  GetRequestAuditErrors[keyof GetRequestAuditErrors];
 
-export type GetCompletionAuditResponses = {
+export type GetRequestAuditResponses = {
   /**
    * List all completion audits associated with an environment
    */
   200: ListAuditResponseDto;
 };
 
-export type GetCompletionAuditResponse =
-  GetCompletionAuditResponses[keyof GetCompletionAuditResponses];
+export type GetRequestAuditResponse =
+  GetRequestAuditResponses[keyof GetRequestAuditResponses];
 
-export type GetCompletionUsageData = {
-  body: CompletionUsageQueryDto;
+export type GetRequestAuditMetadataKeysData = {
+  body?: never;
   path: {
     /**
      * The ID of the workspace
@@ -4541,28 +5048,101 @@ export type GetCompletionUsageData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/completion-usage/{workspaceId}/{environmentId}';
+  url: '/api/v1/request-audit/{workspaceId}/{environmentId}/metadata-keys';
 };
 
-export type GetCompletionUsageErrors = {
+export type GetRequestAuditMetadataKeysErrors = {
   /**
    * Server Error
    */
   500: ServiceError;
 };
 
-export type GetCompletionUsageError =
-  GetCompletionUsageErrors[keyof GetCompletionUsageErrors];
+export type GetRequestAuditMetadataKeysError =
+  GetRequestAuditMetadataKeysErrors[keyof GetRequestAuditMetadataKeysErrors];
 
-export type GetCompletionUsageResponses = {
+export type GetRequestAuditMetadataKeysResponses = {
+  /**
+   * Distinct metadata keys observed on completion audits in the last 30 days
+   */
+  200: Array<string>;
+};
+
+export type GetRequestAuditMetadataKeysResponse =
+  GetRequestAuditMetadataKeysResponses[keyof GetRequestAuditMetadataKeysResponses];
+
+export type GetRequestAuditMetadataValuesData = {
+  body?: never;
+  path: {
+    /**
+     * The ID of the workspace
+     */
+    workspaceId: string;
+    /**
+     * The ID of the environment
+     */
+    environmentId: string;
+    key: string;
+  };
+  query?: never;
+  url: '/api/v1/request-audit/{workspaceId}/{environmentId}/metadata-values/{key}';
+};
+
+export type GetRequestAuditMetadataValuesErrors = {
+  /**
+   * Server Error
+   */
+  500: ServiceError;
+};
+
+export type GetRequestAuditMetadataValuesError =
+  GetRequestAuditMetadataValuesErrors[keyof GetRequestAuditMetadataValuesErrors];
+
+export type GetRequestAuditMetadataValuesResponses = {
+  /**
+   * Distinct metadata values observed for the given key in the last 30 days, capped at 1000
+   */
+  200: Array<string>;
+};
+
+export type GetRequestAuditMetadataValuesResponse =
+  GetRequestAuditMetadataValuesResponses[keyof GetRequestAuditMetadataValuesResponses];
+
+export type GetRequestUsageData = {
+  body: RequestUsageQueryDto;
+  path: {
+    /**
+     * The ID of the workspace
+     */
+    workspaceId: string;
+    /**
+     * The ID of the environment
+     */
+    environmentId: string;
+  };
+  query?: never;
+  url: '/api/v1/request-usage/{workspaceId}/{environmentId}';
+};
+
+export type GetRequestUsageErrors = {
+  /**
+   * Server Error
+   */
+  500: ServiceError;
+};
+
+export type GetRequestUsageError =
+  GetRequestUsageErrors[keyof GetRequestUsageErrors];
+
+export type GetRequestUsageResponses = {
   /**
    * List all completion usage records
    */
-  200: Array<CompletionUsageQueryResultDto>;
+  200: Array<RequestUsageQueryResultDto>;
 };
 
-export type GetCompletionUsageResponse =
-  GetCompletionUsageResponses[keyof GetCompletionUsageResponses];
+export type GetRequestUsageResponse =
+  GetRequestUsageResponses[keyof GetRequestUsageResponses];
 
 export type GetCompletionBatchData = {
   body?: never;
@@ -4590,7 +5170,7 @@ export type GetCompletionBatchData = {
      */
     includesItems?: boolean;
   };
-  url: '/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}';
+  url: '/api/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}';
 };
 
 export type GetCompletionBatchErrors = {
@@ -4634,7 +5214,7 @@ export type GetCompletionBatchItemData = {
     itemId: unknown;
   };
   query?: never;
-  url: '/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/{itemId}';
+  url: '/api/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/{itemId}';
 };
 
 export type GetCompletionBatchItemErrors = {
@@ -4670,7 +5250,7 @@ export type CreateCompletionBatchData = {
     environmentId: string;
   };
   query?: never;
-  url: '/v1/completion-batch/{workspaceId}/{environmentId}';
+  url: '/api/v1/completion-batch/{workspaceId}/{environmentId}';
 };
 
 export type CreateCompletionBatchErrors = {
@@ -4710,7 +5290,7 @@ export type CancelCompletionBatchData = {
     batchId: unknown;
   };
   query?: never;
-  url: '/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/cancel';
+  url: '/api/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/cancel';
 };
 
 export type CancelCompletionBatchErrors = {
@@ -4735,7 +5315,118 @@ export type CancelCompletionBatchResponses = {
 export type CancelCompletionBatchResponse =
   CancelCompletionBatchResponses[keyof CancelCompletionBatchResponses];
 
-export type GetOauth2AuthorizeData = {
+export type ModelPricingControllerListV1Data = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Optional provider filter (e.g. openai, anthropic).
+     */
+    provider?: string;
+  };
+  url: '/api/v1/model-pricing';
+};
+
+export type ModelPricingControllerListV1Responses = {
+  200: Array<ModelPricingEntity>;
+};
+
+export type ModelPricingControllerListV1Response =
+  ModelPricingControllerListV1Responses[keyof ModelPricingControllerListV1Responses];
+
+export type ModelPricingControllerCreateV1Data = {
+  body: CreateModelPricingDto;
+  path?: never;
+  query?: never;
+  url: '/api/v1/model-pricing';
+};
+
+export type ModelPricingControllerCreateV1Responses = {
+  200: ModelPricingEntity;
+};
+
+export type ModelPricingControllerCreateV1Response =
+  ModelPricingControllerCreateV1Responses[keyof ModelPricingControllerCreateV1Responses];
+
+export type ModelPricingControllerExportAllV1Data = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Output format. Defaults to `json`.
+     */
+    format?: 'json' | 'csv';
+  };
+  url: '/api/v1/model-pricing/export';
+};
+
+export type ModelPricingControllerExportAllV1Responses = {
+  200: unknown;
+};
+
+export type ModelPricingControllerDeleteV1Data = {
+  body?: never;
+  path: {
+    pricingId: string;
+  };
+  query?: never;
+  url: '/api/v1/model-pricing/{pricingId}';
+};
+
+export type ModelPricingControllerDeleteV1Responses = {
+  200: unknown;
+};
+
+export type ModelPricingControllerGetV1Data = {
+  body?: never;
+  path: {
+    pricingId: string;
+  };
+  query?: never;
+  url: '/api/v1/model-pricing/{pricingId}';
+};
+
+export type ModelPricingControllerGetV1Responses = {
+  200: ModelPricingEntity;
+};
+
+export type ModelPricingControllerGetV1Response =
+  ModelPricingControllerGetV1Responses[keyof ModelPricingControllerGetV1Responses];
+
+export type ModelPricingControllerUpdateV1Data = {
+  body: UpdateModelPricingDto;
+  path: {
+    pricingId: string;
+  };
+  query?: never;
+  url: '/api/v1/model-pricing/{pricingId}';
+};
+
+export type ModelPricingControllerUpdateV1Responses = {
+  200: ModelPricingEntity;
+};
+
+export type ModelPricingControllerUpdateV1Response =
+  ModelPricingControllerUpdateV1Responses[keyof ModelPricingControllerUpdateV1Responses];
+
+export type ModelPricingControllerImportV1Data = {
+  /**
+   * JSON array of pricing rows, or a CSV body with a header row matching `provider,model,inputCostPerToken,outputCostPerToken,cachedInputCostPerToken,reasoningCostPerToken` (the `source` column is accepted but ignored).
+   */
+  body: Array<CreateModelPricingDto> | string;
+  path?: never;
+  query?: never;
+  url: '/api/v1/model-pricing/import';
+};
+
+export type ModelPricingControllerImportV1Responses = {
+  200: ImportModelPricingResultDto;
+};
+
+export type ModelPricingControllerImportV1Response =
+  ModelPricingControllerImportV1Responses[keyof ModelPricingControllerImportV1Responses];
+
+export type GetApiOauth2AuthorizeData = {
   body?: never;
   path?: never;
   query: {
@@ -4768,10 +5459,10 @@ export type GetOauth2AuthorizeData = {
      */
     code_challenge_method?: string;
   };
-  url: '/oauth2/authorize';
+  url: '/api/oauth2/authorize';
 };
 
-export type PostOauth2TokenData = {
+export type PostApiOauth2TokenData = {
   body?: {
     /**
      * The grant type
@@ -4804,10 +5495,10 @@ export type PostOauth2TokenData = {
   };
   path?: never;
   query?: never;
-  url: '/oauth2/token';
+  url: '/api/oauth2/token';
 };
 
-export type PostOauth2TokenResponses = {
+export type PostApiOauth2TokenResponses = {
   /**
    * Token response
    */
@@ -4821,17 +5512,17 @@ export type PostOauth2TokenResponses = {
   };
 };
 
-export type PostOauth2TokenResponse =
-  PostOauth2TokenResponses[keyof PostOauth2TokenResponses];
+export type PostApiOauth2TokenResponse =
+  PostApiOauth2TokenResponses[keyof PostApiOauth2TokenResponses];
 
-export type GetOauth2UserinfoData = {
+export type GetApiOauth2UserinfoData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/oauth2/userinfo';
+  url: '/api/oauth2/userinfo';
 };
 
-export type GetOauth2UserinfoResponses = {
+export type GetApiOauth2UserinfoResponses = {
   /**
    * User claims
    */
@@ -4847,10 +5538,10 @@ export type GetOauth2UserinfoResponses = {
   };
 };
 
-export type GetOauth2UserinfoResponse =
-  GetOauth2UserinfoResponses[keyof GetOauth2UserinfoResponses];
+export type GetApiOauth2UserinfoResponse =
+  GetApiOauth2UserinfoResponses[keyof GetApiOauth2UserinfoResponses];
 
-export type PostOauth2RevokeData = {
+export type PostApiOauth2RevokeData = {
   body?: {
     /**
      * The token to revoke
@@ -4863,24 +5554,24 @@ export type PostOauth2RevokeData = {
   };
   path?: never;
   query?: never;
-  url: '/oauth2/revoke';
+  url: '/api/oauth2/revoke';
 };
 
-export type PostOauth2RevokeResponses = {
+export type PostApiOauth2RevokeResponses = {
   /**
    * Token revoked successfully
    */
   200: unknown;
 };
 
-export type GetOauth2WellKnownOpenidConfigurationData = {
+export type GetApiOauth2WellKnownOpenidConfigurationData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/oauth2/.well-known/openid-configuration';
+  url: '/api/oauth2/.well-known/openid-configuration';
 };
 
-export type GetOauth2WellKnownOpenidConfigurationResponses = {
+export type GetApiOauth2WellKnownOpenidConfigurationResponses = {
   /**
    * OpenID Connect Discovery document
    */
@@ -4889,5 +5580,5 @@ export type GetOauth2WellKnownOpenidConfigurationResponses = {
   };
 };
 
-export type GetOauth2WellKnownOpenidConfigurationResponse =
-  GetOauth2WellKnownOpenidConfigurationResponses[keyof GetOauth2WellKnownOpenidConfigurationResponses];
+export type GetApiOauth2WellKnownOpenidConfigurationResponse =
+  GetApiOauth2WellKnownOpenidConfigurationResponses[keyof GetApiOauth2WellKnownOpenidConfigurationResponses];

@@ -12,6 +12,7 @@ import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import type { MRT_Row, MRT_VisibilityState } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
@@ -282,9 +283,9 @@ export default function PoolDefinitionTable({
                 table.setEditingCell(null);
               }}
               disableCloseOnSelect
-              renderTags={(value, getTagProps) =>
+              renderValue={(value, getItemProps) =>
                 value.map((option, index) => {
-                  const { key, ...tagProps } = getTagProps({ index });
+                  const { key, ...tagProps } = getItemProps({ index });
                   return (
                     <Chip
                       key={key}
@@ -330,6 +331,7 @@ export default function PoolDefinitionTable({
     ]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: [...(data?.definition || [])],
@@ -348,8 +350,10 @@ export default function PoolDefinitionTable({
     autoResetPageIndex: false,
     enableRowOrdering: true,
     enableEditing: true,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     muiDetailPanelProps: () => ({
       sx: {

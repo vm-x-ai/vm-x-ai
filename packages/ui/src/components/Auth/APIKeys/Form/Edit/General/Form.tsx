@@ -58,7 +58,7 @@ export default function APIKeyGeneralEditForm({
     handleSubmit,
     formState: { errors },
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       name: data.name,
       description: data.description,
@@ -142,7 +142,13 @@ export default function APIKeyGeneralEditForm({
               Select the resources that this role will have access to.
             </Typography>
           </Grid>
-          <Grid container size={12} marginTop="1rem">
+          <Grid
+            container
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <Grid size={6}>
               <Controller
                 name="resources"
@@ -153,11 +159,22 @@ export default function APIKeyGeneralEditForm({
               />
             </Grid>
           </Grid>
-          <Grid size={12} marginTop="1rem">
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <Typography variant="subtitle2">Groups</Typography>
             <Divider />
           </Grid>
-          <Grid container size={12} marginTop="1rem">
+          <Grid
+            container
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <Grid size={6}>
               <Controller
                 name="labels"
@@ -173,7 +190,12 @@ export default function APIKeyGeneralEditForm({
             </Grid>
           </Grid>
 
-          <Grid size={12} marginTop="1rem">
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <SubmitButton label="Save" submittingLabel="Saving..." />
           </Grid>
         </form>

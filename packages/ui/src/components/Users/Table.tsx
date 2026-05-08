@@ -8,6 +8,7 @@ import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { MRT_VisibilityState } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
@@ -75,7 +76,13 @@ export default function UserTable() {
         size: 200,
         Cell: ({ row }) => {
           return (
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
               {row.original.pictureUrl ? (
                 <Avatar src={row.original.pictureUrl} />
               ) : (
@@ -148,6 +155,7 @@ export default function UserTable() {
     [session?.user?.userId, theme.palette.primary.main, usersMap]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: data || [],
@@ -159,8 +167,10 @@ export default function UserTable() {
     enableColumnResizing: true,
     enableSorting: true,
     enableColumnActions: false,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     renderRowActions: ({ row }) => (
       <Box sx={{ display: 'flex', gap: '1rem' }}>

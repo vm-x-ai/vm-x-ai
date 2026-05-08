@@ -24,7 +24,7 @@ export default function CreateWorkspaceStep() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       name: 'my workspace',
       description: '',

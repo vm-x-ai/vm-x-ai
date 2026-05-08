@@ -14,6 +14,7 @@ import { startTransition, useActionState, useEffect, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import ConnectionModelSelector from '../../Common/ConnectionModelSelector';
+import ModelTuningFields from '../../Common/ModelTuningFields';
 import { schema } from './schema';
 import type { FormSchema, FormAction } from './schema';
 import {
@@ -75,7 +76,7 @@ export default function AIResourceRoutingEditForm({
     formState: { errors },
     watch,
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       model: data.model,
       routing: data.routing ?? {
@@ -103,7 +104,13 @@ export default function AIResourceRoutingEditForm({
         </Grid>
       )}
       <Grid size={12}>
-        <Box display="flex" alignItems="center" gap={1}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
           {' '}
           <Typography variant="h6">Dynamic Routing</Typography>
           <Typography variant="body2">
@@ -123,7 +130,13 @@ export default function AIResourceRoutingEditForm({
           }}
           noValidate
         >
-          <Grid container size={12} marginTop="1rem">
+          <Grid
+            container
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <Grid size={12}>
               <FormControlLabel
                 control={
@@ -139,7 +152,14 @@ export default function AIResourceRoutingEditForm({
               />
             </Grid>
 
-            <Grid container spacing={3} size={12} marginTop="1rem">
+            <Grid
+              container
+              spacing={3}
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               {watch('routing.enabled') && (
                 <>
                   <Grid size={12}>
@@ -169,31 +189,43 @@ export default function AIResourceRoutingEditForm({
                       name="model"
                       control={control}
                       render={({ field }) => (
-                        <ConnectionModelSelector
-                          {...field}
-                          providersMap={providersMap}
-                          onChange={(_, value) => field.onChange(value)}
-                          workspaceId={workspaceId}
-                          environmentId={environmentId}
-                          connections={connections}
-                          refreshConnectionAction={refreshConnectionAction}
-                          renderConnectionInputTextFieldProps={{
-                            label: 'Primary Model - Connection',
-                            error: !!errors.model?.message,
-                            helperText:
-                              errors.model?.message ||
-                              schema.shape.model.description,
-                          }}
-                          renderModelInputTextFieldProps={{
-                            label: watch('routing.enabled')
-                              ? 'Default Model - Model ID'
-                              : 'Primary Model - Model ID',
-                            error: !!errors.model?.message,
-                            helperText:
-                              errors.model?.message ||
-                              schema.shape.model.description,
-                          }}
-                        />
+                        <>
+                          <ConnectionModelSelector
+                            {...field}
+                            providersMap={providersMap}
+                            onChange={(_, value) =>
+                              field.onChange(
+                                value
+                                  ? { ...(field.value ?? {}), ...value }
+                                  : null
+                              )
+                            }
+                            workspaceId={workspaceId}
+                            environmentId={environmentId}
+                            connections={connections}
+                            refreshConnectionAction={refreshConnectionAction}
+                            renderConnectionInputTextFieldProps={{
+                              label: 'Primary Model - Connection',
+                              error: !!errors.model?.message,
+                              helperText:
+                                errors.model?.message ||
+                                schema.shape.model.description,
+                            }}
+                            renderModelInputTextFieldProps={{
+                              label: watch('routing.enabled')
+                                ? 'Default Model - Model ID'
+                                : 'Primary Model - Model ID',
+                              error: !!errors.model?.message,
+                              helperText:
+                                errors.model?.message ||
+                                schema.shape.model.description,
+                            }}
+                          />
+                          <ModelTuningFields
+                            value={field.value}
+                            onChange={(next) => field.onChange(next)}
+                          />
+                        </>
                       )}
                     />
                   </Grid>
@@ -202,8 +234,13 @@ export default function AIResourceRoutingEditForm({
             </Grid>
           </Grid>
 
-          <Grid size={12} marginTop="1rem">
-            <SubmitButton label="Save" submittingLabel="Saving..." />
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
+            <SubmitButton label="Save" submittingLabel="Saving..." sticky />
           </Grid>
         </form>
       </Grid>

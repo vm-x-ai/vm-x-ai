@@ -23,7 +23,7 @@ import Markdown from '@/components/Markdown';
 import { AWS_REGIONS, AWS_REGIONS_MAP } from '@/consts/aws';
 import ejs from 'ejs';
 import type { JSONSchema7 } from 'json-schema';
-import Image from 'next/image';
+import ProviderLogo from '@/components/Providers/ProviderLogo';
 import { useRouter } from 'next/navigation';
 import {
   startTransition,
@@ -172,14 +172,24 @@ export default function CreateAIConnectionForm({
 
             {formType === 'quick' && (
               <>
-                <Grid size={12} marginTop="1rem">
+                <Grid
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <Typography variant="h6">Batch add AI connections</Typography>
                   <Divider />
                   <Typography variant="caption">
                     Quick start using multiple AI providers in a few clicks.
                   </Typography>
                 </Grid>
-                <Grid size={12} marginTop="1rem">
+                <Grid
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <Typography variant="subtitle2">Providers</Typography>
                   <Divider />
                   <Typography variant="caption">
@@ -187,13 +197,36 @@ export default function CreateAIConnectionForm({
                     can always add them later.
                   </Typography>
                 </Grid>
-                <Grid container size={12} marginTop="1rem">
-                  <Grid container size={12} spacing={3} marginLeft="1rem">
-                    <Grid size={3} marginTop="1rem">
+                <Grid
+                  container
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
+                  <Grid
+                    container
+                    size={12}
+                    spacing={3}
+                    sx={{
+                      marginLeft: '1rem',
+                    }}
+                  >
+                    <Grid
+                      size={3}
+                      sx={{
+                        marginTop: '1rem',
+                      }}
+                    >
                       <Typography variant="subtitle2">Provider</Typography>
                       <Divider />
                     </Grid>
-                    <Grid size={9} marginTop="1rem">
+                    <Grid
+                      size={9}
+                      sx={{
+                        marginTop: '1rem',
+                      }}
+                    >
                       <Typography variant="subtitle2">Config</Typography>
                       <Divider />
                     </Grid>
@@ -204,16 +237,19 @@ export default function CreateAIConnectionForm({
                         <ListItem alignItems="flex-start">
                           <Grid size={12} container spacing={3}>
                             <Grid size={3}>
-                              <Box display="flex">
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                }}
+                              >
                                 <ListItemAvatar>
                                   <Avatar
                                     alt={provider.name}
                                     sx={{ bgcolor: 'transparent' }}
                                   >
-                                    <Image
+                                    <ProviderLogo
                                       alt={provider.name}
-                                      loader={({ src }) => src}
-                                      src={provider.config.logo.url}
+                                      logo={provider.config.logo}
                                       height={50}
                                       width={55}
                                     />
@@ -231,11 +267,19 @@ export default function CreateAIConnectionForm({
                             </Grid>
                             <Grid size={9}>
                               <Box
-                                display="flex"
-                                gap={1}
-                                flexDirection="column"
+                                sx={{
+                                  display: 'flex',
+                                  gap: 1,
+                                  flexDirection: 'column',
+                                }}
                               >
-                                <Box display="flex" width="100%" gap={1}>
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    width: '100%',
+                                    gap: 1,
+                                  }}
+                                >
                                   {Object.entries(
                                     provider.config.connection.form
                                       .properties as Record<string, JSONSchema7>
@@ -316,11 +360,13 @@ export default function CreateAIConnectionForm({
                                           return (
                                             <Box
                                               key={`${index}-${prop}`}
-                                              display="flex"
-                                              flexDirection="column"
-                                              gap={1}
-                                              width="100%"
-                                              padding={0}
+                                              sx={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 1,
+                                                width: '100%',
+                                                padding: 0,
+                                              }}
                                             >
                                               <TextField
                                                 {...field}
@@ -336,13 +382,21 @@ export default function CreateAIConnectionForm({
                                                     >
                                                   ).placeholder ?? ''
                                                 }
+                                                // Mask sensitive fields (API keys,
+                                                // secrets) — see ProviderFieldset
+                                                // for the rationale.
+                                                type={
+                                                  def.format === 'secret'
+                                                    ? 'password'
+                                                    : 'text'
+                                                }
                                                 error={
                                                   !!errors?.[prop]?.message
                                                 }
                                               />
                                               <Box
-                                                padding={0}
                                                 sx={{
+                                                  padding: 0,
                                                   fontSize: '0.75rem',
                                                   color: 'text.secondary',
                                                 }}
@@ -363,7 +417,12 @@ export default function CreateAIConnectionForm({
                                 {provider.config.connection.uiComponents?.filter(
                                   (item) => item.type === 'link-button'
                                 ).length && (
-                                  <Box display="flex" gap={1}>
+                                  <Box
+                                    sx={{
+                                      display: 'flex',
+                                      gap: 1,
+                                    }}
+                                  >
                                     {provider.config.connection.uiComponents
                                       ?.filter(
                                         (item) => item.type === 'link-button'
@@ -397,7 +456,12 @@ export default function CreateAIConnectionForm({
                     ))}
                   </List>
                 </Grid>
-                <Grid size={12} marginTop="1rem">
+                <Grid
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <Typography variant="subtitle2">Prefix</Typography>
                   <Divider />
                   <Typography variant="caption">
@@ -428,7 +492,12 @@ export default function CreateAIConnectionForm({
                     />
                   </Grid>
                 </Grid>
-                <Grid size={12} marginTop="1rem">
+                <Grid
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <Typography variant="subtitle2">
                     Assign Roles (Optional)
                   </Typography>
@@ -439,7 +508,13 @@ export default function CreateAIConnectionForm({
                     to the default resource.
                   </Typography>
                 </Grid>
-                <Grid container size={12} marginTop="1rem">
+                <Grid
+                  container
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <Grid size={7}>
                     <Controller
                       name="assignApiKeys"
@@ -464,7 +539,12 @@ export default function CreateAIConnectionForm({
             )}
             {formType === 'advanced' && (
               <Grid container size={6}>
-                <Grid size={12} marginTop="1rem">
+                <Grid
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <Typography variant="h6">Create New AI Connection</Typography>
                   <Divider />
                 </Grid>
@@ -520,7 +600,13 @@ export default function CreateAIConnectionForm({
                   <Typography variant="subtitle2">Provider</Typography>
                   <Divider />
                 </Grid>
-                <Grid container size={12} marginTop="1rem">
+                <Grid
+                  container
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <ProviderFieldset
                     control={
                       advancedForm.control as unknown as Control<ProviderFieldsetFormSchema>
@@ -532,7 +618,12 @@ export default function CreateAIConnectionForm({
                     formData={advancedForm.watch()}
                   />
                 </Grid>
-                <Grid size={12} marginTop="1rem">
+                <Grid
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <Typography variant="subtitle2">
                     Assign Roles (Optional)
                   </Typography>
@@ -543,7 +634,13 @@ export default function CreateAIConnectionForm({
                     to the default resource.
                   </Typography>
                 </Grid>
-                <Grid container size={12} marginTop="1rem">
+                <Grid
+                  container
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
                   <Grid size={12}>
                     <Controller
                       name="assignApiKeys"
@@ -567,11 +664,21 @@ export default function CreateAIConnectionForm({
               </Grid>
             )}
             {state && state.success === false && (
-              <Grid size={12} marginTop="1rem">
+              <Grid
+                size={12}
+                sx={{
+                  marginTop: '1rem',
+                }}
+              >
                 <Alert severity="error">{state.message}</Alert>
               </Grid>
             )}
-            <Grid size={12} marginTop="1rem">
+            <Grid
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <SubmitButton label="Save" submittingLabel="Saving..." />
             </Grid>
           </form>

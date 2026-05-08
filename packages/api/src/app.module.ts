@@ -15,11 +15,12 @@ import { AIConnectionModule } from './ai-connection/ai-connection.module';
 import { AIResourceModule } from './ai-resource/ai-resource.module';
 import { PoolDefinitionModule } from './pool-definition/pool-definition.module';
 import { AIProviderModule } from './ai-provider/ai-provider.module';
-import { CompletionModule } from './completion/completion.module';
+import { CompletionModule } from './gateway/completion.module';
 import { ApiKeyModule } from './api-key/api-key.module';
 import { ScheduleModule } from '@nestjs/schedule';
-import { CompletionAuditModule } from './completion/audit/audit.module';
+import { RequestAuditModule } from './audit/audit.module';
 import { RoleModule } from './role/role.module';
+import { ModelPricingModule } from './model-pricing/model-pricing.module';
 import { OpenTelemetryModule } from 'nestjs-otel';
 
 @Module({
@@ -50,8 +51,9 @@ import { OpenTelemetryModule } from 'nestjs-otel';
     AIProviderModule,
     ApiKeyModule,
     CompletionModule,
-    CompletionAuditModule,
+    RequestAuditModule,
     RoleModule,
+    ModelPricingModule,
   ],
   controllers: [],
   providers: [],

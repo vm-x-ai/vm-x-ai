@@ -22,38 +22,54 @@ Automatic fallback provides:
 1. Navigate to **AI Resources** in the UI
 2. Click on the resource you want to configure
 3. Click on the **Fallback** tab
-4. Check the **Use Fallback** checkbox
-5. Configure the fallback models
-6. Click on the **Save** button
+4. Add one or more fallback models (provider, connection, model,
+   and optional per-model `maxRetries` / `timeoutMs`)
+5. Click on the **Save** button
+
+Each fallback model can carry its own `maxRetries` and `timeoutMs`
+so different legs of the chain can be tuned independently — a
+chatty rate-limited provider may benefit from a few SDK-internal
+retries before the gateway falls through, while a deterministic
+upstream may prefer `0` to fail fast. See
+[Per-Model Tuning](./index.md#per-model-tuning-retries-and-timeout).
 
 ### Fallback Model Order
 
 Fallback models are tried in the order they are configured:
 
-1. Primary model fails
+1. Primary (or routed) model fails
 2. Try first fallback model
 3. If that fails, try second fallback model
 4. Continue until a model succeeds or all fail
 
+The chain is **linear** — there's no skipping or reordering at
+runtime. If a leg succeeds, every later leg is left untouched.
+
 ## When Fallback Triggers
 
-Fallback is automatically triggered on:
+The gateway falls through to the next leg whenever the current
+leg throws — there is no allow-list of "retryable" status codes.
+In practice this includes:
 
-- **Provider Errors**: 5xx status codes from the provider
-- **Rate Limit Errors**: 429 status codes (too many requests)
-- **Timeout Errors**: Request timeouts
-- **Network Failures**: Connection failures
-- **Invalid Response**: Malformed or invalid responses from the provider
+- **Provider errors**: 4xx (including 429 rate-limit) and 5xx
+  responses from the upstream
+- **Timeout errors**: per-request `vmx.timeoutMs` and per-model
+  `timeoutMs` deadlines
+- **Network failures**: connection refused, DNS failures, TLS
+  errors, etc.
+- **Invalid responses**: malformed JSON or shape the provider
+  driver can't parse
+- **Capacity-gate denials** on the leg's model/connection: when
+  the resource or connection has hit its TPM / RPM limit, the
+  gateway treats this like any other error and tries the next leg.
+  If the next leg shares the same exhausted connection it will
+  also be denied, so configure your fallback chain across
+  different providers / connections to get real failover.
 
-### Error Types That Trigger Fallback
-
-| Error Type       | Status Code | Description            |
-| ---------------- | ----------- | ---------------------- |
-| Server Error     | 5xx         | Provider server errors |
-| Rate Limit       | 429         | Too many requests      |
-| Timeout          | -           | Request timeout        |
-| Network Error    | -           | Connection failures    |
-| Invalid Response | -           | Malformed responses    |
+Each failed leg records a `fallback` audit event with the failed
+model, the upstream status code, and the error message — visible
+in the audit log and on the response's
+`x-vmx-event-{i}-fallback-*` headers.
 
 ## Fallback Chain Example
 
@@ -66,17 +82,18 @@ Consider a resource with the following configuration:
     "connectionId": "openai-connection-id",
     "model": "gpt-4o"
   },
-  "useFallback": true,
   "fallbackModels": [
     {
       "provider": "bedrock",
       "connectionId": "bedrock-connection-id",
-      "model": "anthropic.claude-3-5-sonnet-20241022-v2:0"
+      "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "timeoutMs": 5000
     },
     {
       "provider": "groq",
       "connectionId": "groq-connection-id",
-      "model": "llama-3.1-70b-versatile"
+      "model": "llama-3.1-70b-versatile",
+      "maxRetries": 2
     }
   ]
 }
@@ -156,7 +173,6 @@ Example:
       }
     ]
   },
-  "useFallback": true,
   "fallbackModels": [
     {
       "provider": "openai",
@@ -177,10 +193,16 @@ Example:
 
 ### Fallback Not Triggering
 
-1. **Check Fallback Enabled**: Ensure `Use Fallback` checkbox is checked
-2. **Verify Fallback Models**: Check fallback models are configured correctly
-3. **Review Error Types**: Verify errors trigger fallback (some errors may not trigger fallback)
-4. **Check Logs**: Review logs for fallback attempts and reasons
+1. **Verify Fallback Models**: Check fallback models are configured
+   correctly on the **Fallback** tab and were saved.
+2. **Check the audit log**: A failed leg always emits a `fallback`
+   audit event. If the event is missing, the primary call is
+   probably succeeding (or the request never reached the gateway).
+3. **Check the response headers**: `x-vmx-event-count` plus
+   `x-vmx-event-{i}-fallback-*` headers reflect every leg the
+   gateway tried.
+4. **Check Logs**: Review the gateway logs for the failed leg's
+   stack trace and the upstream provider's error message.
 
 ### Fallback Models Failing
 

@@ -12,6 +12,10 @@
       {
         "include": "../views/*",
         "outDir": "dist/views"
+      },
+      {
+        "include": "data/*.json",
+        "outDir": "dist/src"
       }
     ],
     "watchAssets": true,

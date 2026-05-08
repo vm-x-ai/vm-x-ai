@@ -69,35 +69,45 @@ export default function ActionMenu({
         <Box sx={{ p: 1, width: 200 }}>
           <Grid
             container
-            alignItems="center"
             onClick={() => {
               onDelete();
               handleCloseMenu();
             }}
             sx={{
+              alignItems: 'center',
               cursor: 'pointer',
               mb: 1,
               '&:hover': { backgroundColor: grey[200] },
             }}
           >
-            <Grid display="flex" alignItems="center">
+            <Grid
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
               <DeleteIcon sx={{ color: grey[700], mr: 1 }} />
               <Typography color={grey[700]}>Delete this route</Typography>
             </Grid>
           </Grid>
           <Grid
             container
-            alignItems="center"
             onClick={() => {
               onAdvancedEdit();
               handleCloseMenu();
             }}
             sx={{
+              alignItems: 'center',
               cursor: 'pointer',
               '&:hover': { backgroundColor: grey[200] },
             }}
           >
-            <Grid display="flex" alignItems="center">
+            <Grid
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
               {advancedEditing ? (
                 <ToggleOnIcon sx={{ color: grey[700], mr: 1 }} />
               ) : (

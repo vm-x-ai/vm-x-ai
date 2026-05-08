@@ -1,0 +1,93 @@
+{
+  "name": "api-completion-example",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "examples/api-completion/api_completion_examples",
+  "targets": {
+    "lock": { "executor": "@nxlv/python:lock", "options": { "update": false } },
+    "sync": { "executor": "@nxlv/python:sync", "options": {} },
+    "add": { "executor": "@nxlv/python:add", "options": {} },
+    "update": { "executor": "@nxlv/python:update", "options": {} },
+    "remove": { "executor": "@nxlv/python:remove", "options": {} },
+    "build": {
+      "executor": "@nxlv/python:build",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "outputPath": "{projectRoot}/dist",
+        "publish": false,
+        "lockedVersions": true,
+        "bundleLocalDependencies": true
+      },
+      "cache": true
+    },
+    "lint": {
+      "executor": "@nxlv/python:ruff-check",
+      "outputs": [],
+      "options": { "lintFilePatterns": ["api_completion_examples"] },
+      "cache": true
+    },
+    "format": {
+      "executor": "@nxlv/python:ruff-format",
+      "outputs": [],
+      "options": { "filePatterns": ["api_completion_examples"] },
+      "cache": true
+    },
+    "install": {
+      "executor": "@nxlv/python:install",
+      "options": {
+        "silent": false,
+        "args": "",
+        "verbose": false,
+        "debug": false
+      }
+    },
+    "setup": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "bash scripts/setup.sh",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "chat-completions": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "uv run python -m api_completion_examples.chat_completions",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "responses": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "uv run python -m api_completion_examples.responses",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "anthropic-messages": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "uv run python -m api_completion_examples.anthropic_messages",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "vmx-envelope": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "uv run python -m api_completion_examples.vmx_envelope",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "web-search": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "uv run python -m api_completion_examples.web_search",
+        "cwd": "{projectRoot}"
+      }
+    }
+  },
+  "tags": ["api", "example"],
+  "release": {
+    "version": {
+      "versionActions": "@nxlv/python/src/release/version-actions"
+    }
+  }
+}

@@ -35,6 +35,18 @@ const sidebars: SidebarsConfig = {
       label: 'Features',
       items: [
         'features/workspaces-environments',
+        {
+          type: 'category',
+          label: 'API',
+          link: { type: 'doc', id: 'features/api/index' },
+          items: [
+            'features/api/chat-completions',
+            'features/api/responses',
+            'features/api/anthropic-messages',
+            'features/api/vmx-envelope',
+            'features/api/web-search',
+          ],
+        },
         'features/ai-connections',
         {
           type: 'category',
@@ -46,6 +58,7 @@ const sidebars: SidebarsConfig = {
             'features/ai-resources/capacity',
           ],
         },
+        'features/playground',
         'features/prioritization',
         'features/usage',
         'features/batch-completion',
@@ -54,7 +67,25 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Integrations',
-      items: ['integrations/providers/index', 'features/langchain'],
+      items: [
+        {
+          type: 'category',
+          label: 'LLM Providers',
+          items: [
+            'integrations/providers/index',
+            'integrations/providers/openai',
+            'integrations/providers/anthropic',
+            'integrations/providers/gemini',
+            'integrations/providers/groq',
+            'integrations/providers/perplexity',
+            'integrations/providers/aws-bedrock',
+            'integrations/providers/aws-bedrock-invoke',
+          ],
+        },
+        'features/langchain',
+        'features/vercel-ai',
+        'features/claude-agent-sdk',
+      ],
     },
   ],
 };

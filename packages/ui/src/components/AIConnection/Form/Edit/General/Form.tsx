@@ -66,7 +66,7 @@ export default function AIConnectionGeneralEditForm({
     handleSubmit,
     formState: { errors, isDirty },
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       name: data.name,
       description: data.description ?? '',
@@ -83,7 +83,13 @@ export default function AIConnectionGeneralEditForm({
 
   return (
     <>
-      <Grid container spacing={3} justifyContent="center">
+      <Grid
+        container
+        spacing={3}
+        sx={{
+          justifyContent: 'center',
+        }}
+      >
         {state && state.success === false && (
           <Grid size={12}>
             <Alert severity="error">{state.message}</Alert>
@@ -92,9 +98,11 @@ export default function AIConnectionGeneralEditForm({
         <Grid size={12}>
           <Box sx={{ width: '50%' }}>
             <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
             >
               <Typography variant="h6">Edit AI Connection</Typography>
               <ActionMenu actionMenuItems={actionMenuItems} />
@@ -151,8 +159,18 @@ export default function AIConnectionGeneralEditForm({
                     )}
                   />
                 </Grid>
-                <Grid size={12} marginTop="1rem">
-                  <Box display="flex" justifyContent="flex-end">
+                <Grid
+                  size={12}
+                  sx={{
+                    marginTop: '1rem',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
                     {' '}
                     <SubmitButton
                       label="Save"
@@ -166,7 +184,6 @@ export default function AIConnectionGeneralEditForm({
           </Box>
         </Grid>
       </Grid>
-
       {confirmDeleteOpen && (
         <ConfirmDeleteAIConnectionDialog
           workspaceId={workspaceId}

@@ -13,11 +13,25 @@ AI Resources are logical endpoints that your applications use to make AI request
 
 An AI Resource is the abstraction your applications interact with. It includes:
 
-- **Primary Model**: The default provider/model to use
-- **Routing Rules**: Conditions for dynamically selecting different models
-- **Fallback Models**: Alternative models to use if the primary fails
-- **Capacity**: Resource-level capacity limits
-- **API Key Assignment**: Which API keys can access this resource
+- **Primary Model**: The default provider/model to use.
+- **Secondary Models**: Pinnable per-call alternatives selected via
+  `vmx.secondaryModelIndex` — useful for A/B tests and per-call model
+  overrides without leaving the resource API. See
+  [Secondary Models](#secondary-models).
+- **Fallback Models**: Alternative models tried automatically when
+  the primary (or routed) leg errors — including provider errors,
+  timeouts, and capacity-gate denials. See [Fallback](./fallback.md).
+- **Routing Rules**: Conditions for dynamically selecting different
+  models per-request. See [Dynamic Routing](./routing.md).
+- **Per-Model Tuning**: `maxRetries` and `timeoutMs` settable
+  individually on the primary, every fallback, and every routing
+  destination. See
+  [Per-Model Tuning](#per-model-tuning-retries-and-timeout).
+- **Capacity**: Resource-level capacity limits. See
+  [Capacity](./capacity.md).
+- **API Key Assignment**: Which API keys can access this resource.
+- **Default Args**: Provider-specific arguments merged into every
+  request. See [Default Args](#default-args).
 
 ## Creating an AI Resource
 
@@ -28,6 +42,46 @@ An AI Resource is the abstraction your applications interact with. It includes:
    - **Description**: Optional description
    - **Primary Model**: Select provider and model
    - **API Keys**: Assign API keys that can access this resource
+
+## Model config shape
+
+Every model slot on a resource — `model`, each `fallbackModels[*]`,
+each `secondaryModels[*]`, and every routing `then` — is the same
+shape: a `provider` + `model` + a connection reference. The connection
+reference accepts EITHER form:
+
+| Field            | Type   | When to use                                                                                                                                                |
+| ---------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connectionId`   | UUID   | Default form. Stored in the database. Stable across connection renames.                                                                                    |
+| `connectionName` | string | Convenient when you don't want to look up the UUID first — common in `vmx.resourceConfigOverrides`. Resolved before dispatch and stored as `connectionId`. |
+
+**Exactly one must be set.** If both are sent, `connectionId` wins.
+Unknown `connectionName` values return `400 invalid_request` with the
+slot path (e.g. `fallbackModels[1]`) so operators see exactly where
+the lookup failed.
+
+```jsonc
+// In a CreateAIResource / UpdateAIResource body, OR inside
+// vmx.resourceConfigOverrides on a completion request.
+{
+  "name": "my-resource",
+  "model": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "connectionName": "openai-prod" // resolved + stored as connectionId
+  },
+  "fallbackModels": [
+    {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5",
+      "connectionId": "11111111-1111-1111-1111-111111111111"
+    }
+  ]
+}
+```
+
+See also [VM-X envelope — Addressing a connection by name](../api/vmx-envelope.md#addressing-a-connection-by-name)
+for the per-request override pattern.
 
 ## Using an AI Resource
 
@@ -95,6 +149,106 @@ curl http://localhost:3000/v1/completion/{workspaceId}/{environmentId}/chat/comp
 
   </TabItem>
 </Tabs>
+
+## Per-Model Tuning (retries and timeout)
+
+Every model in a resource — primary, each fallback, and each
+dynamic-routing destination — can carry its own `maxRetries` and
+`timeoutMs`. Operators see them as inline fields next to the
+connection / model picker on the **General**, **Fallback**, and
+**Routing** tabs.
+
+| Field        | Default | Range         | Effect                                                                                                                                                                                                                        |
+| ------------ | :-----: | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxRetries` |   `0`   | `0..10`       | Number of SDK-internal retries the provider client performs on transient failures (5xx, throttling) before the gateway falls through to the next fallback model. `0` means "fail fast — go to the next fallback immediately". |
+| `timeoutMs`  |  unset  | `100..600000` | Per-model deadline. Composed with the request-level `vmx.timeoutMs`: whichever fires first wins. Useful when a fallback model needs a tighter deadline than the primary so it can fail fast.                                  |
+
+Why per-model rather than resource-wide:
+
+- The fallback chain runs **on the same request budget**. A primary
+  with `timeoutMs: 30000` and a fallback with `timeoutMs: 5000`
+  ensures the fallback can't burn the rest of the budget recovering
+  from a slow primary.
+- Different providers retry at different layers. A chatty
+  rate-limited provider may benefit from `maxRetries: 3` SDK-side
+  before the gateway falls through; a deterministic upstream may
+  prefer `0` to fall through immediately.
+
+The same fields are part of the OpenAPI / SDK shape on
+`AIResourceModelConfigEntity`, so anything that drives a resource
+programmatically (Terraform-style automation, the JSON edit form,
+…) can set them.
+
+## Secondary Models
+
+Resources can declare a list of **secondary models** alongside the
+primary. Callers pin one per-request via the `vmx.secondaryModelIndex`
+field on the request body — `0` is the first secondary, `1` the
+second, etc. The primary is used when the field is absent.
+
+```jsonc
+{
+  "model": "your-resource",
+  "messages": [{ "role": "user", "content": "..." }],
+  "vmx": { "secondaryModelIndex": 0 }
+}
+```
+
+Two important behaviours:
+
+- **Dynamic routing is skipped** when `secondaryModelIndex` is set.
+  The caller has explicitly pinned the model; the routing rules
+  don't run.
+- **Fallback chain still applies.** If the pinned secondary errors,
+  the resource's fallback list takes over (with each fallback's own
+  `maxRetries` / `timeoutMs`).
+
+Use cases: A/B testing new model versions, rolling out an upgraded
+model behind a per-call feature flag, or giving advanced users a
+"choose model" toggle without exposing every connection.
+
+## Default Args
+
+Default Args let you pin provider-specific knobs at the resource level
+so callers don't have to repeat them on every request. The form lives
+on the resource's **General** tab as a JSON editor.
+
+Common uses:
+
+- `reasoning_effort: "high"` for o-series models
+- `temperature`, `top_p`, `frequency_penalty` defaults
+- `service_tier` for OpenAI scale-tier routing
+- Provider-specific extensions exposed via OpenAPI spec extras
+
+The args are deep-merged into the outgoing request body — caller-supplied
+fields win. They apply to all three endpoints (Chat Completions,
+Anthropic Messages, Responses). The merged shape is recorded on the
+audit row, so you can confirm exactly what was sent without diffing
+client code.
+
+```json
+{
+  "reasoning_effort": "high",
+  "temperature": 0.2
+}
+```
+
+## Caller `providerArgs` (escape hatch)
+
+`vmx.providerArgs` on the request body is the symmetric escape hatch
+on the **caller** side — it lets a single request override what the
+resource's Default Args / parsed body would otherwise produce. The
+merge precedence is:
+
+```
+resource defaultArgs  <  parsed request body  <  vmx.providerArgs
+```
+
+`providerArgs` wins over both, even on structured fields like
+`messages` and `tools`. This is the field to use when you need to
+inject something the gateway shape can't express — Perplexity
+`search_recency_filter`, Anthropic `top_k`, Gemini `safetySettings`,
+etc. See the [VM-X envelope — `providerArgs`](../api/vmx-envelope.md#providerargs--your-escape-hatch).
 
 ## API Key Assignment
 
@@ -166,10 +320,14 @@ Assign API keys to resources to:
 
 ### Fallback Not Triggering
 
-1. **Check Fallback Enabled**: Ensure `Use Fallback` checkbox is checked
-2. **Verify Fallback Models**: Check fallback models are configured
-3. **Review Error Types**: Verify errors trigger fallback
-4. **Check Logs**: Review logs for fallback attempts
+1. **Verify Fallback Models**: Check that fallback models are
+   configured on the **Fallback** tab and were saved.
+2. **Review the audit log**: Each failed leg emits a `fallback`
+   audit event with the failed model and upstream error.
+3. **Inspect response headers**: `x-vmx-event-count` and
+   `x-vmx-event-{i}-fallback-*` show every leg the gateway tried.
+4. **Check Logs**: Review the gateway logs for the failed leg's
+   stack trace and the upstream provider's error message.
 
 ### Capacity Limits Too Restrictive
 

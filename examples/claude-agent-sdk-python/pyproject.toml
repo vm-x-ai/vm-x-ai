@@ -1,0 +1,29 @@
+[project]
+name = "claude-agent-sdk-vm-x-ai-example-python"
+version = "1.0.0"
+description = "Runnable Python examples for the Claude Agent SDK pointed at a VM-X gateway. Mirrors the snippets shown in docs/docs/features/claude-agent-sdk.md."
+requires-python = ">=3.11,<4"
+dependencies = [
+  "claude-agent-sdk>=0.1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [ "claude_agent_sdk_example" ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.ruff]
+exclude = [ ".ruff_cache", ".svn", ".tox", ".venv", "dist" ]
+line-length = 88
+indent-width = 4
+
+  [tool.ruff.lint]
+  select = [ "E", "F", "UP", "B", "SIM", "I" ]
+  ignore = [ ]
+  fixable = [ "ALL" ]
+  unfixable = [ ]
+
+[build-system]
+requires = [ "hatchling" ]
+build-backend = "hatchling.build"

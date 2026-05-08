@@ -1,16 +1,45 @@
 import type { Theme } from '@mui/material/styles';
 
-export const nivoTheme = (theme: Theme) => ({
-  background: theme.palette.background.default,
+/**
+ * Nivo chart theme derived from MUI's theme.
+ *
+ * **Why CSS variables, not `theme.palette.*` reads.** This app enables
+ * `cssVariables` + `colorSchemeSelector: 'data'`, which means runtime
+ * mode switches happen by flipping CSS custom-property values on the
+ * `<html>` tag — `theme.palette.text.primary` evaluated in JS still
+ * returns the *default* (light) scheme's static string and never
+ * updates when the user toggles dark mode. Nivo applies fills/strokes
+ * via React's `style` prop so the `var(--mui-palette-*)` references
+ * resolve at paint time and track the active scheme correctly.
+ *
+ * Axis/tick rules and grid lines use `color-mix` against
+ * `text.primary` instead of `divider` because divider is sized for
+ * 1px borders between surfaces (rgba(…,0.12) in dark mode → invisible
+ * across a wide chart canvas). Same reasoning for tick labels: I want
+ * them to track the foreground colour, not the surface-edge contrast.
+ */
+const textPrimary = 'var(--mui-palette-text-primary)';
+const backgroundPaper = 'var(--mui-palette-background-paper)';
+const dividerColor = 'var(--mui-palette-divider)';
+// Axis/tick rules — visible without competing with the data series.
+const lineColor = `color-mix(in srgb, ${textPrimary} 30%, transparent)`;
+// Grid — present but recessive.
+const gridColor = `color-mix(in srgb, ${textPrimary} 16%, transparent)`;
+
+// `theme` is intentionally unused now (everything sources from CSS
+// variables) but kept on the signature so callers who pass MUI's
+// theme don't need to change.
+export const nivoTheme = (_theme: Theme) => ({
+  background: 'transparent',
   text: {
     fontSize: 11,
-    fill: theme.palette.text.primary,
+    fill: textPrimary,
     outlineWidth: 0,
     outlineColor: 'transparent',
   },
   crosshair: {
     line: {
-      stroke: theme.palette.text.primary,
+      stroke: textPrimary,
       strokeWidth: 1,
       strokeOpacity: 0.75,
       strokeDasharray: '6 6',
@@ -19,26 +48,26 @@ export const nivoTheme = (theme: Theme) => ({
   axis: {
     domain: {
       line: {
-        stroke: theme.palette.grey[800],
+        stroke: lineColor,
         strokeWidth: 1,
       },
     },
     legend: {
       text: {
         fontSize: 12,
-        fill: theme.palette.text.primary,
+        fill: textPrimary,
         outlineWidth: 0,
         outlineColor: 'transparent',
       },
     },
     ticks: {
       line: {
-        stroke: theme.palette.grey[800],
+        stroke: lineColor,
         strokeWidth: 1,
       },
       text: {
         fontSize: 11,
-        fill: theme.palette.text.primary,
+        fill: textPrimary,
         outlineWidth: 0,
         outlineColor: 'transparent',
       },
@@ -46,7 +75,7 @@ export const nivoTheme = (theme: Theme) => ({
   },
   grid: {
     line: {
-      stroke: theme.palette.grey[300],
+      stroke: gridColor,
       strokeWidth: 1,
     },
   },
@@ -54,14 +83,14 @@ export const nivoTheme = (theme: Theme) => ({
     title: {
       text: {
         fontSize: 11,
-        fill: theme.palette.text.primary,
+        fill: textPrimary,
         outlineWidth: 0,
         outlineColor: 'transparent',
       },
     },
     text: {
       fontSize: 11,
-      fill: theme.palette.text.primary,
+      fill: textPrimary,
       outlineWidth: 0,
       outlineColor: 'transparent',
     },
@@ -69,7 +98,7 @@ export const nivoTheme = (theme: Theme) => ({
       line: {},
       text: {
         fontSize: 10,
-        fill: theme.palette.text.primary,
+        fill: textPrimary,
         outlineWidth: 0,
         outlineColor: 'transparent',
       },
@@ -78,35 +107,37 @@ export const nivoTheme = (theme: Theme) => ({
   annotations: {
     text: {
       fontSize: 13,
-      fill: theme.palette.text.primary,
+      fill: textPrimary,
       outlineWidth: 2,
-      outlineColor: theme.palette.grey[50],
+      outlineColor: backgroundPaper,
       outlineOpacity: 1,
     },
     link: {
-      stroke: theme.palette.text.primary,
+      stroke: textPrimary,
       strokeWidth: 1,
       outlineWidth: 2,
-      outlineColor: theme.palette.grey[50],
+      outlineColor: backgroundPaper,
       outlineOpacity: 1,
     },
     outline: {
-      stroke: theme.palette.text.primary,
+      stroke: textPrimary,
       strokeWidth: 2,
       outlineWidth: 2,
-      outlineColor: theme.palette.grey[50],
+      outlineColor: backgroundPaper,
       outlineOpacity: 1,
     },
     symbol: {
-      fill: theme.palette.text.primary,
+      fill: textPrimary,
       outlineWidth: 2,
-      outlineColor: theme.palette.grey[50],
+      outlineColor: backgroundPaper,
       outlineOpacity: 1,
     },
   },
   tooltip: {
     container: {
-      background: theme.palette.grey[50],
+      background: backgroundPaper,
+      color: textPrimary,
+      border: `1px solid ${dividerColor}`,
       fontSize: 12,
     },
     basic: {},

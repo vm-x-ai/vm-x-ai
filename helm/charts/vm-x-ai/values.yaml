@@ -59,21 +59,9 @@ api:
     awsKms:
       keyId: '' # Required if using aws-kms (e.g., "arn:aws:kms:region:account:key/key-id")
 
-  # AWS Configuration (required for AWS services like KMS or Timestream)
+  # AWS Configuration (required for AWS services like KMS)
   aws:
-    region: '' # Required if using aws-kms or aws-timestream (e.g., "us-east-1")
-
-  # Timeseries DB Configuration
-  timeseriesDb:
-    provider: questdb # questdb or aws-timestream
-    questdb:
-      host: '' # Will be set automatically if questdb is enabled
-      port: 8812
-      user: admin
-      password: '' # Will be set from secrets
-      dbName: vmxai
-    awsTimestream:
-      databaseName: '' # Required if using aws-timestream
+    region: '' # Required if using aws-kms (e.g., "us-east-1")
 
   # OIDC Federated Login (optional)
   oidcFederated:
@@ -373,57 +361,6 @@ redis:
     # For cluster mode, provide all nodes
     nodes: [] # Array of {host: "", port: 6379}
 
-# QuestDB Configuration
-questdb:
-  # Set to false if using aws-timestream
-  enabled: true
-
-  image:
-    repository: questdb/questdb
-    tag: '9.1.1'
-    pullPolicy: IfNotPresent
-
-  auth:
-    user: admin
-    password: '' # Will be generated if not set
-    database: vmxai
-
-  # Istio sidecar injection
-  # QuestDB typically doesn't need sidecars (internal service, latency-sensitive)
-  # Enable only if you need mTLS between API and QuestDB
-  istio:
-    sidecar:
-      enabled: false # Usually disabled for internal databases
-
-  persistence:
-    enabled: true
-    size: 50Gi
-    storageClass: ''
-
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
-    limits:
-      cpu: 2000m
-      memory: 4Gi
-
-  service:
-    type: ClusterIP
-    ports:
-      - name: http
-        port: 9000
-      - name: tcp-postgres
-        port: 8812
-
-  # If disabled, provide external connection details
-  external:
-    host: ''
-    port: 8812
-    database: ''
-    username: ''
-    password: '' # Will be set from secrets
-
 # OpenTelemetry Services
 otel:
   enabled: false
@@ -631,32 +568,6 @@ secrets:
     # Requires External Secrets Operator to be installed
     externalSecrets:
       secretKey: '' # e.g., "vmxai/postgresql/password"
-      passwordKey: 'password'
-      hostKey: 'host'
-      portKey: 'port'
-      databaseKey: 'database'
-      usernameKey: 'username'
-
-  questdb:
-    method: create # create, external, eso
-    # Option 1: Auto-generate (DEVELOPMENT ONLY - NOT FOR PRODUCTION)
-    # When method: "create", secret is auto-generated
-
-    # Option 2: Reference existing Kubernetes secret (PRODUCTION-SAFE)
-    # When method: "external", reference existing secret by name
-    external:
-      secretName: '' # e.g., "questdb-credentials"
-      passwordKey: 'password' # Key name in the secret
-      hostKey: 'host' # Optional, only if using external QuestDB
-      portKey: 'port' # Optional, only if using external QuestDB
-      databaseKey: 'database' # Optional, only if using external QuestDB
-      usernameKey: 'username' # Optional, only if using external QuestDB
-
-    # Option 3: External Secrets Operator (PRODUCTION-SAFE)
-    # When method: "eso", creates ExternalSecret resource
-    # Requires External Secrets Operator to be installed
-    externalSecrets:
-      secretKey: '' # e.g., "vmxai/questdb/password"
       passwordKey: 'password'
       hostKey: 'host'
       portKey: 'port'

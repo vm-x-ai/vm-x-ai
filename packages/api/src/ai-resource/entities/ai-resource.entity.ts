@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -127,4 +128,16 @@ export class AIResourceEntity extends BaseEntity {
   })
   @IsBoolean()
   enforceCapacity: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Default request arguments merged into every chat-completions / responses request that targets this resource. Caller-supplied fields win — these only fill in unspecified ones. Example: pin reasoning_effort=high so a routed o-series model always reasons hard, or set temperature=0 for deterministic resources.',
+    example: { reasoning_effort: 'high', temperature: 0 },
+    type: 'object',
+    additionalProperties: true,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsObject()
+  defaultArgs?: Record<string, unknown> | null;
 }

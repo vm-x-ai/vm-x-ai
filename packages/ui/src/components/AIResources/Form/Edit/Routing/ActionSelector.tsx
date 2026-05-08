@@ -9,6 +9,7 @@ import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import React from 'react';
 import ConnectionModelSelector from '../../Common/ConnectionModelSelector';
+import ModelTuningFields from '../../Common/ModelTuningFields';
 import {
   AiProviderDto,
   AiConnectionEntity,
@@ -103,6 +104,15 @@ export default function ActionSelector({
                 renderModelInputTextFieldProps={{
                   label: 'Call Model - Model ID',
                 }}
+              />
+              <ModelTuningFields
+                value={route.then ?? null}
+                onChange={(next) =>
+                  onChange?.({
+                    ...route,
+                    then: { ...(route.then ?? {}), ...next },
+                  } as AiRoutingConditionGroup)
+                }
               />
             </Grid>
             <Grid size={12}>

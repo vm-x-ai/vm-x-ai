@@ -12,7 +12,6 @@ import TabPanel from '@mui/lab/TabPanel';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
-import { grey } from '@mui/material/colors';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -23,11 +22,12 @@ import MUILink from '@mui/material/Link';
 import Tab from '@mui/material/Tab';
 import Typography from '@mui/material/Typography';
 import type { MRT_ColumnDef } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   useMaterialReactTable,
 } from 'material-react-table';
-import Image from 'next/image';
+import ProviderLogo from '@/components/Providers/ProviderLogo';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
@@ -114,10 +114,9 @@ export default function BatchCreateResultDialog({
           label={providersMap[row.provider]?.name ?? row.provider}
           icon={
             <Box>
-              <Image
+              <ProviderLogo
                 alt={providersMap[row.provider]?.name ?? row.provider}
-                loader={({ src }) => src}
-                src={providersMap[row.provider].config.logo.url}
+                logo={providersMap[row.provider]?.config.logo}
                 height={24}
                 width={24}
               />
@@ -166,6 +165,7 @@ export default function BatchCreateResultDialog({
     },
   ];
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data,
@@ -179,8 +179,10 @@ export default function BatchCreateResultDialog({
       density: 'compact',
       expanded: true,
     },
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
   });
 
@@ -203,7 +205,12 @@ export default function BatchCreateResultDialog({
               <MaterialReactTable table={table} />
             </Grid>
 
-            <Grid size={12} marginTop={1}>
+            <Grid
+              size={12}
+              sx={{
+                marginTop: 1,
+              }}
+            >
               <Typography variant="h6">AI Resources</Typography>
               <Divider />
 
@@ -252,12 +259,7 @@ export default function BatchCreateResultDialog({
                             <Typography variant="h6">Playground</Typography>
                             <Divider />
                           </Grid>
-                          <Box
-                            sx={{
-                              border: `1px solid ${grey[300]}`,
-                              marginTop: 1,
-                            }}
-                          >
+                          <Box sx={{ marginTop: 1 }}>
                             <Chat
                               resource={item.resource}
                               providersMap={providersMap}

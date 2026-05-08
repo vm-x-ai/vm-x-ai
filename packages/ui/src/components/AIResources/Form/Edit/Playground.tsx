@@ -9,7 +9,9 @@ import FormGroup from '@mui/material/FormGroup';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import Switch from '@mui/material/Switch';
-import Chat from '@/components/Chat/Chat';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Chat, { type ChatEndpointMode } from '@/components/Chat/Chat';
 import type { ApiResponse } from '@/clients/types';
 import { use, useEffect, useMemo, useState } from 'react';
 import { AiResourceEntity, AiProviderDto } from '@/clients/api';
@@ -38,6 +40,16 @@ export default function AIResourcePlayground({
   const resource = use(resourcePromise);
   const providers = use(providersPromise);
   const [stream, setStream] = useState<boolean>(true);
+  const [endpointMode, setEndpointMode] =
+    useState<ChatEndpointMode>('chat-completions');
+  // Web-search toggle. When enabled, the BFF adds the right passthrough
+  // for the active endpoint:
+  //   - Chat Completions: `web_search_options: {}` (OpenAI), Perplexity
+  //     sonar models do this implicitly so the flag is a no-op there
+  //   - Responses API: `tools: [{ type: 'web_search_preview' }]`
+  // Providers that don't recognize the field ignore it. Gemini's native
+  // googleSearch tool is a follow-up — gate with provider awareness later.
+  const [webSearch, setWebSearch] = useState<boolean>(false);
   const aiResourceChanges = useAppStore(
     (state) => state.aiResource?.changes?.[resourceId]
   );
@@ -64,7 +76,11 @@ export default function AIResourcePlayground({
         open={open}
         onClose={onClose}
       >
-        <Box position="relative">
+        <Box
+          sx={{
+            position: 'relative',
+          }}
+        >
           <Box
             sx={{
               position: 'absolute',
@@ -82,7 +98,11 @@ export default function AIResourcePlayground({
             </IconButton>
           </Box>
         </Box>
-        <Box position="relative">
+        <Box
+          sx={{
+            position: 'relative',
+          }}
+        >
           <Box
             sx={{
               position: 'absolute',
@@ -93,19 +113,64 @@ export default function AIResourcePlayground({
               zIndex: 1000,
             }}
           >
-            <FormGroup>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={stream}
-                    onChange={(event) => {
-                      setStream(event.target.checked);
-                    }}
-                  />
-                }
-                label="Streaming"
-              />
-            </FormGroup>
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1.5,
+                alignItems: 'center',
+                px: 1.5,
+              }}
+            >
+              {/*
+                Endpoint mode toggle. Phase 1: text-only Responses API.
+                See `useResponsesStream.ts` for the supported events.
+              */}
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={endpointMode}
+                onChange={(_, next) => {
+                  if (next) setEndpointMode(next);
+                }}
+                aria-label="endpoint mode"
+              >
+                <ToggleButton
+                  value="chat-completions"
+                  aria-label="chat completions"
+                >
+                  Chat Completions
+                </ToggleButton>
+                <ToggleButton value="responses" aria-label="responses">
+                  Responses
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <FormGroup>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={stream}
+                      onChange={(event) => {
+                        setStream(event.target.checked);
+                      }}
+                      // Responses path is streaming-only in Phase 1.
+                      disabled={endpointMode === 'responses'}
+                    />
+                  }
+                  label="Streaming"
+                />
+              </FormGroup>
+              <FormGroup>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={webSearch}
+                      onChange={(event) => setWebSearch(event.target.checked)}
+                    />
+                  }
+                  label="Web search"
+                />
+              </FormGroup>
+            </Box>
           </Box>
         </Box>
         <Grid
@@ -133,6 +198,8 @@ export default function AIResourcePlayground({
                 environmentId={environmentId}
                 height="46vh"
                 stream={stream}
+                endpointMode={endpointMode}
+                webSearch={webSearch}
               />
             )}
           </Grid>

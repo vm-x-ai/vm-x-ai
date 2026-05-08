@@ -1,36 +1,75 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { OidcProviderService } from './auth/provider/oidc-provider.service';
+import { apiReference } from '@scalar/nestjs-api-reference';
 import { ConfigService } from '@nestjs/config';
 
 export function setupOpenAPIDocumentation(app: INestApplication) {
-  const oidcProvider = app.get(OidcProviderService);
   const configService = app.get(ConfigService);
   const baseUrl = configService.getOrThrow<string>('BASE_URL');
   const basePath = configService.getOrThrow<string>('BASE_PATH');
 
+  const oauthScopes = {
+    openid: 'OpenID',
+    profile: 'Profile',
+    email: 'Email',
+    offline_access: 'Offline Access',
+  };
+  const authorizationUrl = `${baseUrl}${basePath}/oauth2/authorize`;
+  const tokenUrl = `${baseUrl}${basePath}/oauth2/token`;
+  const refreshUrl = tokenUrl;
+  const oauthRedirectUri = `${baseUrl}${basePath}/docs/oauth2-redirect.html`;
+
+  const apiDescription = [
+    'VM-X AI is a routing and management layer for AI workloads. The API',
+    'exposes three completion endpoints (Chat Completions, Anthropic',
+    'Messages, Responses) that front seven providers — OpenAI, Anthropic,',
+    'Google Gemini, Groq, Perplexity, AWS Bedrock (Converse), and AWS',
+    'Bedrock-Invoke. Pick whichever endpoint matches your client SDK; the',
+    "gateway converts request and response shapes when the upstream doesn't",
+    "match natively, with passthrough on the provider's native shape.",
+    '',
+    '### Authentication',
+    '',
+    'All endpoints under `/v1/**` are protected by OIDC. Click **Authorize**',
+    'in the top right to walk through the authorization-code + PKCE flow.',
+    'The Scalar test panel will inject the resulting bearer token into',
+    '`Authorization: Bearer …` for every request.',
+    '',
+    'Completion endpoints accept either an OIDC bearer token or an API key',
+    'scoped to a workspace + environment (`Authorization: Bearer vmx_…`).',
+    '',
+    '### Selected features',
+    '',
+    '- `vmx.providerArgs` — caller-side escape hatch to pass provider-only',
+    '  fields (e.g. Anthropic `cache_control`, Groq `service_tier`) without',
+    '  giving up routing/fallback.',
+    '- `vmx.secondaryModelIndex` — multi-answer fan-out across ranked',
+    '  secondary models on a single request.',
+    '- Per-model `maxRetries` and `timeoutMs` on AI Resources for fine',
+    '  control over the chattier fallback paths.',
+    '- Comprehensive request audit + time-series usage metrics, exportable',
+    '  through OpenTelemetry to any compatible backend.',
+    '',
+    'See the public docs at https://vm-x-ai.github.io/ for endpoint',
+    'examples, provider deep-dives, and deployment guides.',
+  ].join('\n');
+
   const config = new DocumentBuilder()
     .setTitle('VM-X AI API')
-    .setDescription('VM-X AI API')
+    .setDescription(apiDescription)
     .setVersion('1.0')
     .addOAuth2(
       {
-        type: 'openIdConnect',
+        type: 'oauth2',
+        description: 'OIDC Authentication',
         flows: {
           authorizationCode: {
-            scopes: {
-              openid: 'OpenID',
-              profile: 'Profile',
-              email: 'Email',
-              offline_access: 'Offline Access',
-            },
+            authorizationUrl,
+            tokenUrl,
+            refreshUrl,
+            scopes: oauthScopes,
           },
         },
-        openIdConnectUrl: `${oidcProvider.issuerUrl}/.well-known/openid-configuration`,
-        name: 'OIDC',
-        description: 'OIDC Authentication',
-        in: 'header',
-        bearerFormat: 'JWT',
       },
       'oidc'
     )
@@ -260,15 +299,63 @@ export function setupOpenAPIDocumentation(app: INestApplication) {
 
     return document;
   };
-  SwaggerModule.setup(`${basePath}/docs`, app, documentFactory, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      oauth2RedirectUrl: `${baseUrl}${basePath}/docs/oauth2-redirect.html`,
-      initOAuth: {
-        clientId: 'swagger',
-        scopes: ['openid', 'profile', 'email', 'offline_access'],
-        usePkceWithAuthorizationCodeGrant: true,
-      },
-    },
+
+  // Build the OpenAPI document once and serve:
+  //   - JSON spec at <basePath>/docs-json (consumed by SDK generation tooling
+  //     and by the Scalar UI mounted below)
+  //   - Scalar API reference UI at <basePath>/docs (replaces Swagger UI)
+  const document = documentFactory();
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get(`${basePath}/docs-json`, (_req, res) => {
+    res.header('Content-Type', 'application/json').send(document);
   });
+
+  app.use(
+    `${basePath}/docs`,
+    apiReference({
+      // The app uses Fastify; without this flag Scalar tries to call
+      // Express-style `res.send()` which Fastify's adapter doesn't expose
+      // at the middleware layer, surfacing as "res.send is not a function".
+      withFastify: true,
+      content: document,
+      metaData: {
+        title: 'VM-X AI API',
+      },
+      authentication: {
+        preferredSecurityScheme: 'oidc',
+        securitySchemes: {
+          oidc: {
+            type: 'oauth2',
+            flows: {
+              authorizationCode: {
+                'x-scalar-client-id': 'swagger',
+                'x-scalar-redirect-uri': oauthRedirectUri,
+                'x-usePkce': 'SHA-256',
+                // Force the OIDC provider to surface the login + consent
+                // screens so the API-explorer flow is always interactive.
+                // Without `prompt=login` an existing session would silently
+                // mint a token; without `prompt=consent` the consent step
+                // is skipped on subsequent requests.
+                'x-scalar-security-query': {
+                  prompt: 'login consent',
+                },
+                selectedScopes: [
+                  'openid',
+                  'profile',
+                  'email',
+                  'offline_access',
+                ],
+              },
+            },
+          },
+        },
+      },
+      servers: [
+        // Document paths already include the global prefix (e.g. /api/v1/...),
+        // so the server URL must NOT repeat it — otherwise Scalar resolves to
+        // /api/api/v1/... See packages/api/src/main.ts setGlobalPrefix.
+        { url: baseUrl },
+      ],
+    })
+  );
 }

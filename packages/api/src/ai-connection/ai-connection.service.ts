@@ -21,6 +21,7 @@ import {
   ENCRYPTION_SERVICE,
   type IEncryptionService,
 } from '../vault/encryption.service.base';
+import { camelCaseEmbeds } from '../storage/embed-case';
 
 const MASKED_VALUE = '********';
 
@@ -63,7 +64,7 @@ export class AIConnectionService implements OnModuleInit {
     includesUsers = false,
     decrypt = false,
   }: ListAIConnectionDto): Promise<AIConnectionEntity[]> {
-    const connections = await this.db.reader
+    const rows = await this.db.reader
       .selectFrom('aiConnections')
       .selectAll('aiConnections')
       .$if(!!includesUsers, this.db.includeEntityControlUsers('aiConnections'))
@@ -75,6 +76,9 @@ export class AIConnectionService implements OnModuleInit {
       )
       .orderBy('createdAt', 'desc')
       .execute();
+    const connections = rows.map((row) =>
+      camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+    );
 
     if (decrypt) {
       return await Promise.all(
@@ -133,7 +137,7 @@ export class AIConnectionService implements OnModuleInit {
       aiConnection = this.preloadedConnections[connectionId]?.entity;
     }
 
-    aiConnection = await this.db.reader
+    const row = await this.db.reader
       .selectFrom('aiConnections')
       .selectAll('aiConnections')
       .$if(!!includesUsers, this.db.includeEntityControlUsers('aiConnections'))
@@ -141,6 +145,9 @@ export class AIConnectionService implements OnModuleInit {
       .where('environmentId', '=', environmentId)
       .where('connectionId', '=', connectionId)
       .executeTakeFirst();
+    aiConnection = row
+      ? camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+      : undefined;
 
     if (throwOnNotFound && !aiConnection) {
       throwServiceError(
@@ -192,6 +199,33 @@ export class AIConnectionService implements OnModuleInit {
     return hideSecretFields
       ? this.hideSecretFields(provider.provider, aiConnection)
       : aiConnection;
+  }
+
+  public async getByName(
+    workspaceId: string,
+    environmentId: string,
+    name: string,
+    throwOnNotFound = true
+  ): Promise<AIConnectionEntity | undefined> {
+    const aiConnection = await this.db.reader
+      .selectFrom('aiConnections')
+      .selectAll('aiConnections')
+      .where('workspaceId', '=', workspaceId)
+      .where('environmentId', '=', environmentId)
+      .where('name', '=', name)
+      .executeTakeFirst();
+
+    if (throwOnNotFound && !aiConnection) {
+      throwServiceError(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.AI_CONNECTION_NOT_FOUND,
+        {
+          connectionId: name,
+        }
+      );
+    }
+
+    return aiConnection;
   }
 
   public async getByIds(

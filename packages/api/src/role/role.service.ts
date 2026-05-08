@@ -15,6 +15,7 @@ import { UnassignRoleDto } from './dto/unassign-role.dto';
 import { RoleDto } from './dto/role-dto';
 import { UserRoleDto } from './dto/user-role.dto';
 import { jsonArrayFrom } from 'kysely/helpers/postgres';
+import { camelCaseEmbeds } from '../storage/embed-case';
 
 @Injectable()
 export class RoleService {
@@ -75,7 +76,7 @@ export class RoleService {
   }
 
   public async getAll(includesUsers: boolean): Promise<RoleDto[]> {
-    return await this.db.reader
+    const rows = await this.db.reader
       .selectFrom('roles')
       .selectAll('roles')
       .leftJoin('userRoles', 'roles.roleId', 'userRoles.roleId')
@@ -85,6 +86,9 @@ export class RoleService {
       .$if(includesUsers, this.db.includeEntityControlUsers('roles'))
       .groupBy('roles.roleId')
       .execute();
+    return rows.map((row) =>
+      camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+    );
   }
 
   public async getRolesByUserId(userId: string): Promise<UserRoleEntity[]> {
@@ -98,7 +102,7 @@ export class RoleService {
   }
 
   public async getRoleMembers(roleId: string): Promise<UserRoleDto[]> {
-    return await this.db.reader
+    const rows = await this.db.reader
       .selectFrom('userRoles')
       .selectAll('userRoles')
       .select((eb) => [
@@ -113,6 +117,7 @@ export class RoleService {
       ])
       .where('roleId', '=', roleId)
       .execute();
+    return rows.map((row) => camelCaseEmbeds(row, ['user', 'assignedByUser']));
   }
 
   public async getById(
@@ -143,8 +148,8 @@ export class RoleService {
   ): Promise<RoleEntity | undefined> {
     const role = await this.cache.wrap(
       this.getRoleCacheKey(roleId, includesUser, includesMembers),
-      () =>
-        this.db.reader
+      async () => {
+        const row = await this.db.reader
           .selectFrom('roles')
           .selectAll('roles')
           .$if(includesUser, this.db.includeEntityControlUsers('roles'))
@@ -173,7 +178,11 @@ export class RoleService {
             ])
           )
           .where('roleId', '=', roleId)
-          .executeTakeFirst()
+          .executeTakeFirst();
+        return row
+          ? camelCaseEmbeds(row, ['createdByUser', 'updatedByUser', 'members'])
+          : undefined;
+      }
     );
 
     if (throwOnNotFound && !role) {

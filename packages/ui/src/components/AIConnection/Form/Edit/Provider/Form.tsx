@@ -72,7 +72,13 @@ export default function AIConnectionProviderEditForm({
   });
 
   return (
-    <Grid container spacing={3} justifyContent="center">
+    <Grid
+      container
+      spacing={3}
+      sx={{
+        justifyContent: 'center',
+      }}
+    >
       {state && state.success === false && (
         <Grid size={12}>
           <Alert severity="error">{state.message}</Alert>
@@ -108,8 +114,18 @@ export default function AIConnectionProviderEditForm({
               providersMap={providersMap}
               formData={watch()}
             />
-            <Grid size={12} marginTop="1rem">
-              <Box display="flex" justifyContent="flex-end">
+            <Grid
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+              >
                 <SubmitButton
                   label="Save"
                   submittingLabel="Saving..."

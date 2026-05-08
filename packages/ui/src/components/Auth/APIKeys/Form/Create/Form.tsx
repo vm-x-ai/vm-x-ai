@@ -63,7 +63,7 @@ export default function CreateAPIKeyForm({
     handleSubmit,
     formState: { errors },
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       workspaceId,
       environmentId,
@@ -150,7 +150,13 @@ export default function CreateAPIKeyForm({
                 Select the resources that this role will have access to.
               </Typography>
             </Grid>
-            <Grid container size={12} marginTop="1rem">
+            <Grid
+              container
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <Grid size={6}>
                 <Controller
                   name="resources"
@@ -161,11 +167,22 @@ export default function CreateAPIKeyForm({
                 />
               </Grid>
             </Grid>
-            <Grid size={12} marginTop="1rem">
+            <Grid
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <Typography variant="subtitle2">Groups</Typography>
               <Divider />
             </Grid>
-            <Grid container size={12} marginTop="1rem">
+            <Grid
+              container
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <Grid size={6}>
                 <Controller
                   name="labels"
@@ -180,7 +197,12 @@ export default function CreateAPIKeyForm({
               </Grid>
             </Grid>
 
-            <Grid size={12} marginTop="1rem">
+            <Grid
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <SubmitButton label="Save" submittingLabel="Saving..." />
             </Grid>
           </form>

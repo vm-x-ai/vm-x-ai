@@ -36,7 +36,6 @@ Create a file named `docker-compose.yml` in a directory of your choice:
 
 ```yaml
 name: vm-x-ai-default
-version: '1.0.0'
 
 services:
   # -------------------------------
@@ -73,13 +72,15 @@ services:
     depends_on:
       - postgres
       - redis
-      - timeseriesdb
+      - redis2
+      - redis3
+      - redis-cluster-init
     network_mode: host
     environment:
       LOCAL: true
       BASE_URL: http://localhost:3000
 
-      # PG Database
+      # PG Database (config + audit + usage analytics all live here)
       DATABASE_HOST: localhost
       DATABASE_RO_HOST: localhost
       DATABASE_PORT: 5440
@@ -87,10 +88,10 @@ services:
       DATABASE_PASSWORD: password
       DATABASE_DB_NAME: vmxai
 
-      # Redis (network mode: host)
+      # Redis cluster (network mode: host)
       REDIS_HOST: localhost
-      REDIS_PORT: 6379
-      REDIS_MODE: 'single'
+      REDIS_PORT: 7001
+      REDIS_MODE: 'cluster'
 
       # Vault
       ENCRYPTION_PROVIDER: libsodium
@@ -99,19 +100,11 @@ services:
       # Only used for development
       LIBSODIUM_ENCRYPTION_KEY: mPpddUYSuhIkuLq6MqeARZSEBZiwWm0HwEGQD5YSMFc=
 
-      # Timeseries Database
-      COMPLETION_USAGE_PROVIDER: questdb
-
-      # QuestDB
-      QUESTDB_HOST: localhost
-      QUESTDB_PORT: 8812
-      QUESTDB_USER: admin
-      QUESTDB_PASSWORD: password
-      QUESTDB_DB_NAME: vmxai
-
       # UI
       UI_BASE_URL: http://localhost:3001
 
+      # Optional OTel — point at your collector if you want application traces / metrics / logs.
+      # Usage analytics do NOT depend on this; they read from Postgres request_audit.
       OTEL_LOG_LEVEL: error
       OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
 
@@ -128,27 +121,54 @@ services:
       POSTGRES_DB: vmxai
 
   # -------------------------------
-  # Redis (Cache)
+  # Redis cluster — 3 nodes + init container
   # -------------------------------
   redis:
     image: redis:7
     ports:
-      - '6379:6379'
+      - '7001:7001'
+      - '17001:17001'
+    volumes:
+      - ./redis-config/node1/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
     network_mode: host
 
-  # -------------------------------
-  # QuestDB (Timeseries Database)
-  # -------------------------------
-  timeseriesdb:
-    image: questdb/questdb:9.1.1
-    environment:
-      QDB_PG_USER: admin
-      QDB_PG_PASSWORD: password
-      QDB_PG_DATABASE: vmxai
+  redis2:
+    image: redis:7
     ports:
-      - '9000:9000'
-      - '8812:8812'
+      - '7002:7002'
+      - '17002:17002'
+    volumes:
+      - ./redis-config/node2/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+    network_mode: host
+
+  redis3:
+    image: redis:7
+    ports:
+      - '7003:7003'
+      - '17003:17003'
+    volumes:
+      - ./redis-config/node3/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+    network_mode: host
+
+  redis-cluster-init:
+    image: redis:7
+    depends_on:
+      - redis
+      - redis2
+      - redis3
+    entrypoint: >
+      sh -c "
+        sleep 5 &&
+        echo yes | redis-cli --cluster create 127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 --cluster-replicas 0"
+    network_mode: host
 ```
+
+:::note Redis cluster is required
+The API expects `REDIS_MODE=cluster` against a 3-node cluster (ports `7001`/`7002`/`7003`). The `redis-cluster-init` sidecar runs `redis-cli --cluster create` once on first boot — wait a few seconds after `docker compose up` before the API starts accepting traffic. You'll also need a `redis.conf` per node (cluster-enabled, matching port + bus port) under `./redis-config/node{1,2,3}/`. The repository ships ready-to-use configs at [`docker/redis-config/`](https://github.com/vm-x-ai/vm-x-ai/tree/main/docker/redis-config).
+:::
 
 ### 3. Start Services
 
@@ -168,9 +188,8 @@ This will start:
 
 - **UI** on port `3001`
 - **API** on port `3000`
-- **PostgreSQL** on port `5440`
-- **Redis** on port `6379`
-- **QuestDB** on port `9000` (web console) and `8812` (PostgreSQL wire)
+- **PostgreSQL** on port `5440` (config + audit logs + usage analytics)
+- **Redis cluster** on ports `7001` / `7002` / `7003`
 
 ### 4. Wait for Services to Be Ready
 
@@ -321,26 +340,21 @@ For more advanced configurations, see the [examples/docker-compose](https://gith
 1. **Default Configuration** (`default.docker-compose.yml`)
 
    - Basic setup with all core services
-   - PostgreSQL, Redis (single node), QuestDB
+   - PostgreSQL + 3-node Redis cluster
    - Libsodium encryption
+   - Usage analytics served from Postgres `request_audit` (no separate time-series store)
 
 2. **OpenTelemetry Configuration** (`otel.docker-compose.yml`)
 
-   - Full observability stack
+   - Adds full application-observability stack on top of the default
    - OpenTelemetry Collector, Jaeger, Prometheus, Loki, Grafana
+   - Independent of the audit/usage data path
    - See [README](https://github.com/vm-x-ai/vm-x-ai/blob/main/examples/docker-compose/README.md) for access URLs
 
 3. **AWS Services Configuration** (`aws.docker-compose.yml`)
-
    - Production-like setup using AWS services
-   - AWS KMS for encryption
-   - AWS Timestream for time-series data
+   - AWS KMS for credential encryption
    - Requires AWS credentials configured
-
-4. **Redis Cluster Configuration** (`redis-cluster.docker-compose.yml`)
-   - Redis cluster mode for high availability
-   - 3-node Redis cluster
-   - QuestDB
 
 For detailed information about all configurations, see the [Docker Compose Examples README](https://github.com/vm-x-ai/vm-x-ai/blob/main/examples/docker-compose/README.md).
 
@@ -350,17 +364,17 @@ For detailed information about all configurations, see the [Docker Compose Examp
 
 Key environment variables for the API service:
 
-| Variable                    | Description                                          | Default                 |
-| --------------------------- | ---------------------------------------------------- | ----------------------- |
-| `BASE_URL`                  | API base URL                                         | `http://localhost:3000` |
-| `DATABASE_HOST`             | PostgreSQL host                                      | `localhost`             |
-| `DATABASE_PORT`             | PostgreSQL port                                      | `5440`                  |
-| `REDIS_HOST`                | Redis host                                           | `localhost`             |
-| `REDIS_PORT`                | Redis port                                           | `6379`                  |
-| `REDIS_MODE`                | Redis mode (`single` or `cluster`)                   | `single`                |
-| `ENCRYPTION_PROVIDER`       | Encryption provider (`libsodium` or `aws-kms`)       | `libsodium`             |
-| `COMPLETION_USAGE_PROVIDER` | Time-series provider (`questdb` or `aws-timestream`) | `questdb`               |
-| `OTEL_ENABLED`              | Enable OpenTelemetry                                 | `false`                 |
+| Variable                      | Description                                          | Default                 |
+| ----------------------------- | ---------------------------------------------------- | ----------------------- |
+| `BASE_URL`                    | API base URL                                         | `http://localhost:3000` |
+| `DATABASE_HOST`               | PostgreSQL host                                      | `localhost`             |
+| `DATABASE_PORT`               | PostgreSQL port                                      | `5440`                  |
+| `REDIS_HOST`                  | Redis host (cluster seed node)                       | `localhost`             |
+| `REDIS_PORT`                  | Redis port (cluster seed node)                       | `7001`                  |
+| `REDIS_MODE`                  | Redis mode (`single` or `cluster`)                   | `single`                |
+| `ENCRYPTION_PROVIDER`         | Encryption provider (`libsodium` or `aws-kms`)       | `libsodium`             |
+| `OIDC_FEDERATED_ISSUER`       | Optional OIDC issuer URL for SSO login               | (unset)                 |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for traces / metrics / logs (optional) | (unset)                 |
 
 ### Database Credentials
 
@@ -372,13 +386,7 @@ Default credentials (change in production!):
   - Password: `password`
   - Database: `vmxai`
 
-- **QuestDB**:
-
-  - User: `admin`
-  - Password: `password`
-  - Database: `vmxai`
-
-- **Redis**: No password (development only)
+- **Redis cluster**: No password (development only); seed node at `localhost:7001`
 
 ## Stopping Services
 

@@ -35,21 +35,23 @@ function PasswordField(
           ))}
         </>
       }
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            <IconButton
-              aria-label="toggle password visibility"
-              tabIndex={-1}
-              onClick={() => setShowPassword((prev) => !prev)}
-              onMouseDown={(event) => event.preventDefault()}
-              onMouseUp={(event) => event.preventDefault()}
-              edge="end"
-            >
-              {showPassword ? <VisibilityOff /> : <Visibility />}
-            </IconButton>
-          </InputAdornment>
-        ),
+      slotProps={{
+        input: {
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                aria-label="toggle password visibility"
+                tabIndex={-1}
+                onClick={() => setShowPassword((prev) => !prev)}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseUp={(event) => event.preventDefault()}
+                edge="end"
+              >
+                {showPassword ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        },
       }}
     />
   );

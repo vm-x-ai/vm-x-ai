@@ -26,6 +26,7 @@
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@next/eslint-plugin-next": "^15.2.4",
+    "@nx/devkit": "22.3.3",
     "@nx/docker": "22.3.3",
     "@nx/eslint": "22.3.3",
     "@nx/eslint-plugin": "22.3.3",
@@ -33,11 +34,13 @@
     "@nx/nest": "22.3.3",
     "@nx/next": "22.3.3",
     "@nx/node": "22.3.3",
+    "@nx/playwright": "22.3.3",
     "@nx/vite": "22.3.3",
     "@nx/vitest": "22.3.3",
     "@nx/web": "22.3.3",
     "@nx/webpack": "22.3.3",
     "@nx/workspace": "22.3.3",
+    "@playwright/test": "^1.36.0",
     "@swc-node/register": "~1.9.1",
     "@swc/cli": "^0.7.8",
     "@swc/core": "~1.5.29",
@@ -58,6 +61,7 @@
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-jsx-a11y": "6.10.1",
+    "eslint-plugin-playwright": "^1.6.2",
     "eslint-plugin-react": "7.35.0",
     "eslint-plugin-react-hooks": "5.0.0",
     "husky": "^9.1.7",
@@ -75,5 +79,6 @@
     "vite": "^7.1.12",
     "vitest": "4.0.9",
     "webpack-cli": "^5.1.4"
-  }
+  },
+  "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531"
 }

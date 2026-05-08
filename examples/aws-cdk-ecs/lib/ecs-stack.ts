@@ -19,7 +19,6 @@ import {
   DatabaseClusterEngine,
 } from 'aws-cdk-lib/aws-rds';
 import { Key } from 'aws-cdk-lib/aws-kms';
-import { CfnDatabase } from 'aws-cdk-lib/aws-timestream';
 import { CfnServerlessCache } from 'aws-cdk-lib/aws-elasticache';
 import {
   AwsLogDriver,
@@ -85,10 +84,6 @@ export class ECSStack extends cdk.Stack {
       alias: 'alias/vm-x-ai-encryption-key',
       description: 'Encryption key for vm-x-ai',
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    const timestreamDatabase = new CfnDatabase(this, 'TimestreamDatabase', {
-      databaseName: 'vm-x-ai',
     });
 
     const redisSecurityGroup = new SecurityGroup(
@@ -299,8 +294,6 @@ export class ECSStack extends cdk.Stack {
           REDIS_TLS: 'true',
           ENCRYPTION_PROVIDER: 'aws-kms',
           AWS_KMS_KEY_ID: encryptionKey.keyArn,
-          COMPLETION_USAGE_PROVIDER: 'aws-timestream',
-          AWS_TIMESTREAM_DATABASE_NAME: timestreamDatabase.databaseName!,
 
           OTEL_ENABLED: 'true',
           OTEL_LOG_LEVEL: 'error',
@@ -418,35 +411,6 @@ export class ECSStack extends cdk.Stack {
     apiService.connections.allowTo(database.connections, Port.tcp(5432));
 
     encryptionKey.grantEncryptDecrypt(apiTaskDefinition.taskRole);
-
-    apiTaskDefinition.taskRole.attachInlinePolicy(
-      new Policy(cluster.stack, 'TimestreamPolicy', {
-        statements: [
-          new PolicyStatement({
-            effect: Effect.ALLOW,
-            actions: [
-              'timestream:Describe*',
-              'timestream:Write*',
-              'timestream:List*',
-              'timestream:Select',
-              'timestream:Query',
-              'timestream:CreateTable',
-              'timestream:DeleteTable',
-              'timestream:UpdateTable',
-            ],
-            resources: [
-              `arn:aws:timestream:${this.region}:${this.account}:database/${timestreamDatabase.databaseName}/*`,
-              `arn:aws:timestream:${this.region}:${this.account}:database/${timestreamDatabase.databaseName}`,
-            ],
-          }),
-          new PolicyStatement({
-            effect: Effect.ALLOW,
-            actions: ['timestream:DescribeEndpoints'],
-            resources: [`*`],
-          }),
-        ],
-      })
-    );
 
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: apiLoadBalancer.loadBalancerDnsName,

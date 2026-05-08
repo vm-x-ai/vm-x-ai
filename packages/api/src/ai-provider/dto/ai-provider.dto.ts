@@ -15,12 +15,24 @@ import { $enum } from 'ts-enum-util';
 
 export class AIProviderLogoDto {
   @ApiProperty({
-    description: 'The URL of the AI provider logo',
+    description: 'The URL of the AI provider logo (default / light theme)',
     example: 'https://example.com/logo.png',
   })
   @IsString()
   @IsNotEmpty()
   url: string;
+
+  @ApiProperty({
+    description:
+      'Optional dark-theme variant. UI consumers should fall back to `url` when this is not set.',
+    required: false,
+    nullable: true,
+    type: 'string',
+    example: 'https://example.com/logo-dark.png',
+  })
+  @IsOptional()
+  @IsString()
+  darkUrl?: string | null;
 }
 
 export enum AIProviderComponentType {

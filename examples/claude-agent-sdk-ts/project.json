@@ -1,0 +1,45 @@
+{
+  "name": "claude-agent-sdk-ts-example",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "examples/claude-agent-sdk-ts/src",
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p tsconfig.lib.json --noEmit",
+        "cwd": "{projectRoot}"
+      },
+      "cache": true
+    },
+    "setup": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/setup.sh",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "quickstart": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/quickstart.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "tools": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/tools.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "vmx-envelope": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/vmx-envelope.ts",
+        "cwd": "{projectRoot}"
+      }
+    }
+  },
+  "tags": ["example", "claude-agent-sdk"]
+}

@@ -7,15 +7,14 @@ import IconButton from '@mui/material/IconButton';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Link from 'next/link';
-import { Suspense } from 'react';
 import AccountMenu from './AccountMenu';
 import HeaderLogo from './Logo';
-import WorkspaceSelector from '../Workspace/WorkspaceSelector';
+import ThemeToggle from './ThemeToggle';
 import { useSession } from 'next-auth/react';
 import { styled } from '@mui/material/styles';
 import Sidebar, { DRAWER_WIDTH } from '../Sidebar/Sidebar';
+import CommandPalette from '../CommandPalette/CommandPalette';
 import { useAppStore } from '@/store/provider';
-import { usePathname } from 'next/navigation';
 
 interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
@@ -52,7 +51,6 @@ export default function Layout({ children }: LayoutProps) {
   const { data: authSession } = useSession();
   const open = useAppStore((state) => state.sidebar.open);
   const setOpen = useAppStore((state) => state.setSidebarOpen);
-  const pathname = usePathname();
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -80,14 +78,6 @@ export default function Layout({ children }: LayoutProps) {
           >
             <MenuIcon />
           </IconButton>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            sx={{ mr: 2, ...{ display: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
           <Typography
             variant="h6"
             color="primary"
@@ -99,12 +89,14 @@ export default function Layout({ children }: LayoutProps) {
           </Typography>
           {authSession && (
             <Box sx={{ marginLeft: 'auto' }}>
-              <Box display="flex" gap="1rem">
-                {pathname?.startsWith('/workspaces') && (
-                  <Suspense fallback={<div>Loading workspaces...</div>}>
-                    <WorkspaceSelector />
-                  </Suspense>
-                )}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: '1rem',
+                  alignItems: 'center',
+                }}
+              >
+                <ThemeToggle />
                 <AccountMenu user={authSession?.user} />
               </Box>
             </Box>
@@ -112,9 +104,22 @@ export default function Layout({ children }: LayoutProps) {
         </Toolbar>
       </AppBar>
       <Sidebar open={open} onClose={() => setOpen(false)} />
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          // `min-width: auto` is the flexbox default for items, which
+          // lets `main` grow to whatever its widest descendant wants
+          // (a 12-column MRT table will happily push the page wider
+          // than the viewport). `min-width: 0` overrides that so wide
+          // children scroll inside their own container instead.
+          minWidth: 0,
+        }}
+      >
         {children}
       </Box>
+      {authSession && <CommandPalette />}
     </Box>
   );
 }

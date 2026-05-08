@@ -1,7 +1,6 @@
 import { CacheModule } from '@nestjs/cache-manager';
 import { Global, Module } from '@nestjs/common';
 import { RedisClient } from './redis-client';
-import Keyv from 'keyv';
 import KeyvRedis, { createCluster } from '@keyv/redis';
 import { ConfigService } from '@nestjs/config';
 
@@ -20,26 +19,10 @@ import { ConfigService } from '@nestjs/config';
         const url = `redis://${redisHost}:${redisPort}`;
 
         if (redisMode === 'cluster') {
-          const cluster = createCluster({
-            rootNodes: [
-              {
-                url,
-              },
-            ],
-          });
-          return {
-            stores: [
-              // Redis cache
-              new Keyv({ store: new KeyvRedis(cluster) }),
-            ],
-          };
+          const cluster = createCluster({ rootNodes: [{ url }] });
+          return { stores: [new KeyvRedis(cluster)] };
         } else if (redisMode === 'single') {
-          return {
-            stores: [
-              // Redis cache
-              new Keyv({ store: new KeyvRedis(url) }),
-            ],
-          };
+          return { stores: [new KeyvRedis(url)] };
         }
 
         throw new Error(`Invalid Redis mode: ${redisMode}`);

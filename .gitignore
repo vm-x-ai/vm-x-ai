@@ -62,3 +62,16 @@ cdk.out
 
 # Helm repository build artifacts
 helm-repo/
+
+test-output
+
+.playwright-cli
+.playwright-screenshots
+
+# Active task plan (working file, replaced/archived per batch)
+task.md
+
+# Playwright e2e artifacts
+packages/ui/test-results/
+packages/ui/playwright-report/
+packages/ui/.last-run.json

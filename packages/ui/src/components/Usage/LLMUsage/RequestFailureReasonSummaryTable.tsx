@@ -1,18 +1,16 @@
 'use client';
 
 import { numberWithCommas } from '@/utils/number';
-import { CompletionUsageQueryResultDto } from '@/clients/api';
+import { RequestUsageQueryResultDto } from '@/clients/api';
 import type { MRT_ColumnDef } from 'material-react-table';
 import React from 'react';
 import { BaseSummaryTable } from './BaseSummaryTable';
 
 export type LLMRequestFailureReasonSummaryTableProps = {
-  data: CompletionUsageQueryResultDto[];
+  data: RequestUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<
-    CompletionUsageQueryResultDto[] | undefined
-  >;
+  autoRefreshAction?: () => Promise<RequestUsageQueryResultDto[] | undefined>;
 };
 
 export function LLMRequestFailureReasonSummaryTable({
@@ -21,7 +19,7 @@ export function LLMRequestFailureReasonSummaryTable({
   autoRefreshInterval,
   autoRefreshAction,
 }: LLMRequestFailureReasonSummaryTableProps) {
-  const columns: MRT_ColumnDef<CompletionUsageQueryResultDto>[] = [
+  const columns: MRT_ColumnDef<RequestUsageQueryResultDto>[] = [
     {
       accessorKey: 'resourceId.displayName',
       header: 'Resource',

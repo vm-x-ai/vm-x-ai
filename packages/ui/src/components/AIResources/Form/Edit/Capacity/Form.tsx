@@ -56,7 +56,7 @@ export default function AIResourceCapacityEditForm({
   );
 
   const { control, handleSubmit, watch } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       enforceCapacity: data.enforceCapacity ?? false,
       capacity: data.capacity ?? DEFAULT_CAPACITY,
@@ -99,7 +99,13 @@ export default function AIResourceCapacityEditForm({
           }}
           noValidate
         >
-          <Grid container size={12} marginTop="1rem">
+          <Grid
+            container
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <Grid size={3}>
               <FormControlLabel
                 control={
@@ -130,8 +136,13 @@ export default function AIResourceCapacityEditForm({
             </Grid>
           </Grid>
 
-          <Grid size={12} marginTop="1rem">
-            <SubmitButton label="Save" submittingLabel="Saving..." />
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
+            <SubmitButton label="Save" submittingLabel="Saving..." sticky />
           </Grid>
         </form>
       </Grid>

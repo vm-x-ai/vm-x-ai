@@ -12,6 +12,7 @@ import {
   useMaterialReactTable,
   type MRT_ColumnDef,
 } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   startTransition,
   useActionState,
@@ -136,6 +137,7 @@ export default function AIConnectionCapacityEditForm({
     []
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: discoveredCapacity,
@@ -147,8 +149,10 @@ export default function AIConnectionCapacityEditForm({
     enableColumnActions: false,
     enableEditing: false,
     enableRowActions: false,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     initialState: {
       density: 'compact',
@@ -179,7 +183,12 @@ export default function AIConnectionCapacityEditForm({
           }}
           noValidate
         >
-          <Grid size={12} marginTop="1rem">
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <Controller
               name="capacity"
               control={control}
@@ -191,7 +200,12 @@ export default function AIConnectionCapacityEditForm({
               )}
             />
           </Grid>
-          <Grid size={12} marginTop="1rem">
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <SubmitButton label="Save" submittingLabel="Saving..." />
           </Grid>
         </form>

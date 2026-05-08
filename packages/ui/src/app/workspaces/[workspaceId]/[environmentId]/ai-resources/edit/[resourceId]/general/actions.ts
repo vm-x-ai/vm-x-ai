@@ -22,6 +22,16 @@ export async function submitForm(
     };
   }
 
+  // The form keeps `defaultArgs` as a JSON string so the Monaco editor
+  // can flag bad syntax inline. The server expects an object; parse here
+  // (zod already validated it parses to an object) and forward.
+  const { defaultArgsJson, ...rest } = changes;
+  let defaultArgs: Record<string, unknown> | null | undefined = undefined;
+  if (defaultArgsJson != null) {
+    const trimmed = defaultArgsJson.trim();
+    defaultArgs = trimmed === '' ? null : JSON.parse(trimmed);
+  }
+
   const { error, data: response } = await updateAiResource({
     path: {
       workspaceId: prevState.pathParams.workspaceId,
@@ -29,7 +39,8 @@ export async function submitForm(
       resourceId: prevState.pathParams.resourceId,
     },
     body: {
-      ...changes,
+      ...rest,
+      ...(defaultArgs !== undefined ? { defaultArgs } : {}),
     },
   });
 

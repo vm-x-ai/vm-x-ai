@@ -1,6 +1,7 @@
 'use client';
 
-import { CompletionUsageQueryResultDto } from '@/clients/api';
+import { RequestUsageQueryResultDto } from '@/clients/api';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
@@ -9,14 +10,12 @@ import {
 import React, { useEffect, useState } from 'react';
 
 export type BaseSummaryTableProps = {
-  columns: MRT_ColumnDef<CompletionUsageQueryResultDto>[];
+  columns: MRT_ColumnDef<RequestUsageQueryResultDto>[];
   grouping?: string[];
-  data: CompletionUsageQueryResultDto[];
+  data: RequestUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<
-    CompletionUsageQueryResultDto[] | undefined
-  >;
+  autoRefreshAction?: () => Promise<RequestUsageQueryResultDto[] | undefined>;
 };
 
 export function BaseSummaryTable({
@@ -27,7 +26,7 @@ export function BaseSummaryTable({
   autoRefreshInterval,
   autoRefreshAction,
 }: BaseSummaryTableProps) {
-  const [data, setData] = useState<CompletionUsageQueryResultDto[]>(rawData);
+  const [data, setData] = useState<RequestUsageQueryResultDto[]>(rawData);
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -62,6 +61,7 @@ export function BaseSummaryTable({
     };
   }, [autoRefresh, autoRefreshInterval, autoRefreshAction, loading]);
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data,
@@ -74,8 +74,10 @@ export function BaseSummaryTable({
       grouping,
       expanded: true,
     },
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
   });
 

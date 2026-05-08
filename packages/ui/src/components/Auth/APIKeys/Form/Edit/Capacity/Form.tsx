@@ -51,7 +51,7 @@ export default function APIKeyCapacityEditForm({
   }, [state]);
 
   const { control, handleSubmit, watch } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       enforceCapacity: data.enforceCapacity ?? false,
       capacity: data.capacity ?? DEFAULT_CAPACITY,
@@ -85,7 +85,13 @@ export default function APIKeyCapacityEditForm({
           }}
           noValidate
         >
-          <Grid container size={12} marginTop="1rem">
+          <Grid
+            container
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <Grid size={3}>
               <FormControlLabel
                 control={
@@ -116,7 +122,12 @@ export default function APIKeyCapacityEditForm({
             </Grid>
           </Grid>
 
-          <Grid size={12} marginTop="1rem">
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
             <SubmitButton label="Save" submittingLabel="Saving..." />
           </Grid>
         </form>

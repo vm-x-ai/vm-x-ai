@@ -163,7 +163,7 @@ const Menu: React.FunctionComponent<MenuProps> = ({
         >
           <Grid container direction="row" wrap="nowrap">
             <Grid>
-              <StyledHeader container alignItems="center">
+              <StyledHeader container sx={{ alignItems: 'center' }}>
                 <StyledHeaderItem>
                   <Typography variant="subtitle1">
                     {startDate
@@ -204,13 +204,18 @@ const Menu: React.FunctionComponent<MenuProps> = ({
                 direction="row"
                 wrap="nowrap"
                 sx={{
+                  alignItems: 'center',
                   height: '4.8rem',
                 }}
-                alignItems="center"
               >
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <StyledPaper square elevation={0}>
-                    <Grid container height="100%">
+                    <Grid
+                      container
+                      sx={{
+                        height: '100%',
+                      }}
+                    >
                       <StyledTimePicker
                         value={value.absolute.startDate}
                         setValue={(date) => {
@@ -226,7 +231,12 @@ const Menu: React.FunctionComponent<MenuProps> = ({
 
                   <Divider orientation="vertical" flexItem />
                   <StyledPaper square elevation={0}>
-                    <Grid container height="100%">
+                    <Grid
+                      container
+                      sx={{
+                        height: '100%',
+                      }}
+                    >
                       <StyledTimePicker
                         value={value.absolute.endDate}
                         setValue={(date) => {
@@ -260,7 +270,11 @@ const Menu: React.FunctionComponent<MenuProps> = ({
           </Grid>
         </TabPanel>
         <TabPanel value="relative">
-          <Box width="44.75rem">
+          <Box
+            sx={{
+              width: '44.75rem',
+            }}
+          >
             <Grid container spacing={3}>
               <Grid size={12}>
                 <Grid container spacing={3}>
@@ -467,9 +481,11 @@ const Menu: React.FunctionComponent<MenuProps> = ({
       <Grid
         container
         spacing={2}
-        paddingLeft={3}
-        paddingRight={3}
-        paddingBottom={3}
+        sx={{
+          paddingLeft: 3,
+          paddingRight: 3,
+          paddingBottom: 3,
+        }}
       >
         <Grid size={12}>
           <Divider />

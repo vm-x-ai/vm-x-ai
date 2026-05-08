@@ -9,6 +9,7 @@ import { UpsertPoolDefinitionDto } from './dto/upsert-pool-definition.dto';
 import { GetPoolDefinitionDto } from './dto/get-pool-definition.dto';
 import { Transaction } from 'kysely';
 import { DB } from '../storage/entities.generated';
+import { camelCaseEmbeds } from '../storage/embed-case';
 
 @Injectable()
 export class PoolDefinitionService {
@@ -18,12 +19,15 @@ export class PoolDefinitionService {
   ) {}
 
   public async getAll(includesUsers = false): Promise<PoolDefinitionEntity[]> {
-    return await this.db.reader
+    const rows = await this.db.reader
       .selectFrom('poolDefinitions')
       .selectAll('poolDefinitions')
       .$if(includesUsers, this.db.includeEntityControlUsers('poolDefinitions'))
       .orderBy('createdAt', 'desc')
       .execute();
+    return rows.map((row) =>
+      camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+    );
   }
 
   public async getById(
@@ -50,8 +54,8 @@ export class PoolDefinitionService {
         environmentId,
         !!includesUsers
       ),
-      () =>
-        this.db.reader
+      async () => {
+        const row = await this.db.reader
           .selectFrom('poolDefinitions')
           .selectAll('poolDefinitions')
           .$if(
@@ -60,7 +64,11 @@ export class PoolDefinitionService {
           )
           .where('workspaceId', '=', workspaceId)
           .where('environmentId', '=', environmentId)
-          .executeTakeFirst()
+          .executeTakeFirst();
+        return row
+          ? camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+          : undefined;
+      }
     );
 
     if (throwOnNotFound && !poolDefinition) {

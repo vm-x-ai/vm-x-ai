@@ -10,29 +10,33 @@ Prioritization allows you to allocate capacity across multiple AI resources, ens
 
 Prioritization is a system that:
 
-- **Allocates Capacity**: Distributes available capacity across multiple resources
-- **Ensures Fairness**: Prevents one resource from consuming all capacity
-- **Adapts Dynamically**: Adjusts allocation based on usage patterns
-- **Supports Multiple Strategies**: Uses sophisticated algorithms for allocation
+- **Allocates Capacity**: Distributes available AI Connection capacity (TPM) across pools of resources
+- **Ensures Fairness**: Reserves a guaranteed minimum slice for each pool so high-priority workloads can't be fully starved
+- **Adapts Dynamically**: Scales each pool's current allocation up and down based on observed token usage
+- **Runs as a Gate**: Rejects requests whose pool has exceeded its current allocation, returning a structured reason
+
+A pool definition is scoped per **workspace + environment** (one definition per environment) and is upserted via the `POST /pool-definition/{workspaceId}/{environmentId}` API or the **Prioritization** page in the UI.
 
 ## How It Works
 
 ### Pool Definition
 
-A **Pool Definition** groups resources together and defines how capacity should be allocated:
+A **Pool Definition** is a list of entries. Each entry groups one or more AI Resources and declares how much of the connection's TPM capacity that group is allowed to claim:
 
 ```json
 {
   "definition": [
     {
       "name": "high-priority",
-      "resources": ["resource-1", "resource-2"],
+      "rank": 0,
+      "resources": ["resource-uuid-1", "resource-uuid-2"],
       "minReservation": 50,
       "maxReservation": 100
     },
     {
       "name": "low-priority",
-      "resources": ["resource-3", "resource-4"],
+      "rank": 1,
+      "resources": ["resource-uuid-3", "resource-uuid-4"],
       "minReservation": 0,
       "maxReservation": 50
     }
@@ -40,42 +44,48 @@ A **Pool Definition** groups resources together and defines how capacity should 
 }
 ```
 
+Each entry has:
+
+- **name**: Unique name for the entry
+- **rank**: Priority order — lower `rank` is evaluated first and is scaled up at the expense of higher-`rank` entries when capacity is tight
+- **resources**: Array of AI Resource IDs (UUIDs) assigned to this entry. A resource may only belong to one entry
+- **minReservation**: Minimum percentage (0-100) of the connection's TPM that is always reserved for this entry
+- **maxReservation**: Maximum percentage (0-100) the entry can scale up to
+
+The sum of all `minReservation` values must not exceed 100. Allocations are expressed as percentages of the AI Connection's `MINUTE` token capacity (see [AI Connection capacity](./ai-connections.md)).
+
 ### Allocation Strategy
 
-VM-X AI uses an **Adaptive Token Scaling** strategy that:
+VM-X AI ships a single allocation strategy today: **Adaptive Token Scaling**
+(`AdaptiveTokenScalingStrategy` in `packages/api/src/prioritization/strategy/adaptive-token-scaling.ts`).
+The `PrioritizationService` always dispatches to it. The strategy:
 
-1. **Tracks Usage**: Monitors token usage per resource and pool
-2. **Calculates Available Capacity**: Determines how much capacity is available
-3. **Allocates Dynamically**: Adjusts allocation based on demand
-4. **Enforces Limits**: Ensures resources don't exceed their allocation
+1. **Tracks Usage**: Records per-pool token consumption against the connection's MINUTE capacity plan
+2. **Computes Allocations**: Maintains a `current` percentage per entry, bounded by `[minReservation, maxReservation]`
+3. **Scales Dynamically**: Grows or shrinks `current` as observed usage drifts above/below thresholds
+4. **Gates the Request**: After updating allocations, rejects the request if the resource's pool is already over its current allocated percentage of MINUTE tokens
 
-### Capacity Gates
+### Prioritization Gate
 
-When a request is made:
+For each completion / responses / messages request, the gateway calls the prioritization gate after resolving the request's resource and connection. The gate:
 
-1. **Connection Capacity Check**: Verify connection has available capacity
-2. **Resource Capacity Check**: Verify resource has available capacity
-3. **Prioritization Gate**: Check if request should proceed based on prioritization
-4. **Request Processing**: If all gates pass, process the request
+1. Finds the pool entry that owns the request's resource
+2. Loads (or initializes) the per-connection allocation map
+3. Re-runs the Adaptive Token Scaling logic against the latest metrics
+4. Returns `{ allowed: true, allocation }` if the resource's pool is still under its current allocation, or `{ allowed: false, allocation, reason }` otherwise
+
+Capacity enforcement (TPM/RPM caps on the connection and resource) is a **separate** mechanism — see [Capacity Management](./ai-resources/capacity.md). Prioritization runs on top of capacity to subdivide the connection's TPM among pools.
 
 ## Configuring Prioritization
 
-1. Navigate to **Prioritization** in the UI
-2. Click **Edit Pool Definition**
-3. Configure pools:
-   - **Pool Name**: Name for the pool
-   - **Resources**: Resources assigned to this pool
-   - **Min Reservation**: Minimum percentage of capacity reserved
-   - **Max Reservation**: Maximum percentage of capacity available
-
-## Pool Configuration
-
-### Pool Properties
-
-- **name**: Unique name for the pool
-- **resources**: Array of resource IDs assigned to this pool
-- **minReservation**: Minimum percentage (0-100) of capacity reserved for this pool
-- **maxReservation**: Maximum percentage (0-100) of capacity available to this pool
+1. Navigate to **Prioritization** in the UI for the target workspace + environment
+2. Click **Add Pool** to create a new entry, or edit an existing row inline
+3. For each entry, set:
+   - **Name**
+   - **Rank** (lowest first = highest priority)
+   - **Resources** (multi-select of AI Resources in the environment)
+   - **Min Reservation** / **Max Reservation** (percentages)
+4. Save. The full definition is upserted via `POST /pool-definition/{workspaceId}/{environmentId}`
 
 ### Example Configuration
 
@@ -84,13 +94,15 @@ When a request is made:
   "definition": [
     {
       "name": "production",
-      "resources": ["prod-chat", "prod-embeddings"],
+      "rank": 0,
+      "resources": ["prod-chat-uuid", "prod-embeddings-uuid"],
       "minReservation": 70,
       "maxReservation": 100
     },
     {
       "name": "development",
-      "resources": ["dev-chat", "dev-testing"],
+      "rank": 1,
+      "resources": ["dev-chat-uuid", "dev-testing-uuid"],
       "minReservation": 0,
       "maxReservation": 30
     }
@@ -100,10 +112,10 @@ When a request is made:
 
 This configuration:
 
-- Reserves 70% of capacity for production resources
-- Allows production to use up to 100% if available
-- Allows development to use up to 30% if available
-- Development gets 0% minimum (can be starved if production uses all capacity)
+- Reserves 70% of MINUTE capacity for production resources at all times
+- Allows production to scale up to 100% under load
+- Caps development at 30% of MINUTE capacity
+- Lets development be fully scaled down (to 0%) when production needs the headroom
 
 ## Adaptive Token Scaling Algorithm
 
@@ -113,55 +125,55 @@ The prioritization system uses an **Adaptive Token Scaling** algorithm to dynami
 
 The algorithm continuously monitors token usage and adjusts allocations using the following process:
 
-1. **Monitor Usage**: Track token usage per pool over a configurable time window (default: 30 seconds)
-2. **Calculate Scale-Up Threshold**: For each pool, calculate if current usage exceeds 50% of its allocated capacity
-3. **Scale Up**: If threshold is exceeded and capacity is available, increase the pool's allocation up to its max reservation
-4. **Scale Down**: If a pool is using less than its allocated capacity and a cooldown period has passed, reduce allocation down to its min reservation
-5. **Respect Limits**: Ensure allocations always stay within min/max reservations and total allocation never exceeds 100%
+1. **Monitor Usage**: Track token usage per pool over a fixed time window (30 seconds)
+2. **Calculate Scale-Up Threshold**: For each pool, check if recent token usage exceeds 50% of its currently-allocated TPM share
+3. **Scale Up**: If the threshold is exceeded and headroom is available, increase the pool's allocation up to its `maxReservation`
+4. **Scale Down**: If a pool is using less than its allocated capacity and the cooldown has elapsed, reduce allocation down to (but not below) its `minReservation`
+5. **Respect Limits**: Allocations always stay within `[minReservation, maxReservation]` and the sum across pools never exceeds 100%
 
 ### Algorithm Parameters
 
-The algorithm uses the following configurable parameters:
+The current implementation uses the following constants (defined in `adaptive-token-scaling.ts`, not user-configurable today):
 
-- **Window Size**: 30 seconds - Time window to analyze token usage
-- **Scale Up Threshold**: 50% - Percentage of current allocation that triggers scale-up
-- **Cooldown**: 5 seconds - Minimum time between scale-downs to prevent oscillation
+- **Window Size**: 30 seconds — sliding window used to read each pool's token usage
+- **Scale Up Threshold**: 50% — fraction of the pool's current allocated tokens that, once exceeded by the window's usage, triggers scale-up
+- **Cooldown**: 5 seconds — minimum time after a scale-up before the same pool may scale down (prevents oscillation)
 
 ### Algorithm Behavior
 
 #### Scale-Up Logic
 
-For each pool, the algorithm:
+For each entry (in `rank` order), the algorithm:
 
-1. Calculates consumed tokens: `(connection capacity) × (current allocation %)`
-2. Calculates scale-up threshold: `consumed tokens × 50%`
+1. Calculates allocated tokens: `(connection MINUTE token capacity) × (current allocation %)`
+2. Calculates scale-up threshold: `allocated tokens × 50%`
 3. If window tokens > threshold:
-   - Calculates desired allocation based on actual usage
-   - Scales up to the minimum of: desired allocation, max reservation, available capacity
-   - If available capacity is insufficient, scales down lower-priority pools
+   - Computes desired allocation from actual usage as a percentage of the connection capacity
+   - Scales up by the minimum of: desired allocation, remaining headroom to `maxReservation`, and free capacity across all pools
+   - If free capacity is insufficient, scales down higher-`rank` entries (lower-priority pools) to free up room — never below their `minReservation`
 
 #### Scale-Down Logic
 
-For pools that recently scaled up:
+For an entry whose last action was a scale-up:
 
-1. Checks if current usage is less than allocated capacity
-2. Verifies cooldown period has passed (5 seconds)
-3. Scales down to the maximum of: actual usage percentage, min reservation
+1. Checks that current allocated tokens exceed the window's actual usage
+2. Verifies the 5s cooldown has elapsed since the last scale action
+3. Scales down to `max(window usage %, minReservation)` (and clamps to `0` if window usage exceeds `maxReservation`, which is a safety branch)
 
 #### Capacity Redistribution
 
-When a high-priority pool needs to scale up but capacity is full:
+When a higher-priority entry (lower `rank`) needs to scale up but no free capacity remains:
 
-- Lower-priority pools (those ranked after the scaling pool) are scaled down
-- Scale-down respects min reservations
-- Only pools that are above their min reservation can be scaled down
+- Entries with a higher `rank` (those evaluated later) are scaled down first
+- Scale-down respects each entry's `minReservation` floor
+- Only entries currently above their `minReservation` can contribute headroom
 
 ### Example Scenario
 
-Given a connection with 100,000 TPM capacity and two pools:
+Given a connection with 100,000 MINUTE TPM capacity and two entries:
 
-- **Chat** (high priority): Min 50%, Max 100%
-- **Processing Documents** (low priority): Min 0%, Max 50%
+- **Chat** (`rank: 0`): Min 50%, Max 100%
+- **Processing Documents** (`rank: 1`): Min 0%, Max 50%
 
 **Scenario 1: Low Chat Usage**
 
@@ -234,3 +246,10 @@ Before deploying:
 - Test pool definition changes
 - Verify allocation works as expected
 - Monitor for issues
+
+## Next Steps
+
+- [AI Connections](./ai-connections.md) — where the MINUTE TPM capacity that prioritization subdivides is defined
+- [Capacity Management](./ai-resources/capacity.md) — the underlying TPM/RPM enforcement that prioritization layers on top of
+- [AI Resources](./ai-resources/index.md) — the resources that get grouped into pool entries
+- [Chat Completions API](./api/chat-completions.md), [Responses API](./api/responses.md), [Anthropic Messages API](./api/anthropic-messages.md) — the request paths the prioritization gate runs on

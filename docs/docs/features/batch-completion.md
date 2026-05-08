@@ -506,7 +506,7 @@ response = requests.post(
             "headers": {
                 "X-API-Key": "your-secret-key"
             },
-            "events": ["ITEM_UPDATE", "BATCH_UPDATE"]
+            "events": ["item_update", "batch_update"]
         },
         "items": [
             {
@@ -544,7 +544,7 @@ const { data: batch } = await axios.post(
       headers: {
         'X-API-Key': 'your-secret-key',
       },
-      events: ['ITEM_UPDATE', 'BATCH_UPDATE'],
+      events: ['item_update', 'batch_update'],
     },
     items: [
       {
@@ -594,24 +594,54 @@ This allows you to:
 - Allocate specific capacity to a batch for cost control
 - Test different rate limits without modifying AI Resource configuration
 
+### Endpoint Reference
+
+All endpoints are scoped under `/v1/completion-batch` and require either an authenticated user (workspace member) or a workspace API key with `completion-batch` permissions. The `resourceId` on each item is enforced against the API key's `resources` allowlist when an API key is used.
+
+| Method | Path                                                                    | Purpose                                                                                                                                                                                                                                                                         |
+| ------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/v1/completion-batch/{workspaceId}/{environmentId}`                    | Create a batch. Body is `CreateCompletionBatchDto` (`type: SYNC \| ASYNC`) or `CreateCompletionCallbackBatchDto` (`type: CALLBACK` + `callbackOptions`). For `SYNC`, the response is an SSE stream; for `ASYNC` / `CALLBACK`, the response is the created `CompletionBatchDto`. |
+| `GET`  | `/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}`          | Poll for batch status. Returns `CompletionBatchDto` with `completedPercentage`. Query params: `includesUsers` (default `true`), `includesItems` (default `true`).                                                                                                               |
+| `GET`  | `/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/{itemId}` | Fetch a single item (`CompletionBatchItemEntity`), including its `response` once `COMPLETED`.                                                                                                                                                                                   |
+| `POST` | `/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/cancel`   | Cancel the batch and mark any still-`PENDING` items as `CANCELLED`.                                                                                                                                                                                                             |
+
 ## SSE Event Types
 
-When using SYNC type, you receive events via Server-Sent Events:
+When using SYNC type, the response is `text/event-stream`. Each event is delivered as a JSON `data:` line whose `action` discriminator is one of:
 
-- **`batch-created`**: Batch was created and queued
-- **`item-running`**: Item started processing
-- **`item-completed`**: Item completed successfully
-- **`item-failed`**: Item failed with error
-- **`batch-completed`**: All items completed
-- **`batch-failed`**: Batch failed (some items failed)
+- **`batch-created`**: Batch was created and queued. `payload` is the full `CompletionBatchEntity`
+- **`item-running`**: Item started processing. `payload` is the `CompletionBatchItemEntity`
+- **`item-completed`**: Item completed successfully. `payload` is the `CompletionBatchItemEntity` (with `response` populated)
+- **`item-failed`**: Item failed with an error. `payload` is the `CompletionBatchItemEntity` (with `errorMessage` populated)
+- **`batch-completed`**: All items completed. `payload` is the `CompletionBatchEntity`
+- **`batch-failed`**: Batch failed (some items failed). `payload` is the `CompletionBatchEntity`
+
+Two terminator markers close the stream:
+
+- `data: [DONE]` — emitted after the last event when the batch finishes normally
+- `data: [ERROR]` — emitted (after a `data: { "error": ... }` line) if the SSE pipeline itself errors
+
+## Lifecycle States
+
+Both `CompletionBatchEntity.status` (the parent batch) and `CompletionBatchItemEntity.status` (each item) draw from the same enum, `PublicCompletionBatchRequestStatus`:
+
+- **`PENDING`**: Created and queued, waiting on capacity / a worker
+- **`RUNNING`**: At least one item is in flight (or, for an item, the worker has picked it up)
+- **`COMPLETED`**: All items completed successfully (batch) / item completed and `response` is populated
+- **`FAILED`**: At least one item failed and could not be retried (batch) / item exhausted retries with a non-retryable error (item)
+- **`CANCELLED`**: The batch was cancelled via `POST /v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/cancel` — pending items are also marked `CANCELLED` in the same transaction
+
+The batch tracks per-state counters (`pending`, `running`, `completed`, `failed`) plus `totalItems`, plus token totals (`totalEstimatedPromptTokens`, `totalPromptTokens`, `totalOutputTokens`). `GET` responses on the batch also surface a derived `completedPercentage`.
 
 ## Callback Events
 
-When using CALLBACK type, your endpoint receives HTTP POST requests:
+When using CALLBACK type, your endpoint receives HTTP POST requests. The `events` array on `callbackOptions` accepts the following values (lowercase wire format, defined by `CompletionBatchCallbackEvent` in `packages/api/src/gateway/batch/dto/callback-options.dto.ts`):
 
-- **`ITEM_UPDATE`**: Sent when an item completes or fails
-- **`BATCH_UPDATE`**: Sent when the batch completes or fails
-- **`ALL`**: Receive all events
+- **`item_update`**: Send a callback when any item transitions state (running / completed / failed / cancelled)
+- **`batch_update`**: Send a callback when the batch itself transitions state (completed / failed)
+- **`all`**: Subscribe to every event
+
+The HTTP POST body uses the `event` field with the uppercase names — `ITEM_UPDATE` / `BATCH_UPDATE` — and a `payload` field containing the full `CompletionBatchItemEntity` or `CompletionBatchEntity`.
 
 ## Best Practices
 
@@ -670,7 +700,10 @@ When using CALLBACK type, your endpoint receives HTTP POST requests:
 
 ## Next Steps
 
-- [AI Resources](./ai-resources/index.md) - Learn about AI Resources
-- [AI Connections](./ai-connections.md) - Configure AI Connections
-- [Capacity Management](./ai-resources/capacity.md) - Understand capacity limits
-- [Usage Monitoring](./usage.md) - Monitor batch usage and metrics
+- [AI Resources](./ai-resources/index.md) — what each batch item routes to via `resourceId`
+- [AI Connections](./ai-connections.md) — where the connection-level TPM/RPM caps that batch consumers respect are defined
+- [Capacity Management](./ai-resources/capacity.md) — resource-level capacity overrides that the batch scheduler honors
+- [Prioritization](./prioritization.md) — pool definitions interact with batch consumers when the same resource is shared with online traffic
+- [Chat Completions API](./api/chat-completions.md) — the request shape used inside each item's `request` field
+- [Anthropic Messages API](./api/anthropic-messages.md), [Responses API](./api/responses.md) — alternate request shapes that each batch item's `request` may use
+- [Usage Monitoring](./usage.md) — batch token totals are reported through the same usage pipeline

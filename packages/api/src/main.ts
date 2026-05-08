@@ -38,6 +38,18 @@ async function bootstrap() {
   if (typeof fastify.use !== 'function') {
     await fastify.register(fastifyExpress);
   }
+  // Accept `text/csv` request bodies as raw strings. Used by the
+  // model-pricing import endpoint so an operator can POST a CSV file
+  // directly without a multipart wrapper. The default `text/plain`
+  // parser already handles plain strings — this just adds `text/csv`
+  // as an accepted content type with the same shape.
+  fastify.addContentTypeParser(
+    'text/csv',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      done(null, body);
+    }
+  );
 
   const logger = app.get(PinoLogger);
   app.useLogger(logger);

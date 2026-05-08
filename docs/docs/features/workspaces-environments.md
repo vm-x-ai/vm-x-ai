@@ -59,7 +59,35 @@ The completion API uses workspace and environment IDs in the endpoint path:
 
 ```
 /v1/completion/{workspaceId}/{environmentId}/chat/completions
+/v1/completion/{workspaceId}/{environmentId}/responses
+/v1/completion/{workspaceId}/{environmentId}/anthropic/messages
 ```
+
+VM-X AI exposes three completion-style routes under the same
+workspace/environment scope:
+
+- **Chat Completions** — OpenAI's classic chat completions shape. Most
+  SDKs target this format.
+- **Responses** — OpenAI's newer Responses API (typed events, reasoning
+  surfaces, function tools).
+- **Messages** — drop-in compatibility for clients written against
+  Anthropic's `POST /v1/messages`. Routed to an Anthropic-native
+  provider (the `Anthropic` provider via `@anthropic-ai/sdk`, or AWS
+  Bedrock-Invoke for Claude models), the body is sent **verbatim**
+  with no conversion — `cache_control`, extended `thinking`, server
+  tools (`web_search_20250305`, `code_execution_20250522`,
+  `bash_20250124`, `text_editor_20250728`, `computer_20250124`),
+  citations, and refusal `stop_details` all survive end-to-end.
+  Cross-provider fallback to a non-Anthropic upstream converts to the
+  internal pivot and back, dropping fields the wire format can't
+  express.
+
+All three share routing, fallback, capacity gating, audit, and the
+[`vmx` envelope](./api/vmx-envelope.md). See the
+[API reference](./api/index.md) for the per-endpoint deep dives:
+[Chat Completions](./api/chat-completions.md),
+[Responses](./api/responses.md), and
+[Anthropic Messages](./api/anthropic-messages.md).
 
 This ensures:
 

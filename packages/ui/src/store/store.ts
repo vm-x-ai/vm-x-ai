@@ -18,7 +18,7 @@ export type AppStore = Store & AppActions & SidebarActions & AiResourceActions;
 
 const initialState: Store = {
   sidebar: {
-    open: false,
+    open: true,
   },
 };
 

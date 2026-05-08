@@ -134,7 +134,7 @@ export default function ConfirmDeleteAIConnectionDialog({
           )}
         </DialogContent>
         <DialogActions>
-          <Button disabled={disabled} variant="contained" onClick={handleClose}>
+          <Button disabled={disabled} variant="text" onClick={handleClose}>
             Cancel
           </Button>
           <Button

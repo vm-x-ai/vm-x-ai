@@ -2,7 +2,6 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
@@ -61,7 +60,7 @@ export default function AIResourceSecondaryModelsEditForm({
   }, [state]);
 
   const { control, handleSubmit, watch } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       secondaryModels: data.secondaryModels ?? [],
     },
@@ -91,8 +90,24 @@ export default function AIResourceSecondaryModelsEditForm({
           }}
           noValidate
         >
-          <Grid container size={12} marginTop="1rem">
-            <Grid size={3}>
+          <Grid
+            container
+            size={12}
+            spacing={2}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
+            {/*
+              Toggle is short, so 2 columns is plenty; the rest of the
+              row goes to the secondary-models table so wide rows
+              (Provider / Connection / Model / retries / timeout +
+              edit menu) don't need horizontal scrolling. The
+              contextual caption moves to its own row below the table —
+              keeping it on the right squeezed the table even when set
+              to 2 columns. Mirrors the Fallback page layout.
+            */}
+            <Grid size={2}>
               <FormControlLabel
                 control={
                   <Switch
@@ -103,48 +118,44 @@ export default function AIResourceSecondaryModelsEditForm({
                 label="Use multi response"
               />
             </Grid>
-            <Grid size={5}>
-              <Grid size={12}>
-                <Controller
-                  name="secondaryModels"
-                  control={control}
-                  render={({ field }) => (
-                    <MultiConnectionModelSelector
-                      {...field}
-                      providersMap={providersMap}
-                      onChange={(value) => field.onChange(value)}
-                      connections={connections}
-                      workspaceId={workspaceId}
-                      environmentId={environmentId}
-                      refreshConnectionAction={refreshConnectionAction}
-                      noRecordsToDisplay="No secondary models configured"
-                    />
-                  )}
-                />
-              </Grid>
+            <Grid size={10}>
+              <Controller
+                name="secondaryModels"
+                control={control}
+                render={({ field }) => (
+                  <MultiConnectionModelSelector
+                    {...field}
+                    providersMap={providersMap}
+                    onChange={(value) => field.onChange(value)}
+                    connections={connections}
+                    workspaceId={workspaceId}
+                    environmentId={environmentId}
+                    refreshConnectionAction={refreshConnectionAction}
+                    noRecordsToDisplay="No secondary models configured"
+                  />
+                )}
+              />
             </Grid>
-            <Grid size={3}>
-              <Box
-                sx={{
-                  paddingLeft: '1rem',
-                  paddingRight: '1rem',
-                }}
-              >
-                <Typography variant="caption" color="gray">
-                  When using multi-response, your model call will be routed to
-                  more than 1 model at the same time. Giving you multiple
-                  responses to a single API call.
-                  <br />
-                  <br />
-                  You need to explicitly set in the VM-X SDK to receive multiple
-                  responses.
-                </Typography>
-              </Box>
+            <Grid size={12}>
+              <Typography variant="caption" color="text.secondary">
+                When using multi-response, your model call will be routed to
+                more than 1 model at the same time. Giving you multiple
+                responses to a single API call.
+                <br />
+                <br />
+                You need to explicitly set in the VM-X SDK to receive multiple
+                responses.
+              </Typography>
             </Grid>
           </Grid>
 
-          <Grid size={12} marginTop="1rem">
-            <SubmitButton label="Save" submittingLabel="Saving..." />
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
+            <SubmitButton label="Save" submittingLabel="Saving..." sticky />
           </Grid>
         </form>
       </Grid>

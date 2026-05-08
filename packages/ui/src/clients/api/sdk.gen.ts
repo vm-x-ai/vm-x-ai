@@ -8,6 +8,10 @@ import {
 } from './client';
 import { client } from './client.gen';
 import type {
+  AnthropicMessagesData,
+  AnthropicMessagesResponses,
+  AnthropicMessagesV1AliasData,
+  AnthropicMessagesV1AliasResponses,
   AssignUsersToRoleData,
   AssignUsersToRoleErrors,
   AssignUsersToRoleResponses,
@@ -88,9 +92,11 @@ import type {
   GetApiKeysData,
   GetApiKeysErrors,
   GetApiKeysResponses,
-  GetCompletionAuditData,
-  GetCompletionAuditErrors,
-  GetCompletionAuditResponses,
+  GetApiOauth2AuthorizeData,
+  GetApiOauth2UserinfoData,
+  GetApiOauth2UserinfoResponses,
+  GetApiOauth2WellKnownOpenidConfigurationData,
+  GetApiOauth2WellKnownOpenidConfigurationResponses,
   GetCompletionBatchData,
   GetCompletionBatchErrors,
   GetCompletionBatchItemData,
@@ -100,26 +106,30 @@ import type {
   GetCompletionErrorRateData,
   GetCompletionErrorRateErrors,
   GetCompletionErrorRateResponses,
-  GetCompletionUsageData,
-  GetCompletionUsageErrors,
-  GetCompletionUsageResponses,
   GetEnvironmentByIdData,
   GetEnvironmentByIdErrors,
   GetEnvironmentByIdResponses,
   GetEnvironmentsData,
   GetEnvironmentsErrors,
   GetEnvironmentsResponses,
-  GetOauth2AuthorizeData,
-  GetOauth2UserinfoData,
-  GetOauth2UserinfoResponses,
-  GetOauth2WellKnownOpenidConfigurationData,
-  GetOauth2WellKnownOpenidConfigurationResponses,
   GetPermissionsData,
   GetPermissionsErrors,
   GetPermissionsResponses,
   GetPoolDefinitionData,
   GetPoolDefinitionErrors,
   GetPoolDefinitionResponses,
+  GetRequestAuditData,
+  GetRequestAuditErrors,
+  GetRequestAuditMetadataKeysData,
+  GetRequestAuditMetadataKeysErrors,
+  GetRequestAuditMetadataKeysResponses,
+  GetRequestAuditMetadataValuesData,
+  GetRequestAuditMetadataValuesErrors,
+  GetRequestAuditMetadataValuesResponses,
+  GetRequestAuditResponses,
+  GetRequestUsageData,
+  GetRequestUsageErrors,
+  GetRequestUsageResponses,
   GetRoleByIdData,
   GetRoleByIdErrors,
   GetRoleByIdResponses,
@@ -146,6 +156,20 @@ import type {
   GetWorkspacesResponses,
   HealthcheckControllerHealthcheckData,
   HealthcheckControllerHealthcheckResponses,
+  ModelPricingControllerCreateV1Data,
+  ModelPricingControllerCreateV1Responses,
+  ModelPricingControllerDeleteV1Data,
+  ModelPricingControllerDeleteV1Responses,
+  ModelPricingControllerExportAllV1Data,
+  ModelPricingControllerExportAllV1Responses,
+  ModelPricingControllerGetV1Data,
+  ModelPricingControllerGetV1Responses,
+  ModelPricingControllerImportV1Data,
+  ModelPricingControllerImportV1Responses,
+  ModelPricingControllerListV1Data,
+  ModelPricingControllerListV1Responses,
+  ModelPricingControllerUpdateV1Data,
+  ModelPricingControllerUpdateV1Responses,
   OidcInteractionControllerConsentData,
   OidcInteractionControllerConsentResponses,
   OidcInteractionControllerFederatedCallbackData,
@@ -160,10 +184,12 @@ import type {
   OidcInteractionControllerShowInteractionResponses,
   OidcInteractionControllerSubmitChangePasswordData,
   OidcInteractionControllerSubmitChangePasswordResponses,
-  PostOauth2RevokeData,
-  PostOauth2RevokeResponses,
-  PostOauth2TokenData,
-  PostOauth2TokenResponses,
+  PostApiOauth2RevokeData,
+  PostApiOauth2RevokeResponses,
+  PostApiOauth2TokenData,
+  PostApiOauth2TokenResponses,
+  ResponsesData,
+  ResponsesResponses,
   UnassignUsersFromRoleData,
   UnassignUsersFromRoleErrors,
   UnassignUsersFromRoleResponses,
@@ -201,8 +227,9 @@ import type {
 
 export type Options<
   TData extends TDataShape = TDataShape,
-  ThrowOnError extends boolean = boolean
-> = Options2<TData, ThrowOnError> & {
+  ThrowOnError extends boolean = boolean,
+  TResponse = unknown
+> = Options2<TData, ThrowOnError, TResponse> & {
   /**
    * You can provide a client instance returned by `createClient()` instead of
    * individual options. This might be also useful if you want to implement a
@@ -227,7 +254,7 @@ export const healthcheckControllerHealthcheck = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/healthcheck',
+    url: '/api/healthcheck',
     ...options,
   });
 
@@ -245,7 +272,7 @@ export const getUsers = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/user',
+    url: '/api/v1/user',
     ...options,
   });
 
@@ -263,7 +290,7 @@ export const createUser = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/user',
+    url: '/api/v1/user',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -285,7 +312,7 @@ export const deleteUser = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/user/{userId}',
+    url: '/api/v1/user/{userId}',
     ...options,
   });
 
@@ -303,7 +330,7 @@ export const getUserById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/user/{userId}',
+    url: '/api/v1/user/{userId}',
     ...options,
   });
 
@@ -321,7 +348,7 @@ export const updateUser = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/user/{userId}',
+    url: '/api/v1/user/{userId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -343,7 +370,7 @@ export const getPermissions = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role/permissions',
+    url: '/api/v1/role/permissions',
     ...options,
   });
 
@@ -361,7 +388,7 @@ export const getRoles = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role',
+    url: '/api/v1/role',
     ...options,
   });
 
@@ -379,7 +406,7 @@ export const createRole = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role',
+    url: '/api/v1/role',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -401,7 +428,7 @@ export const deleteRole = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role/{roleId}',
+    url: '/api/v1/role/{roleId}',
     ...options,
   });
 
@@ -419,7 +446,7 @@ export const getRoleById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role/{roleId}',
+    url: '/api/v1/role/{roleId}',
     ...options,
   });
 
@@ -437,7 +464,7 @@ export const updateRole = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role/{roleId}',
+    url: '/api/v1/role/{roleId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -459,7 +486,7 @@ export const getRoleMembers = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role/{roleId}/members',
+    url: '/api/v1/role/{roleId}/members',
     ...options,
   });
 
@@ -477,7 +504,7 @@ export const assignUsersToRole = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role/{roleId}/assign',
+    url: '/api/v1/role/{roleId}/assign',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -499,7 +526,7 @@ export const unassignUsersFromRole = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/role/{roleId}/unassign',
+    url: '/api/v1/role/{roleId}/unassign',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -518,7 +545,7 @@ export const oidcInteractionControllerShowInteraction = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/interaction/{uid}',
+    url: '/api/interaction/{uid}',
     ...options,
   });
 
@@ -536,7 +563,7 @@ export const oidcInteractionControllerShowChangePasswordInteraction = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/interaction/{uid}/change-password',
+    url: '/api/interaction/{uid}/change-password',
     ...options,
   });
 
@@ -554,7 +581,7 @@ export const oidcInteractionControllerSubmitChangePassword = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/interaction/{uid}/change-password',
+    url: '/api/interaction/{uid}/change-password',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -573,7 +600,7 @@ export const oidcInteractionControllerLogin = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/interaction/{uid}/login',
+    url: '/api/interaction/{uid}/login',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -592,7 +619,7 @@ export const oidcInteractionControllerConsent = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/interaction/{uid}/consent',
+    url: '/api/interaction/{uid}/consent',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -614,7 +641,7 @@ export const oidcInteractionControllerFederatedCallback = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/interaction/federated/callback',
+    url: '/api/interaction/federated/callback',
     ...options,
   });
 
@@ -632,7 +659,7 @@ export const oidcInteractionControllerFederatedInteraction = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/interaction/{uid}/federated',
+    url: '/api/interaction/{uid}/federated',
     ...options,
   });
 
@@ -650,7 +677,7 @@ export const getWorkspaces = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace',
+    url: '/api/v1/workspace',
     ...options,
   });
 
@@ -668,7 +695,7 @@ export const createWorkspace = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace',
+    url: '/api/v1/workspace',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -690,7 +717,7 @@ export const deleteWorkspace = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace/{workspaceId}',
+    url: '/api/v1/workspace/{workspaceId}',
     ...options,
   });
 
@@ -708,7 +735,7 @@ export const getWorkspaceById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace/{workspaceId}',
+    url: '/api/v1/workspace/{workspaceId}',
     ...options,
   });
 
@@ -726,7 +753,7 @@ export const updateWorkspace = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace/{workspaceId}',
+    url: '/api/v1/workspace/{workspaceId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -748,7 +775,7 @@ export const getWorkspaceMembers = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace/{workspaceId}/members',
+    url: '/api/v1/workspace/{workspaceId}/members',
     ...options,
   });
 
@@ -766,7 +793,7 @@ export const updateMemberRole = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace/{workspaceId}/members/{userId}/role',
+    url: '/api/v1/workspace/{workspaceId}/members/{userId}/role',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -788,7 +815,7 @@ export const assignUsersToWorkspace = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace/{workspaceId}/assign',
+    url: '/api/v1/workspace/{workspaceId}/assign',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -812,7 +839,7 @@ export const unassignUsersFromWorkspace = <
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/workspace/{workspaceId}/unassign',
+    url: '/api/v1/workspace/{workspaceId}/unassign',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -834,7 +861,7 @@ export const getEnvironments = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/environment/{workspaceId}',
+    url: '/api/v1/environment/{workspaceId}',
     ...options,
   });
 
@@ -852,7 +879,7 @@ export const createEnvironment = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/environment/{workspaceId}',
+    url: '/api/v1/environment/{workspaceId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -874,7 +901,7 @@ export const deleteEnvironment = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/environment/{workspaceId}/{environmentId}',
+    url: '/api/v1/environment/{workspaceId}/{environmentId}',
     ...options,
   });
 
@@ -892,7 +919,7 @@ export const getEnvironmentById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/environment/{workspaceId}/{environmentId}',
+    url: '/api/v1/environment/{workspaceId}/{environmentId}',
     ...options,
   });
 
@@ -910,7 +937,7 @@ export const updateEnvironment = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/environment/{workspaceId}/{environmentId}',
+    url: '/api/v1/environment/{workspaceId}/{environmentId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -932,7 +959,7 @@ export const getAiConnections = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-connection/{workspaceId}/{environmentId}',
+    url: '/api/v1/ai-connection/{workspaceId}/{environmentId}',
     ...options,
   });
 
@@ -950,7 +977,7 @@ export const createAiConnection = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-connection/{workspaceId}/{environmentId}',
+    url: '/api/v1/ai-connection/{workspaceId}/{environmentId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -972,7 +999,7 @@ export const deleteAiConnection = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}',
+    url: '/api/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}',
     ...options,
   });
 
@@ -990,7 +1017,7 @@ export const getAiConnectionById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}',
+    url: '/api/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}',
     ...options,
   });
 
@@ -1008,7 +1035,7 @@ export const updateAiConnection = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}',
+    url: '/api/v1/ai-connection/{workspaceId}/{environmentId}/{connectionId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1030,7 +1057,7 @@ export const getAiProviders = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-provider',
+    url: '/api/v1/ai-provider',
     ...options,
   });
 
@@ -1048,7 +1075,7 @@ export const getAiResources = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-resource/{workspaceId}/{environmentId}',
+    url: '/api/v1/ai-resource/{workspaceId}/{environmentId}',
     ...options,
   });
 
@@ -1066,7 +1093,7 @@ export const createAiResource = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-resource/{workspaceId}/{environmentId}',
+    url: '/api/v1/ai-resource/{workspaceId}/{environmentId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1088,7 +1115,7 @@ export const deleteAiResource = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}',
+    url: '/api/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}',
     ...options,
   });
 
@@ -1106,7 +1133,7 @@ export const getAiResourceById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}',
+    url: '/api/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}',
     ...options,
   });
 
@@ -1124,7 +1151,7 @@ export const updateAiResource = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}',
+    url: '/api/v1/ai-resource/{workspaceId}/{environmentId}/{resourceId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1146,7 +1173,7 @@ export const getApiKeys = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/api-key/{workspaceId}/{environmentId}',
+    url: '/api/v1/api-key/{workspaceId}/{environmentId}',
     ...options,
   });
 
@@ -1164,7 +1191,7 @@ export const createApiKey = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/api-key/{workspaceId}/{environmentId}',
+    url: '/api/v1/api-key/{workspaceId}/{environmentId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1186,7 +1213,7 @@ export const deleteApiKey = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}',
+    url: '/api/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}',
     ...options,
   });
 
@@ -1204,7 +1231,7 @@ export const getApiKeyById = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}',
+    url: '/api/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}',
     ...options,
   });
 
@@ -1222,7 +1249,7 @@ export const updateApiKey = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}',
+    url: '/api/v1/api-key/{workspaceId}/{environmentId}/{apiKeyId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1244,7 +1271,7 @@ export const deletePoolDefinition = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/pool-definition/{workspaceId}/{environmentId}',
+    url: '/api/v1/pool-definition/{workspaceId}/{environmentId}',
     ...options,
   });
 
@@ -1262,7 +1289,7 @@ export const getPoolDefinition = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/pool-definition/{workspaceId}/{environmentId}',
+    url: '/api/v1/pool-definition/{workspaceId}/{environmentId}',
     ...options,
   });
 
@@ -1280,7 +1307,7 @@ export const updatePoolDefinition = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/pool-definition/{workspaceId}/{environmentId}',
+    url: '/api/v1/pool-definition/{workspaceId}/{environmentId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1298,7 +1325,69 @@ export const completion = <ThrowOnError extends boolean = false>(
 ) =>
   (options.client ?? client).post<CompletionResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/completion/{workspaceId}/{environmentId}/chat/completions',
+    url: '/api/v1/completion/{workspaceId}/{environmentId}/chat/completions',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * OpenAI Responses API
+ *
+ * Performs a Responses-API request against the routed AI Resource. Mirrors OpenAI's POST /v1/responses surface; streamed responses are emitted as Server-Sent Events using Responses-API event types (response.output_text.delta, response.function_call_arguments.delta, response.completed, etc).
+ */
+export const responses = <ThrowOnError extends boolean = false>(
+  options: Options<ResponsesData, ThrowOnError>
+) =>
+  (options.client ?? client).post<ResponsesResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/completion/{workspaceId}/{environmentId}/responses',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Anthropic-compatible Messages
+ *
+ * Accepts Anthropic Messages API requests, runs through the same gateway as /chat/completions, and returns Anthropic-shaped responses.
+ */
+export const anthropicMessages = <ThrowOnError extends boolean = false>(
+  options: Options<AnthropicMessagesData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    AnthropicMessagesResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/completion/{workspaceId}/{environmentId}/anthropic/messages',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Anthropic Messages (SDK alias)
+ *
+ * Alias for the Anthropic SDK's auto-appended /v1/messages path. Behavior is identical to /anthropic/messages.
+ */
+export const anthropicMessagesV1Alias = <ThrowOnError extends boolean = false>(
+  options: Options<AnthropicMessagesV1AliasData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    AnthropicMessagesV1AliasResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/completion/{workspaceId}/{environmentId}/anthropic/v1/messages',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1320,7 +1409,7 @@ export const getCompletionErrorRate = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/completion-metric/{workspaceId}/{environmentId}/{resourceId}/error-rate',
+    url: '/api/v1/completion-metric/{workspaceId}/{environmentId}/{resourceId}/error-rate',
     ...options,
   });
 
@@ -1329,16 +1418,56 @@ export const getCompletionErrorRate = <ThrowOnError extends boolean = false>(
  *
  * Returns a list of all completion audits associated with an environment.
  */
-export const getCompletionAudit = <ThrowOnError extends boolean = false>(
-  options: Options<GetCompletionAuditData, ThrowOnError>
+export const getRequestAudit = <ThrowOnError extends boolean = false>(
+  options: Options<GetRequestAuditData, ThrowOnError>
 ) =>
   (options.client ?? client).get<
-    GetCompletionAuditResponses,
-    GetCompletionAuditErrors,
+    GetRequestAuditResponses,
+    GetRequestAuditErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/completion-audit/{workspaceId}/{environmentId}',
+    url: '/api/v1/request-audit/{workspaceId}/{environmentId}',
+    ...options,
+  });
+
+/**
+ * List distinct metadata keys
+ *
+ * Returns the set of distinct metadata keys observed on completion audits in the last 30 days. Used by the audit UI to populate the metadata-filter selector.
+ */
+export const getRequestAuditMetadataKeys = <
+  ThrowOnError extends boolean = false
+>(
+  options: Options<GetRequestAuditMetadataKeysData, ThrowOnError>
+) =>
+  (options.client ?? client).get<
+    GetRequestAuditMetadataKeysResponses,
+    GetRequestAuditMetadataKeysErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/request-audit/{workspaceId}/{environmentId}/metadata-keys',
+    ...options,
+  });
+
+/**
+ * List distinct metadata values for a key
+ *
+ * Returns the set of distinct values observed for the given metadata key on completion audits in the last 30 days, sorted lexicographically. Used by the audit + usage UIs to autocomplete metadata-filter values.
+ */
+export const getRequestAuditMetadataValues = <
+  ThrowOnError extends boolean = false
+>(
+  options: Options<GetRequestAuditMetadataValuesData, ThrowOnError>
+) =>
+  (options.client ?? client).get<
+    GetRequestAuditMetadataValuesResponses,
+    GetRequestAuditMetadataValuesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/request-audit/{workspaceId}/{environmentId}/metadata-values/{key}',
     ...options,
   });
 
@@ -1347,16 +1476,16 @@ export const getCompletionAudit = <ThrowOnError extends boolean = false>(
  *
  * Returns a list of completion usage records based on the query parameters
  */
-export const getCompletionUsage = <ThrowOnError extends boolean = false>(
-  options: Options<GetCompletionUsageData, ThrowOnError>
+export const getRequestUsage = <ThrowOnError extends boolean = false>(
+  options: Options<GetRequestUsageData, ThrowOnError>
 ) =>
   (options.client ?? client).post<
-    GetCompletionUsageResponses,
-    GetCompletionUsageErrors,
+    GetRequestUsageResponses,
+    GetRequestUsageErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/completion-usage/{workspaceId}/{environmentId}',
+    url: '/api/v1/request-usage/{workspaceId}/{environmentId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1378,7 +1507,7 @@ export const getCompletionBatch = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}',
+    url: '/api/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}',
     ...options,
   });
 
@@ -1396,7 +1525,7 @@ export const getCompletionBatchItem = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/{itemId}',
+    url: '/api/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/{itemId}',
     ...options,
   });
 
@@ -1414,7 +1543,7 @@ export const createCompletionBatch = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/completion-batch/{workspaceId}/{environmentId}',
+    url: '/api/v1/completion-batch/{workspaceId}/{environmentId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1436,8 +1565,150 @@ export const cancelCompletionBatch = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/cancel',
+    url: '/api/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/cancel',
     ...options,
+  });
+
+/**
+ * List model pricing entries
+ */
+export const modelPricingControllerListV1 = <
+  ThrowOnError extends boolean = false
+>(
+  options?: Options<ModelPricingControllerListV1Data, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    ModelPricingControllerListV1Responses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/model-pricing',
+    ...options,
+  });
+
+/**
+ * Create a model pricing entry
+ */
+export const modelPricingControllerCreateV1 = <
+  ThrowOnError extends boolean = false
+>(
+  options: Options<ModelPricingControllerCreateV1Data, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    ModelPricingControllerCreateV1Responses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/model-pricing',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Export the pricing table as a downloadable file
+ *
+ * Returns the full pricing table as `application/json` or `text/csv` based on `?format`. The `source` column is included so operators can see which rows are SYSTEM vs USER; on re-import the column is ignored — the importer always decides source itself.
+ */
+export const modelPricingControllerExportAllV1 = <
+  ThrowOnError extends boolean = false
+>(
+  options?: Options<ModelPricingControllerExportAllV1Data, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    ModelPricingControllerExportAllV1Responses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/model-pricing/export',
+    ...options,
+  });
+
+/**
+ * Delete a model pricing entry
+ */
+export const modelPricingControllerDeleteV1 = <
+  ThrowOnError extends boolean = false
+>(
+  options: Options<ModelPricingControllerDeleteV1Data, ThrowOnError>
+) =>
+  (options.client ?? client).delete<
+    ModelPricingControllerDeleteV1Responses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/model-pricing/{pricingId}',
+    ...options,
+  });
+
+/**
+ * Get a model pricing entry by id
+ */
+export const modelPricingControllerGetV1 = <
+  ThrowOnError extends boolean = false
+>(
+  options: Options<ModelPricingControllerGetV1Data, ThrowOnError>
+) =>
+  (options.client ?? client).get<
+    ModelPricingControllerGetV1Responses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/model-pricing/{pricingId}',
+    ...options,
+  });
+
+/**
+ * Update a model pricing entry
+ */
+export const modelPricingControllerUpdateV1 = <
+  ThrowOnError extends boolean = false
+>(
+  options: Options<ModelPricingControllerUpdateV1Data, ThrowOnError>
+) =>
+  (options.client ?? client).put<
+    ModelPricingControllerUpdateV1Responses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/model-pricing/{pricingId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Bulk-import pricing rows from a CSV or JSON file
+ *
+ * Drives source promotion automatically: new rows → USER, identical rows → unchanged (source preserved, so SYSTEM rows stay SYSTEM), differing rows → updated + promoted to USER. Any `source` column in the file is ignored.
+ */
+export const modelPricingControllerImportV1 = <
+  ThrowOnError extends boolean = false
+>(
+  options: Options<ModelPricingControllerImportV1Data, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    ModelPricingControllerImportV1Responses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/model-pricing/import',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });
 
 /**
@@ -1445,11 +1716,11 @@ export const cancelCompletionBatch = <ThrowOnError extends boolean = false>(
  *
  * The authorization endpoint initiates the OAuth2/OpenID Connect flow
  */
-export const getOauth2Authorize = <ThrowOnError extends boolean = false>(
-  options: Options<GetOauth2AuthorizeData, ThrowOnError>
+export const getApiOauth2Authorize = <ThrowOnError extends boolean = false>(
+  options: Options<GetApiOauth2AuthorizeData, ThrowOnError>
 ) =>
   (options.client ?? client).get<unknown, unknown, ThrowOnError>({
-    url: '/oauth2/authorize',
+    url: '/api/oauth2/authorize',
     ...options,
   });
 
@@ -1458,16 +1729,16 @@ export const getOauth2Authorize = <ThrowOnError extends boolean = false>(
  *
  * Exchanges authorization codes for access tokens
  */
-export const postOauth2Token = <ThrowOnError extends boolean = false>(
-  options?: Options<PostOauth2TokenData, ThrowOnError>
+export const postApiOauth2Token = <ThrowOnError extends boolean = false>(
+  options?: Options<PostApiOauth2TokenData, ThrowOnError>
 ) =>
   (options?.client ?? client).post<
-    PostOauth2TokenResponses,
+    PostApiOauth2TokenResponses,
     unknown,
     ThrowOnError
   >({
     ...urlSearchParamsBodySerializer,
-    url: '/oauth2/token',
+    url: '/api/oauth2/token',
     ...options,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -1478,16 +1749,16 @@ export const postOauth2Token = <ThrowOnError extends boolean = false>(
 /**
  * Returns claims about the authenticated end-user
  */
-export const getOauth2Userinfo = <ThrowOnError extends boolean = false>(
-  options?: Options<GetOauth2UserinfoData, ThrowOnError>
+export const getApiOauth2Userinfo = <ThrowOnError extends boolean = false>(
+  options?: Options<GetApiOauth2UserinfoData, ThrowOnError>
 ) =>
   (options?.client ?? client).get<
-    GetOauth2UserinfoResponses,
+    GetApiOauth2UserinfoResponses,
     unknown,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/oauth2/userinfo',
+    url: '/api/oauth2/userinfo',
     ...options,
   });
 
@@ -1496,16 +1767,16 @@ export const getOauth2Userinfo = <ThrowOnError extends boolean = false>(
  *
  * Revokes access or refresh tokens
  */
-export const postOauth2Revoke = <ThrowOnError extends boolean = false>(
-  options?: Options<PostOauth2RevokeData, ThrowOnError>
+export const postApiOauth2Revoke = <ThrowOnError extends boolean = false>(
+  options?: Options<PostApiOauth2RevokeData, ThrowOnError>
 ) =>
   (options?.client ?? client).post<
-    PostOauth2RevokeResponses,
+    PostApiOauth2RevokeResponses,
     unknown,
     ThrowOnError
   >({
     ...urlSearchParamsBodySerializer,
-    url: '/oauth2/revoke',
+    url: '/api/oauth2/revoke',
     ...options,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -1518,13 +1789,13 @@ export const postOauth2Revoke = <ThrowOnError extends boolean = false>(
  *
  * Returns the OpenID Connect configuration document
  */
-export const getOauth2WellKnownOpenidConfiguration = <
+export const getApiOauth2WellKnownOpenidConfiguration = <
   ThrowOnError extends boolean = false
 >(
-  options?: Options<GetOauth2WellKnownOpenidConfigurationData, ThrowOnError>
+  options?: Options<GetApiOauth2WellKnownOpenidConfigurationData, ThrowOnError>
 ) =>
   (options?.client ?? client).get<
-    GetOauth2WellKnownOpenidConfigurationResponses,
+    GetApiOauth2WellKnownOpenidConfigurationResponses,
     unknown,
     ThrowOnError
-  >({ url: '/oauth2/.well-known/openid-configuration', ...options });
+  >({ url: '/api/oauth2/.well-known/openid-configuration', ...options });

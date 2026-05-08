@@ -11,12 +11,15 @@ import { migration as migration06 } from './6-ai-connection-table';
 import { migration as migration07 } from './7-ai-resource-table';
 import { migration as migration08 } from './8-pool-definition-table';
 import { migration as migration09 } from './9-api-key-table';
-import { migration as migration10 } from './10-completion-audit-table';
+import { migration as migration10 } from './10-request-audit-table';
 import { migration as migration11 } from './11-completion-batch-table';
 import { migration as migration12 } from './12-completion-batch-item-table';
 import { migration as migration13 } from './13-role-table';
 import { migration as migration14 } from './14-user-role-table';
 import { migration as migration15 } from './15-secrets-table';
+import { migration as migration16 } from './16-request-audit-metadata-table';
+import { migration as migration17 } from './17-create-model-pricing-table';
+import { migration as migration18 } from './18-add-provider-request-payload';
 import { PasswordService } from '../auth/password.service';
 import { BaseMigrationsService, ListMigrationProvider } from './base';
 
@@ -49,6 +52,9 @@ export class MigrationsService extends BaseMigrationsService {
         '13': migration13,
         '14': migration14,
         '15': migration15,
+        '16': migration16,
+        '17': migration17,
+        '18': migration18,
       }),
     });
   }

@@ -8,6 +8,8 @@ import {
 
 import { client } from '../client.gen';
 import {
+  anthropicMessages,
+  anthropicMessagesV1Alias,
   assignUsersToRole,
   assignUsersToWorkspace,
   cancelCompletionBatch,
@@ -35,18 +37,20 @@ import {
   getAiResources,
   getApiKeyById,
   getApiKeys,
-  getCompletionAudit,
+  getApiOauth2Authorize,
+  getApiOauth2Userinfo,
+  getApiOauth2WellKnownOpenidConfiguration,
   getCompletionBatch,
   getCompletionBatchItem,
   getCompletionErrorRate,
-  getCompletionUsage,
   getEnvironmentById,
   getEnvironments,
-  getOauth2Authorize,
-  getOauth2Userinfo,
-  getOauth2WellKnownOpenidConfiguration,
   getPermissions,
   getPoolDefinition,
+  getRequestAudit,
+  getRequestAuditMetadataKeys,
+  getRequestAuditMetadataValues,
+  getRequestUsage,
   getRoleById,
   getRoleMembers,
   getRoles,
@@ -56,6 +60,13 @@ import {
   getWorkspaceMembers,
   getWorkspaces,
   healthcheckControllerHealthcheck,
+  modelPricingControllerCreateV1,
+  modelPricingControllerDeleteV1,
+  modelPricingControllerExportAllV1,
+  modelPricingControllerGetV1,
+  modelPricingControllerImportV1,
+  modelPricingControllerListV1,
+  modelPricingControllerUpdateV1,
   oidcInteractionControllerConsent,
   oidcInteractionControllerFederatedCallback,
   oidcInteractionControllerFederatedInteraction,
@@ -64,8 +75,9 @@ import {
   oidcInteractionControllerShowInteraction,
   oidcInteractionControllerSubmitChangePassword,
   type Options,
-  postOauth2Revoke,
-  postOauth2Token,
+  postApiOauth2Revoke,
+  postApiOauth2Token,
+  responses,
   unassignUsersFromRole,
   unassignUsersFromWorkspace,
   updateAiConnection,
@@ -79,6 +91,8 @@ import {
   updateWorkspace,
 } from '../sdk.gen';
 import type {
+  AnthropicMessagesData,
+  AnthropicMessagesV1AliasData,
   AssignUsersToRoleData,
   AssignUsersToRoleError,
   AssignUsersToWorkspaceData,
@@ -148,9 +162,11 @@ import type {
   GetApiKeysData,
   GetApiKeysError,
   GetApiKeysResponse,
-  GetCompletionAuditData,
-  GetCompletionAuditError,
-  GetCompletionAuditResponse,
+  GetApiOauth2AuthorizeData,
+  GetApiOauth2UserinfoData,
+  GetApiOauth2UserinfoResponse,
+  GetApiOauth2WellKnownOpenidConfigurationData,
+  GetApiOauth2WellKnownOpenidConfigurationResponse,
   GetCompletionBatchData,
   GetCompletionBatchError,
   GetCompletionBatchItemData,
@@ -160,26 +176,30 @@ import type {
   GetCompletionErrorRateData,
   GetCompletionErrorRateError,
   GetCompletionErrorRateResponse,
-  GetCompletionUsageData,
-  GetCompletionUsageError,
-  GetCompletionUsageResponse,
   GetEnvironmentByIdData,
   GetEnvironmentByIdError,
   GetEnvironmentByIdResponse,
   GetEnvironmentsData,
   GetEnvironmentsError,
   GetEnvironmentsResponse,
-  GetOauth2AuthorizeData,
-  GetOauth2UserinfoData,
-  GetOauth2UserinfoResponse,
-  GetOauth2WellKnownOpenidConfigurationData,
-  GetOauth2WellKnownOpenidConfigurationResponse,
   GetPermissionsData,
   GetPermissionsError,
   GetPermissionsResponse,
   GetPoolDefinitionData,
   GetPoolDefinitionError,
   GetPoolDefinitionResponse,
+  GetRequestAuditData,
+  GetRequestAuditError,
+  GetRequestAuditMetadataKeysData,
+  GetRequestAuditMetadataKeysError,
+  GetRequestAuditMetadataKeysResponse,
+  GetRequestAuditMetadataValuesData,
+  GetRequestAuditMetadataValuesError,
+  GetRequestAuditMetadataValuesResponse,
+  GetRequestAuditResponse,
+  GetRequestUsageData,
+  GetRequestUsageError,
+  GetRequestUsageResponse,
   GetRoleByIdData,
   GetRoleByIdError,
   GetRoleByIdResponse,
@@ -206,6 +226,18 @@ import type {
   GetWorkspacesResponse,
   HealthcheckControllerHealthcheckData,
   HealthcheckControllerHealthcheckResponse,
+  ModelPricingControllerCreateV1Data,
+  ModelPricingControllerCreateV1Response,
+  ModelPricingControllerDeleteV1Data,
+  ModelPricingControllerExportAllV1Data,
+  ModelPricingControllerGetV1Data,
+  ModelPricingControllerGetV1Response,
+  ModelPricingControllerImportV1Data,
+  ModelPricingControllerImportV1Response,
+  ModelPricingControllerListV1Data,
+  ModelPricingControllerListV1Response,
+  ModelPricingControllerUpdateV1Data,
+  ModelPricingControllerUpdateV1Response,
   OidcInteractionControllerConsentData,
   OidcInteractionControllerFederatedCallbackData,
   OidcInteractionControllerFederatedInteractionData,
@@ -213,9 +245,10 @@ import type {
   OidcInteractionControllerShowChangePasswordInteractionData,
   OidcInteractionControllerShowInteractionData,
   OidcInteractionControllerSubmitChangePasswordData,
-  PostOauth2RevokeData,
-  PostOauth2TokenData,
-  PostOauth2TokenResponse,
+  PostApiOauth2RevokeData,
+  PostApiOauth2TokenData,
+  PostApiOauth2TokenResponse,
+  ResponsesData,
   UnassignUsersFromRoleData,
   UnassignUsersFromRoleError,
   UnassignUsersFromWorkspaceData,
@@ -1857,6 +1890,89 @@ export const completionMutation = (
   return mutationOptions;
 };
 
+/**
+ * OpenAI Responses API
+ *
+ * Performs a Responses-API request against the routed AI Resource. Mirrors OpenAI's POST /v1/responses surface; streamed responses are emitted as Server-Sent Events using Responses-API event types (response.output_text.delta, response.function_call_arguments.delta, response.completed, etc).
+ */
+export const responsesMutation = (
+  options?: Partial<Options<ResponsesData>>
+): UseMutationOptions<unknown, DefaultError, Options<ResponsesData>> => {
+  const mutationOptions: UseMutationOptions<
+    unknown,
+    DefaultError,
+    Options<ResponsesData>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await responses({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+/**
+ * Anthropic-compatible Messages
+ *
+ * Accepts Anthropic Messages API requests, runs through the same gateway as /chat/completions, and returns Anthropic-shaped responses.
+ */
+export const anthropicMessagesMutation = (
+  options?: Partial<Options<AnthropicMessagesData>>
+): UseMutationOptions<
+  unknown,
+  DefaultError,
+  Options<AnthropicMessagesData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    unknown,
+    DefaultError,
+    Options<AnthropicMessagesData>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await anthropicMessages({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+/**
+ * Anthropic Messages (SDK alias)
+ *
+ * Alias for the Anthropic SDK's auto-appended /v1/messages path. Behavior is identical to /anthropic/messages.
+ */
+export const anthropicMessagesV1AliasMutation = (
+  options?: Partial<Options<AnthropicMessagesV1AliasData>>
+): UseMutationOptions<
+  unknown,
+  DefaultError,
+  Options<AnthropicMessagesV1AliasData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    unknown,
+    DefaultError,
+    Options<AnthropicMessagesV1AliasData>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await anthropicMessagesV1Alias({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
 export const getCompletionErrorRateQueryKey = (
   options: Options<GetCompletionErrorRateData>
 ) => createQueryKey('getCompletionErrorRate', options);
@@ -1887,26 +2003,24 @@ export const getCompletionErrorRateOptions = (
     queryKey: getCompletionErrorRateQueryKey(options),
   });
 
-export const getCompletionAuditQueryKey = (
-  options: Options<GetCompletionAuditData>
-) => createQueryKey('getCompletionAudit', options);
+export const getRequestAuditQueryKey = (
+  options: Options<GetRequestAuditData>
+) => createQueryKey('getRequestAudit', options);
 
 /**
  * List all completion audits associated with an environment
  *
  * Returns a list of all completion audits associated with an environment.
  */
-export const getCompletionAuditOptions = (
-  options: Options<GetCompletionAuditData>
-) =>
+export const getRequestAuditOptions = (options: Options<GetRequestAuditData>) =>
   queryOptions<
-    GetCompletionAuditResponse,
-    GetCompletionAuditError,
-    GetCompletionAuditResponse,
-    ReturnType<typeof getCompletionAuditQueryKey>
+    GetRequestAuditResponse,
+    GetRequestAuditError,
+    GetRequestAuditResponse,
+    ReturnType<typeof getRequestAuditQueryKey>
   >({
     queryFn: async ({ queryKey, signal }) => {
-      const { data } = await getCompletionAudit({
+      const { data } = await getRequestAudit({
         ...options,
         ...queryKey[0],
         signal,
@@ -1914,7 +2028,67 @@ export const getCompletionAuditOptions = (
       });
       return data;
     },
-    queryKey: getCompletionAuditQueryKey(options),
+    queryKey: getRequestAuditQueryKey(options),
+  });
+
+export const getRequestAuditMetadataKeysQueryKey = (
+  options: Options<GetRequestAuditMetadataKeysData>
+) => createQueryKey('getRequestAuditMetadataKeys', options);
+
+/**
+ * List distinct metadata keys
+ *
+ * Returns the set of distinct metadata keys observed on completion audits in the last 30 days. Used by the audit UI to populate the metadata-filter selector.
+ */
+export const getRequestAuditMetadataKeysOptions = (
+  options: Options<GetRequestAuditMetadataKeysData>
+) =>
+  queryOptions<
+    GetRequestAuditMetadataKeysResponse,
+    GetRequestAuditMetadataKeysError,
+    GetRequestAuditMetadataKeysResponse,
+    ReturnType<typeof getRequestAuditMetadataKeysQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getRequestAuditMetadataKeys({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getRequestAuditMetadataKeysQueryKey(options),
+  });
+
+export const getRequestAuditMetadataValuesQueryKey = (
+  options: Options<GetRequestAuditMetadataValuesData>
+) => createQueryKey('getRequestAuditMetadataValues', options);
+
+/**
+ * List distinct metadata values for a key
+ *
+ * Returns the set of distinct values observed for the given metadata key on completion audits in the last 30 days, sorted lexicographically. Used by the audit + usage UIs to autocomplete metadata-filter values.
+ */
+export const getRequestAuditMetadataValuesOptions = (
+  options: Options<GetRequestAuditMetadataValuesData>
+) =>
+  queryOptions<
+    GetRequestAuditMetadataValuesResponse,
+    GetRequestAuditMetadataValuesError,
+    GetRequestAuditMetadataValuesResponse,
+    ReturnType<typeof getRequestAuditMetadataValuesQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getRequestAuditMetadataValues({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getRequestAuditMetadataValuesQueryKey(options),
   });
 
 /**
@@ -1922,20 +2096,20 @@ export const getCompletionAuditOptions = (
  *
  * Returns a list of completion usage records based on the query parameters
  */
-export const getCompletionUsageMutation = (
-  options?: Partial<Options<GetCompletionUsageData>>
+export const getRequestUsageMutation = (
+  options?: Partial<Options<GetRequestUsageData>>
 ): UseMutationOptions<
-  GetCompletionUsageResponse,
-  GetCompletionUsageError,
-  Options<GetCompletionUsageData>
+  GetRequestUsageResponse,
+  GetRequestUsageError,
+  Options<GetRequestUsageData>
 > => {
   const mutationOptions: UseMutationOptions<
-    GetCompletionUsageResponse,
-    GetCompletionUsageError,
-    Options<GetCompletionUsageData>
+    GetRequestUsageResponse,
+    GetRequestUsageError,
+    Options<GetRequestUsageData>
   > = {
     mutationFn: async (fnOptions) => {
-      const { data } = await getCompletionUsage({
+      const { data } = await getRequestUsage({
         ...options,
         ...fnOptions,
         throwOnError: true,
@@ -2064,26 +2238,24 @@ export const cancelCompletionBatchMutation = (
   return mutationOptions;
 };
 
-export const getOauth2AuthorizeQueryKey = (
-  options: Options<GetOauth2AuthorizeData>
-) => createQueryKey('getOauth2Authorize', options);
+export const modelPricingControllerListV1QueryKey = (
+  options?: Options<ModelPricingControllerListV1Data>
+) => createQueryKey('modelPricingControllerListV1', options);
 
 /**
- * OIDC Authorization Endpoint
- *
- * The authorization endpoint initiates the OAuth2/OpenID Connect flow
+ * List model pricing entries
  */
-export const getOauth2AuthorizeOptions = (
-  options: Options<GetOauth2AuthorizeData>
+export const modelPricingControllerListV1Options = (
+  options?: Options<ModelPricingControllerListV1Data>
 ) =>
   queryOptions<
-    unknown,
+    ModelPricingControllerListV1Response,
     DefaultError,
-    unknown,
-    ReturnType<typeof getOauth2AuthorizeQueryKey>
+    ModelPricingControllerListV1Response,
+    ReturnType<typeof modelPricingControllerListV1QueryKey>
   >({
     queryFn: async ({ queryKey, signal }) => {
-      const { data } = await getOauth2Authorize({
+      const { data } = await modelPricingControllerListV1({
         ...options,
         ...queryKey[0],
         signal,
@@ -2091,7 +2263,205 @@ export const getOauth2AuthorizeOptions = (
       });
       return data;
     },
-    queryKey: getOauth2AuthorizeQueryKey(options),
+    queryKey: modelPricingControllerListV1QueryKey(options),
+  });
+
+/**
+ * Create a model pricing entry
+ */
+export const modelPricingControllerCreateV1Mutation = (
+  options?: Partial<Options<ModelPricingControllerCreateV1Data>>
+): UseMutationOptions<
+  ModelPricingControllerCreateV1Response,
+  DefaultError,
+  Options<ModelPricingControllerCreateV1Data>
+> => {
+  const mutationOptions: UseMutationOptions<
+    ModelPricingControllerCreateV1Response,
+    DefaultError,
+    Options<ModelPricingControllerCreateV1Data>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await modelPricingControllerCreateV1({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const modelPricingControllerExportAllV1QueryKey = (
+  options?: Options<ModelPricingControllerExportAllV1Data>
+) => createQueryKey('modelPricingControllerExportAllV1', options);
+
+/**
+ * Export the pricing table as a downloadable file
+ *
+ * Returns the full pricing table as `application/json` or `text/csv` based on `?format`. The `source` column is included so operators can see which rows are SYSTEM vs USER; on re-import the column is ignored — the importer always decides source itself.
+ */
+export const modelPricingControllerExportAllV1Options = (
+  options?: Options<ModelPricingControllerExportAllV1Data>
+) =>
+  queryOptions<
+    unknown,
+    DefaultError,
+    unknown,
+    ReturnType<typeof modelPricingControllerExportAllV1QueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await modelPricingControllerExportAllV1({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: modelPricingControllerExportAllV1QueryKey(options),
+  });
+
+/**
+ * Delete a model pricing entry
+ */
+export const modelPricingControllerDeleteV1Mutation = (
+  options?: Partial<Options<ModelPricingControllerDeleteV1Data>>
+): UseMutationOptions<
+  unknown,
+  DefaultError,
+  Options<ModelPricingControllerDeleteV1Data>
+> => {
+  const mutationOptions: UseMutationOptions<
+    unknown,
+    DefaultError,
+    Options<ModelPricingControllerDeleteV1Data>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await modelPricingControllerDeleteV1({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const modelPricingControllerGetV1QueryKey = (
+  options: Options<ModelPricingControllerGetV1Data>
+) => createQueryKey('modelPricingControllerGetV1', options);
+
+/**
+ * Get a model pricing entry by id
+ */
+export const modelPricingControllerGetV1Options = (
+  options: Options<ModelPricingControllerGetV1Data>
+) =>
+  queryOptions<
+    ModelPricingControllerGetV1Response,
+    DefaultError,
+    ModelPricingControllerGetV1Response,
+    ReturnType<typeof modelPricingControllerGetV1QueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await modelPricingControllerGetV1({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: modelPricingControllerGetV1QueryKey(options),
+  });
+
+/**
+ * Update a model pricing entry
+ */
+export const modelPricingControllerUpdateV1Mutation = (
+  options?: Partial<Options<ModelPricingControllerUpdateV1Data>>
+): UseMutationOptions<
+  ModelPricingControllerUpdateV1Response,
+  DefaultError,
+  Options<ModelPricingControllerUpdateV1Data>
+> => {
+  const mutationOptions: UseMutationOptions<
+    ModelPricingControllerUpdateV1Response,
+    DefaultError,
+    Options<ModelPricingControllerUpdateV1Data>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await modelPricingControllerUpdateV1({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+/**
+ * Bulk-import pricing rows from a CSV or JSON file
+ *
+ * Drives source promotion automatically: new rows → USER, identical rows → unchanged (source preserved, so SYSTEM rows stay SYSTEM), differing rows → updated + promoted to USER. Any `source` column in the file is ignored.
+ */
+export const modelPricingControllerImportV1Mutation = (
+  options?: Partial<Options<ModelPricingControllerImportV1Data>>
+): UseMutationOptions<
+  ModelPricingControllerImportV1Response,
+  DefaultError,
+  Options<ModelPricingControllerImportV1Data>
+> => {
+  const mutationOptions: UseMutationOptions<
+    ModelPricingControllerImportV1Response,
+    DefaultError,
+    Options<ModelPricingControllerImportV1Data>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await modelPricingControllerImportV1({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getApiOauth2AuthorizeQueryKey = (
+  options: Options<GetApiOauth2AuthorizeData>
+) => createQueryKey('getApiOauth2Authorize', options);
+
+/**
+ * OIDC Authorization Endpoint
+ *
+ * The authorization endpoint initiates the OAuth2/OpenID Connect flow
+ */
+export const getApiOauth2AuthorizeOptions = (
+  options: Options<GetApiOauth2AuthorizeData>
+) =>
+  queryOptions<
+    unknown,
+    DefaultError,
+    unknown,
+    ReturnType<typeof getApiOauth2AuthorizeQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getApiOauth2Authorize({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getApiOauth2AuthorizeQueryKey(options),
   });
 
 /**
@@ -2099,20 +2469,20 @@ export const getOauth2AuthorizeOptions = (
  *
  * Exchanges authorization codes for access tokens
  */
-export const postOauth2TokenMutation = (
-  options?: Partial<Options<PostOauth2TokenData>>
+export const postApiOauth2TokenMutation = (
+  options?: Partial<Options<PostApiOauth2TokenData>>
 ): UseMutationOptions<
-  PostOauth2TokenResponse,
+  PostApiOauth2TokenResponse,
   DefaultError,
-  Options<PostOauth2TokenData>
+  Options<PostApiOauth2TokenData>
 > => {
   const mutationOptions: UseMutationOptions<
-    PostOauth2TokenResponse,
+    PostApiOauth2TokenResponse,
     DefaultError,
-    Options<PostOauth2TokenData>
+    Options<PostApiOauth2TokenData>
   > = {
     mutationFn: async (fnOptions) => {
-      const { data } = await postOauth2Token({
+      const { data } = await postApiOauth2Token({
         ...options,
         ...fnOptions,
         throwOnError: true,
@@ -2123,24 +2493,24 @@ export const postOauth2TokenMutation = (
   return mutationOptions;
 };
 
-export const getOauth2UserinfoQueryKey = (
-  options?: Options<GetOauth2UserinfoData>
-) => createQueryKey('getOauth2Userinfo', options);
+export const getApiOauth2UserinfoQueryKey = (
+  options?: Options<GetApiOauth2UserinfoData>
+) => createQueryKey('getApiOauth2Userinfo', options);
 
 /**
  * Returns claims about the authenticated end-user
  */
-export const getOauth2UserinfoOptions = (
-  options?: Options<GetOauth2UserinfoData>
+export const getApiOauth2UserinfoOptions = (
+  options?: Options<GetApiOauth2UserinfoData>
 ) =>
   queryOptions<
-    GetOauth2UserinfoResponse,
+    GetApiOauth2UserinfoResponse,
     DefaultError,
-    GetOauth2UserinfoResponse,
-    ReturnType<typeof getOauth2UserinfoQueryKey>
+    GetApiOauth2UserinfoResponse,
+    ReturnType<typeof getApiOauth2UserinfoQueryKey>
   >({
     queryFn: async ({ queryKey, signal }) => {
-      const { data } = await getOauth2Userinfo({
+      const { data } = await getApiOauth2Userinfo({
         ...options,
         ...queryKey[0],
         signal,
@@ -2148,7 +2518,7 @@ export const getOauth2UserinfoOptions = (
       });
       return data;
     },
-    queryKey: getOauth2UserinfoQueryKey(options),
+    queryKey: getApiOauth2UserinfoQueryKey(options),
   });
 
 /**
@@ -2156,16 +2526,20 @@ export const getOauth2UserinfoOptions = (
  *
  * Revokes access or refresh tokens
  */
-export const postOauth2RevokeMutation = (
-  options?: Partial<Options<PostOauth2RevokeData>>
-): UseMutationOptions<unknown, DefaultError, Options<PostOauth2RevokeData>> => {
+export const postApiOauth2RevokeMutation = (
+  options?: Partial<Options<PostApiOauth2RevokeData>>
+): UseMutationOptions<
+  unknown,
+  DefaultError,
+  Options<PostApiOauth2RevokeData>
+> => {
   const mutationOptions: UseMutationOptions<
     unknown,
     DefaultError,
-    Options<PostOauth2RevokeData>
+    Options<PostApiOauth2RevokeData>
   > = {
     mutationFn: async (fnOptions) => {
-      const { data } = await postOauth2Revoke({
+      const { data } = await postApiOauth2Revoke({
         ...options,
         ...fnOptions,
         throwOnError: true,
@@ -2176,26 +2550,26 @@ export const postOauth2RevokeMutation = (
   return mutationOptions;
 };
 
-export const getOauth2WellKnownOpenidConfigurationQueryKey = (
-  options?: Options<GetOauth2WellKnownOpenidConfigurationData>
-) => createQueryKey('getOauth2WellKnownOpenidConfiguration', options);
+export const getApiOauth2WellKnownOpenidConfigurationQueryKey = (
+  options?: Options<GetApiOauth2WellKnownOpenidConfigurationData>
+) => createQueryKey('getApiOauth2WellKnownOpenidConfiguration', options);
 
 /**
  * OpenID Connect Discovery
  *
  * Returns the OpenID Connect configuration document
  */
-export const getOauth2WellKnownOpenidConfigurationOptions = (
-  options?: Options<GetOauth2WellKnownOpenidConfigurationData>
+export const getApiOauth2WellKnownOpenidConfigurationOptions = (
+  options?: Options<GetApiOauth2WellKnownOpenidConfigurationData>
 ) =>
   queryOptions<
-    GetOauth2WellKnownOpenidConfigurationResponse,
+    GetApiOauth2WellKnownOpenidConfigurationResponse,
     DefaultError,
-    GetOauth2WellKnownOpenidConfigurationResponse,
-    ReturnType<typeof getOauth2WellKnownOpenidConfigurationQueryKey>
+    GetApiOauth2WellKnownOpenidConfigurationResponse,
+    ReturnType<typeof getApiOauth2WellKnownOpenidConfigurationQueryKey>
   >({
     queryFn: async ({ queryKey, signal }) => {
-      const { data } = await getOauth2WellKnownOpenidConfiguration({
+      const { data } = await getApiOauth2WellKnownOpenidConfiguration({
         ...options,
         ...queryKey[0],
         signal,
@@ -2203,5 +2577,5 @@ export const getOauth2WellKnownOpenidConfigurationOptions = (
       });
       return data;
     },
-    queryKey: getOauth2WellKnownOpenidConfigurationQueryKey(options),
+    queryKey: getApiOauth2WellKnownOpenidConfigurationQueryKey(options),
   });

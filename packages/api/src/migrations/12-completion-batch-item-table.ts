@@ -25,7 +25,10 @@ export const migration: Migration = {
       .addColumn('prompt_tokens', 'integer', (col) =>
         col.notNull().defaultTo(0)
       )
-      .addColumn('completion_tokens', 'integer', (col) =>
+      // Renamed from `completion_tokens` to mirror the OpenAI Responses
+      // API + Anthropic Messages API; matches the parent
+      // `request_audit.output_tokens` column.
+      .addColumn('output_tokens', 'integer', (col) =>
         col.notNull().defaultTo(0)
       )
       .addColumn('total_tokens', 'integer', (col) => col.notNull().defaultTo(0))
@@ -96,7 +99,6 @@ export const migration: Migration = {
     await db.schema
       .dropIndex('idx_completion_batch_items_resource_id')
       .execute();
-    await db.schema;
     await db.schema.dropIndex('idx_completion_batch_items_batch_id').execute();
     await db.schema.dropIndex('idx_completion_batch_items_status').execute();
     await db.schema.dropTable('completion_batch_items').execute();

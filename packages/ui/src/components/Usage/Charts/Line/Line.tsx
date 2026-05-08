@@ -94,7 +94,12 @@ export default function LineChart({
         return (
           <div
             style={{
+              // Pull every surface property from the theme — the
+              // nivoTheme uses CSS variables so all three flip with
+              // the active MUI colour scheme.
               background: theme.tooltip.container.background,
+              color: theme.tooltip.container.color,
+              border: theme.tooltip.container.border,
               padding: '9px 12px',
               borderRadius: '3px',
               whiteSpace: 'nowrap',
@@ -144,7 +149,10 @@ export default function LineChart({
         legendPosition: 'middle',
       }}
       pointSize={5}
-      pointColor={{ theme: 'background' }}
+      // Filled with the series color so markers stay legible whether the
+      // chart background is light or dark (the theme uses a transparent
+      // background to inherit the surrounding card surface).
+      pointColor={{ from: 'seriesColor' }}
       pointBorderWidth={1}
       pointBorderColor={{ from: 'seriesColor' }}
       pointLabelYOffset={-12}
@@ -163,12 +171,10 @@ export default function LineChart({
           itemOpacity: 0.75,
           symbolSize: 12,
           symbolShape: 'circle',
-          symbolBorderColor: 'rgba(0, 0, 0, .5)',
           effects: [
             {
               on: 'hover',
               style: {
-                itemBackground: 'rgba(0, 0, 0, .03)',
                 itemOpacity: 1,
               },
             },

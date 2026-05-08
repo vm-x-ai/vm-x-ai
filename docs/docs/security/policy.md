@@ -4,20 +4,26 @@ sidebar_position: 2
 
 # Role Policy Guide
 
-VM-X AI uses a policy-based access control system for fine-grained permissions. This guide provides a comprehensive explanation of how to create and manage role policies.
+VM-X AI uses a policy-based access control system for fine-grained
+permissions. This guide is a comprehensive reference for the policy schema,
+the available modules and actions, and the rules used by the API to evaluate
+a request.
 
 ## Policy Structure
 
-A role policy consists of one or more **statements**. Each statement defines what actions are allowed or denied on which resources.
+A role policy is a JSON document with a `$schema` URL and one or more
+**statements**. Each statement decides whether a given action is allowed or
+denied on a given resource.
 
 ### Basic Policy Format
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
-      "actions": ["action:operation"],
+      "effect": "allow",
+      "actions": ["module:operation"],
       "resources": ["resource:pattern"]
     }
   ]
@@ -28,81 +34,83 @@ A role policy consists of one or more **statements**. Each statement defines wha
 
 #### Effect
 
-The `effect` field determines whether the statement allows or denies access:
+The `effect` field must be one of:
 
-- **`ALLOW`**: Permits the specified actions on the specified resources
-- **`DENY`**: Explicitly blocks the specified actions on the specified resources
+- **`"allow"`** — Permits the specified actions on the specified resources
+- **`"deny"`** — Explicitly blocks the specified actions on the specified resources
 
 :::important
-DENY statements are evaluated first and take precedence over ALLOW statements. If a DENY statement matches, access is denied regardless of any ALLOW statements.
+`effect` values are lowercase strings. The API rejects `"ALLOW"`/`"DENY"`.
+A matching `deny` statement always wins over an `allow` statement, regardless
+of their order in the document.
 :::
 
 #### Actions
 
-Actions follow the pattern: `{module}:{operation}`
+Actions follow the pattern `{module}:{operation}`. The set of operations
+varies by module — there is no fixed CRUD vocabulary. Some modules have
+custom operations such as `completion:execute`, `completion-batch:cancel`,
+`workspace:get-members`, `role:assign`, or
+`completion-metrics:get-error-rate`. The full canonical list is at
+[Available Modules](#available-modules) below.
 
-**Available Operations:**
+**Wildcards** (apply to action and resource strings alike):
 
-- `create` - Create a new resource
-- `get` - Retrieve a specific resource
-- `list` - List all resources
-- `update` - Update an existing resource
-- `delete` - Delete a resource
+- `*` matches any sequence of characters (including the empty string)
+- `?` matches a single character
 
 **Examples:**
 
-- `workspace:create` - Create a workspace
-- `ai-connection:get` - Get an AI connection
-- `user:list` - List all users
-- `role:update` - Update a role
-
-**Wildcards:**
-
-- `*` - Matches all operations
-- `*:get` - Matches all "get" operations across all modules
-- `workspace:*` - Matches all operations for workspace module
+- `*` matches every action
+- `*:get` matches every `get` operation across all modules
+- `workspace:*` matches every workspace action
+- `*:list` matches every `list` operation
 
 #### Resources
 
-Resources follow a hierarchical pattern: `{module}:{identifier}:{submodule}:{identifier}:...`
+Resources follow a hierarchical pattern that nests parent → child:
+`{module}:{identifier}:{submodule}:{identifier}:...`. The identifiers are
+substituted at request time by the API: workspace and environment use their
+`name`, AI Connection uses `connection.name`, AI Resource uses
+`resource.name`, API Key uses `apiKey.name`, Completion Batch uses
+`batch.id`, User uses `user.email`, and Role uses `role.name`.
 
 **Examples:**
 
-- `workspace:*` - All workspaces
-- `workspace:production` - Specific workspace named "production"
-- `workspace:*:environment:*` - All environments in all workspaces
-- `workspace:production:environment:staging` - Specific environment
-- `workspace:*:environment:*:ai-connection:*` - All AI connections
-- `workspace:production:environment:staging:ai-connection:openai` - Specific AI connection
-
-**Wildcards:**
-
-- `*` - Matches all resources
-- `workspace:*` - Matches all workspaces
-- `workspace:*:environment:*` - Matches all environments in all workspaces
+- `workspace:*` — all workspaces
+- `workspace:production` — workspace named `production`
+- `workspace:*:environment:*` — every environment in every workspace
+- `workspace:production:environment:staging` — specific environment
+- `workspace:*:environment:*:ai-connection:*` — every AI connection everywhere
+- `workspace:production:environment:staging:ai-connection:openai` — specific AI connection
 
 ## Available Modules
 
-VM-X AI provides the following modules for policy configuration:
+The API exposes the canonical module list at `GET /role/permissions`. The
+table below mirrors that endpoint.
 
 ### Workspace Module
 
-**Base Resource**: `workspace:${workspace.name}`  
+**Base Resource**: `workspace`
 **Item Resource**: `workspace:${workspace.name}`
 
 **Actions:**
 
-- `workspace:create`
-- `workspace:get`
 - `workspace:list`
+- `workspace:get`
+- `workspace:get-members`
+- `workspace:create`
 - `workspace:update`
+- `workspace:update-member-role`
 - `workspace:delete`
+- `workspace:assign`
+- `workspace:unassign`
 
 **Example:**
 
 ```json
 {
-  "effect": "ALLOW",
+  "effect": "allow",
   "actions": ["workspace:get", "workspace:list"],
   "resources": ["workspace:*"]
 }
@@ -110,14 +118,14 @@ VM-X AI provides the following modules for policy configuration:
 
 ### Environment Module
 
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}`  
+**Base Resource**: `workspace:${workspace.name}:environment`
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}`
 
 **Actions:**
 
-- `environment:create`
-- `environment:get`
 - `environment:list`
+- `environment:get`
+- `environment:create`
 - `environment:update`
 - `environment:delete`
 
@@ -125,22 +133,22 @@ VM-X AI provides the following modules for policy configuration:
 
 ```json
 {
-  "effect": "ALLOW",
-  "actions": ["environment:*"],
+  "effect": "allow",
+  "actions": ["environment:list", "environment:get", "environment:create", "environment:update", "environment:delete"],
   "resources": ["workspace:production:environment:*"]
 }
 ```
 
 ### AI Connection Module
 
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-connection:${aiConnection.name}`  
-**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-connection:${aiConnection.name}`
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-connection`
+**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-connection:${connection.name}`
 
 **Actions:**
 
-- `ai-connection:create`
-- `ai-connection:get`
 - `ai-connection:list`
+- `ai-connection:get`
+- `ai-connection:create`
 - `ai-connection:update`
 - `ai-connection:delete`
 
@@ -148,7 +156,7 @@ VM-X AI provides the following modules for policy configuration:
 
 ```json
 {
-  "effect": "ALLOW",
+  "effect": "allow",
   "actions": ["ai-connection:create", "ai-connection:get", "ai-connection:list"],
   "resources": ["workspace:*:environment:*:ai-connection:*"]
 }
@@ -156,14 +164,14 @@ VM-X AI provides the following modules for policy configuration:
 
 ### AI Resource Module
 
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-resource:${aiResource.name}`  
-**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-resource:${aiResource.name}`
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-resource`
+**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:ai-resource:${resource.name}`
 
 **Actions:**
 
-- `ai-resource:create`
-- `ai-resource:get`
 - `ai-resource:list`
+- `ai-resource:get`
+- `ai-resource:create`
 - `ai-resource:update`
 - `ai-resource:delete`
 
@@ -171,109 +179,127 @@ VM-X AI provides the following modules for policy configuration:
 
 ```json
 {
-  "effect": "ALLOW",
-  "actions": ["ai-resource:*"],
+  "effect": "allow",
+  "actions": ["ai-resource:list", "ai-resource:get", "ai-resource:create", "ai-resource:update", "ai-resource:delete"],
   "resources": ["workspace:*:environment:*:ai-resource:*"]
 }
 ```
 
 ### API Key Module
 
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:api-key:${apiKey.name}`  
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:api-key`
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:api-key:${apiKey.name}`
 
 **Actions:**
 
-- `api-key:create`
-- `api-key:get`
 - `api-key:list`
+- `api-key:get`
+- `api-key:create`
 - `api-key:update`
 - `api-key:delete`
 
-### Completion Module
-
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion`  
-**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion`
-
-**Actions:**
-
-- `completion:create`
-
-**Example:**
-
-```json
-{
-  "effect": "ALLOW",
-  "actions": ["completion:create"],
-  "resources": ["workspace:*:environment:*:completion"]
-}
-```
-
-### Completion Audit Module
-
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-audit`  
-**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-audit`
-
-**Actions:**
-
-- `completion-audit:get`
-- `completion-audit:list`
-
-### Completion Metrics Module
-
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-metrics`  
-**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-metrics`
-
-**Actions:**
-
-- `completion-metrics:get`
-- `completion-metrics:list`
-
-### Completion Usage Module
-
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-usage`  
-**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-usage`
-
-**Actions:**
-
-- `completion-usage:get`
-- `completion-usage:list`
+API keys themselves do not use role policies to authorise traffic — they
+authorise via a per-key allow-list of AI Resource UUIDs and SHA-256 hash
+verification. The actions above only govern who can manage the API key
+records (list, create, rotate, etc.).
 
 ### Pool Definition Module
 
-**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:pool-definition`  
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:pool-definition`
 **Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:pool-definition`
 
 **Actions:**
 
 - `pool-definition:get`
 - `pool-definition:update`
+- `pool-definition:delete`
+
+### Completion Module
+
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion`
+**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion:${completion.id}`
+
+**Actions:**
+
+- `completion:execute`
+
+**Example:**
+
+```json
+{
+  "effect": "allow",
+  "actions": ["completion:execute"],
+  "resources": ["workspace:*:environment:*:completion"]
+}
+```
+
+### Completion Batch Module
+
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-batch`
+**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-batch:${batch.id}`
+
+**Actions:**
+
+- `completion-batch:list`
+- `completion-batch:get`
+- `completion-batch:create`
+- `completion-batch:cancel`
+
+### Completion Metrics Module
+
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-metrics`
+**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:completion-metrics`
+
+**Actions:**
+
+- `completion-metrics:get-error-rate`
+
+### Request Audit Module
+
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:request-audit`
+**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:request-audit:${requestAudit.id}`
+
+**Actions:**
+
+- `request-audit:list`
+
+### Request Usage Module
+
+**Base Resource**: `workspace:${workspace.name}:environment:${environment.name}:request-usage`
+**Item Resource**: `workspace:${workspace.name}:environment:${environment.name}:request-usage:${requestUsage.id}`
+
+**Actions:**
+
+- `request-usage:query`
 
 ### User Module
 
-**Base Resource**: `user:${user.email}`  
+**Base Resource**: `user`
 **Item Resource**: `user:${user.email}`
 
 **Actions:**
 
-- `user:create`
-- `user:get`
 - `user:list`
+- `user:get`
+- `user:create`
 - `user:update`
 - `user:delete`
 
 ### Role Module
 
-**Base Resource**: `role:${role.name}`  
+**Base Resource**: `role`
 **Item Resource**: `role:${role.name}`
 
 **Actions:**
 
-- `role:create`
-- `role:get`
 - `role:list`
+- `role:get`
+- `role:get-members`
+- `role:create`
 - `role:update`
 - `role:delete`
+- `role:assign`
+- `role:unassign`
 
 ## Policy Examples
 
@@ -283,9 +309,10 @@ Allow read-only access to all resources:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*:get", "*:list"],
       "resources": ["*"]
     }
@@ -295,18 +322,20 @@ Allow read-only access to all resources:
 
 ### Example 2: Developer Role
 
-Allow developers to create and manage resources, but not delete workspaces or manage users:
+Allow developers to create and manage resources, but not delete workspaces
+or manage users/roles:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "DENY",
-      "actions": ["workspace:delete", "user:*", "role:*"],
+      "effect": "deny",
+      "actions": ["workspace:delete", "user:create", "user:update", "user:delete", "role:create", "role:update", "role:delete"],
       "resources": ["*"]
     },
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*"],
       "resources": ["*"]
     }
@@ -316,15 +345,16 @@ Allow developers to create and manage resources, but not delete workspaces or ma
 
 ### Example 3: Environment-Specific Access
 
-Allow full access to production environment only:
+Allow full access to the production environment only:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*"],
-      "resources": ["workspace:*:environment:production:*", "workspace:*:environment:production"]
+      "resources": ["workspace:*:environment:production", "workspace:*:environment:production:*"]
     }
   ]
 }
@@ -336,14 +366,15 @@ Allow viewing and creating AI connections, but not updating or deleting:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["ai-connection:create", "ai-connection:get", "ai-connection:list"],
       "resources": ["workspace:*:environment:*:ai-connection:*"]
     },
     {
-      "effect": "DENY",
+      "effect": "deny",
       "actions": ["ai-connection:update", "ai-connection:delete"],
       "resources": ["workspace:*:environment:*:ai-connection:*"]
     }
@@ -357,14 +388,15 @@ Allow all actions except user and role management:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "DENY",
-      "actions": ["user:*", "role:*"],
+      "effect": "deny",
+      "actions": ["user:create", "user:update", "user:delete", "role:create", "role:update", "role:delete"],
       "resources": ["*"]
     },
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*"],
       "resources": ["*"]
     }
@@ -374,21 +406,32 @@ Allow all actions except user and role management:
 
 ## Policy Evaluation
 
-Policies are evaluated in the following order:
+Every protected request resolves to an `(action, resource)` pair. The API
+walks the user's roles statement-by-statement and returns the first match it
+finds. The full algorithm:
 
-1. **DENY Statements**: If any DENY statement matches, access is denied
-2. **ALLOW Statements**: If an ALLOW statement matches, access is granted
-3. **Default**: If no statements match, access is denied
+1. For each role assigned to the user:
+   1. For each statement in the role's policy:
+      1. If any of the statement's `actions` (regex-matched with `*`/`?`)
+         matches the request's action **and** any of the statement's
+         `resources` matches the request's resource:
+         - If `effect` is `"deny"` → return **403 Forbidden** immediately.
+         - If `effect` is `"allow"` → return **allowed** immediately.
+2. If no statement matched in any role → return **403 Forbidden**.
+
+Because the loop short-circuits on the first match (deny or allow) inside a
+single role, ordering inside a role's `statements` array matters: put your
+`deny` rules first if you want them to override `allow` rules in the same
+role. (The default seeded `power-user` role does exactly this.)
 
 ### Evaluation Logic
 
 ```mermaid
 flowchart TD
-    A[Request Received] --> B{Any DENY matches?}
-    B -->|Yes| C[Access Denied]
-    B -->|No| D{Any ALLOW matches?}
-    D -->|Yes| E[Access Granted]
-    D -->|No| F[Access Denied]
+    A[Request Received] --> B{First matching statement?}
+    B -->|deny| C[Access Denied]
+    B -->|allow| E[Access Granted]
+    B -->|none| F[Access Denied default]
 
     style C fill:#ffebee
     style E fill:#e8f5e9
@@ -397,9 +440,12 @@ flowchart TD
 
 ### Matching Rules
 
-1. **Action Matching**: The requested action must match one of the statement's actions (supports wildcards)
-2. **Resource Matching**: The requested resource must match one of the statement's resources (supports wildcards)
-3. **Effect Application**: If both action and resource match, the effect (ALLOW/DENY) is applied
+1. **Action matching**: the requested action must regex-match one of the
+   statement's `actions` strings (after `*` → `.*` and `?` → `.` substitution).
+2. **Resource matching**: the requested resource must regex-match one of the
+   statement's `resources` strings, using the same wildcard rules.
+3. **Effect application**: when both action and resource match, the
+   statement's `effect` is applied immediately.
 
 ## Best Practices
 
@@ -409,9 +455,10 @@ Grant only the minimum permissions needed:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["ai-connection:get", "ai-connection:list"],
       "resources": ["workspace:production:environment:*:ai-connection:*"]
     }
@@ -419,20 +466,21 @@ Grant only the minimum permissions needed:
 }
 ```
 
-### 2. Use DENY for Explicit Restrictions
+### 2. Use `deny` for Explicit Restrictions
 
-Use DENY statements to explicitly block actions:
+Use `deny` to fence off dangerous actions even when `allow` is broad:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "DENY",
+      "effect": "deny",
       "actions": ["workspace:delete"],
       "resources": ["*"]
     },
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*"],
       "resources": ["*"]
     }
@@ -467,6 +515,7 @@ Document the purpose and scope of each policy:
   "name": "developer",
   "description": "Developer role with limited permissions",
   "policy": {
+    "$schema": "https://vm-x.ai/schema/role-policy.json",
     "statements": [
       // ... statements
     ]
@@ -482,11 +531,12 @@ Restrict access to specific environments:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*"],
-      "resources": ["workspace:*:environment:production:*", "workspace:*:environment:staging:*"]
+      "resources": ["workspace:*:environment:production", "workspace:*:environment:production:*", "workspace:*:environment:staging", "workspace:*:environment:staging:*"]
     }
   ]
 }
@@ -498,9 +548,10 @@ Allow access to specific modules only:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["ai-connection:*", "ai-resource:*"],
       "resources": ["workspace:*:environment:*:ai-connection:*", "workspace:*:environment:*:ai-resource:*"]
     }
@@ -510,19 +561,20 @@ Allow access to specific modules only:
 
 ### Pattern 3: Read-Only with Exceptions
 
-Read-only access with ability to create:
+Read-only access with the ability to create:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
-      "actions": ["*:get", "*:list", "*:create"],
+      "effect": "deny",
+      "actions": ["*:update", "*:delete"],
       "resources": ["*"]
     },
     {
-      "effect": "DENY",
-      "actions": ["*:update", "*:delete"],
+      "effect": "allow",
+      "actions": ["*:get", "*:list", "*:create"],
       "resources": ["*"]
     }
   ]
@@ -535,36 +587,38 @@ Read-only access with ability to create:
 
 If you get access denied errors:
 
-1. **Check Role Assignment**: Verify the user has a role assigned
+1. **Check Role Assignment**: Verify the user has at least one role assigned
 2. **Check Policy Statements**: Review the role's policy statements
-3. **Check Action Match**: Verify the action matches a statement action
-4. **Check Resource Match**: Verify the resource matches a statement resource
-5. **Check DENY Statements**: Look for DENY statements that might be blocking access
+3. **Check Action Match**: Verify the request's action regex-matches a statement action
+4. **Check Resource Match**: Verify the request's resource regex-matches a statement resource — including every level of the hierarchy
+5. **Check `deny` Statements**: Look for `deny` statements that might be matching first
 
 ### Policy Not Working
 
 If a policy is not working as expected:
 
-1. **Check Statement Order**: DENY statements are evaluated first
-2. **Check Wildcards**: Verify wildcards are used correctly
-3. **Check Resource Patterns**: Ensure resource patterns match the actual resources
-4. **Test Incrementally**: Start with simple policies and add complexity
+1. **Check Statement Order**: The first matching statement wins. Put `deny` rules first if you want them to override `allow` rules in the same role.
+2. **Check Wildcards**: `*` only expands to `.*`; it doesn't grant permission across siblings if the rest of the path doesn't match.
+3. **Check Resource Patterns**: Ensure resource patterns match every level of the actual resource ARN (workspace + environment + module + item).
+4. **Test Incrementally**: Start with simple policies and add complexity.
 
 ### Common Mistakes
 
-1. **Too Permissive**: Using `*` for actions and resources grants too much access
-2. **Missing DENY**: Not using DENY statements for explicit restrictions
-3. **Incorrect Patterns**: Resource patterns don't match actual resource structure
-4. **Statement Order**: DENY statements must come before ALLOW statements when both are needed
+1. **Wrong case for `effect`**: must be `"allow"` / `"deny"` lowercase.
+2. **Too permissive**: using `*` for actions and resources grants too much access.
+3. **Missing `deny`**: not using `deny` statements for explicit restrictions.
+4. **Incorrect patterns**: resource patterns don't match the actual ARN structure.
+5. **Statement order inside a role**: `deny` must come before `allow` if both match the same request.
 
 ## UI Policy Editor
 
-The VM-X AI UI provides a visual policy editor with:
+The VM-X AI UI provides a visual policy editor backed by the
+`GET /role/permissions` endpoint:
 
-- **Permission Table**: Shows all available modules, actions, and resource patterns
-- **JSON Editor**: Direct JSON editing with schema validation
-- **Examples**: Pre-built policy examples
-- **Validation**: Real-time policy validation
+- **Permission Table**: Lists every module, action, base resource, and item resource
+- **JSON Editor**: Direct JSON editing
+- **Examples**: Pre-built policy snippets
+- **Validation**: Real-time validation against the schema
 
 Access the policy editor when creating or editing roles in the UI.
 

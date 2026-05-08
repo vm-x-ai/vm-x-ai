@@ -9,7 +9,7 @@ import Paper from '@mui/material/Paper';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useScrollAnchor } from '@/hooks/use-scroll-anchor';
-import Image from 'next/image';
+import ProviderLogo from '@/components/Providers/ProviderLogo';
 import React, { useMemo } from 'react';
 import ButtonToBottom from './ButtonToBottom';
 import {
@@ -31,6 +31,10 @@ export type ChatPanelProps = {
   height?: number | string;
   elevation?: number;
   isGenerating?: boolean;
+  /** When set, each bot message renders a small "view audit details"
+   *  button next to the model label that fires this callback with
+   *  the gateway-assigned request id of that reply. */
+  onOpenAudit?: (requestId: string) => void;
 };
 
 export default function ChatPanel({
@@ -42,6 +46,7 @@ export default function ChatPanel({
   height,
   elevation = 3,
   isGenerating = true,
+  onOpenAudit,
 }: ChatPanelProps) {
   const theme = useTheme();
   const isMd = useMediaQuery(theme.breakpoints.up('md'));
@@ -72,10 +77,15 @@ export default function ChatPanel({
   return (
     <>
       <Paper
+        variant="outlined"
         sx={{
           width,
           padding: 2,
-          margin: 1,
+          // Outlined variant uses the global border (`var(--mui-palette-divider)`
+          // via the theme override) — same hairline as AppContainer / dropdowns,
+          // matching the rest of the app instead of MUI's default elevation
+          // shadow. `elevation` prop is ignored on outlined Paper but kept on
+          // the type so callers don't need to special-case.
         }}
         elevation={elevation}
       >
@@ -111,10 +121,9 @@ export default function ChatPanel({
                     size="small"
                     icon={
                       <Box>
-                        <Image
+                        <ProviderLogo
                           alt={model.model}
-                          loader={({ src }) => src}
-                          src={providersMap[model.provider].config.logo.url}
+                          logo={providersMap[model.provider]?.config.logo}
                           height={18}
                           width={18}
                         />
@@ -142,7 +151,11 @@ export default function ChatPanel({
                 >
                   {messages.map((m, index) => (
                     <React.Fragment key={m.id ?? index}>
-                      <Message message={m} providersMap={providersMap} />
+                      <Message
+                        message={m}
+                        providersMap={providersMap}
+                        onOpenAudit={onOpenAudit}
+                      />
                       {index !== messages.length - 1 && (
                         <Divider variant="inset" component="li" />
                       )}
@@ -177,9 +190,10 @@ export default function ChatPanel({
 type MessageProps = {
   message: ChatMessage;
   providersMap: Record<string, AiProviderDto>;
+  onOpenAudit?: (requestId: string) => void;
 };
 
-function Message({ message, providersMap }: MessageProps) {
+function Message({ message, providersMap, onOpenAudit }: MessageProps) {
   const content = useMemo(
     () =>
       message.parts
@@ -193,12 +207,14 @@ function Message({ message, providersMap }: MessageProps) {
     return <UserMessage content={content} />;
   }
 
+  const requestId = message.metadata?.requestId;
   return (
     <BotMessage
       content={content}
       model={message.metadata?.model}
-      modelIconUrl={
-        providersMap[message.metadata?.provider ?? '']?.config?.logo?.url
+      modelLogo={providersMap[message.metadata?.provider ?? '']?.config?.logo}
+      onOpenAudit={
+        onOpenAudit && requestId ? () => onOpenAudit(requestId) : undefined
       }
     />
   );

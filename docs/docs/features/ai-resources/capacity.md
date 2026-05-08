@@ -27,61 +27,105 @@ Define capacity limits for a resource:
     {
       "period": "minute",
       "requests": 50,
-      "tokens": 50000
+      "tokens": 50000,
+      "enabled": true
     },
     {
       "period": "hour",
       "requests": 2000,
-      "tokens": 2000000
+      "tokens": 2000000,
+      "enabled": true
     },
     {
       "period": "day",
       "requests": 50000,
-      "tokens": 50000000
+      "tokens": 50000000,
+      "enabled": true
     }
   ],
   "enforceCapacity": true
 }
 ```
 
+Each capacity entry has four fields: `period`, optional `requests`
+(RPM/RPH/…), optional `tokens` (TPM/TPH/…), and `enabled`. Either
+`requests` or `tokens` may be omitted to limit only one dimension.
+Disabling an entry (`enabled: false`) keeps the row around without
+enforcing it — useful for staging changes.
+
 ### Capacity Periods
 
-Capacity can be defined for multiple time periods:
+Capacity can be defined for the following periods:
 
-- **minute**: Requests per minute (RPM) and tokens per minute (TPM)
-- **hour**: Requests per hour and tokens per hour
-- **day**: Requests per day and tokens per day
+- **`minute`**: per-minute window (RPM / TPM)
+- **`hour`**: per-hour window
+- **`day`**: per-day window
+- **`week`**: per-week window
+- **`month`**: per-month window
+- **`lifetime`**: cumulative across the lifetime of the resource
+
+You can declare multiple periods in the same `capacity` array — each
+is enforced independently, so the most restrictive one wins for any
+given request.
+
+### Per-Source-IP Capacity
+
+Each capacity entry can carry an optional `dimension` field. The
+only supported value today is `source-ip`, which scopes the limit
+to the calling client's IP — useful for fair-use guards in
+public-facing deployments. Omitting `dimension` enforces the
+limit globally across the whole resource.
+
+```json
+{
+  "period": "minute",
+  "requests": 30,
+  "enabled": true,
+  "dimension": "source-ip"
+}
+```
 
 ### Capacity Enforcement
 
 When `enforceCapacity` is `true`:
 
-- Resource-level capacity is checked **before** connection-level capacity
-- Requests exceeding resource capacity are rejected with `429 Too Many Requests`
+- Resource-level capacity is added to the gate's check set
+  alongside the connection's own capacity (and any per-API-key
+  capacity from the calling key).
+- Requests exceeding any enforced limit are rejected with
+  `429 Too Many Requests` and an `openai_compatible_error.code`
+  of `resource_exhausted`.
 - Useful for:
   - Limiting usage per resource independently
   - Controlling costs by resource
   - Implementing tiered access levels
 
-When `enforceCapacity` is `false`:
+When `enforceCapacity` is `false` (the default):
 
-- Resource-level capacity is not enforced
-- Only connection-level capacity is checked
-- Useful for resources that should share connection capacity freely
+- Resource-level capacity is **not** added to the check set.
+- Only connection-level (and API-key-level, if enforced) capacity
+  is checked.
+- Useful for resources that should share connection capacity freely.
 
 ## How Resource Capacity Works
 
-Resource capacity is checked in the following order:
+The capacity gate checks all enabled limits in a single pass:
 
-1. **Resource Capacity Check** (if `enforceCapacity` is `true`)
-   - Check if request exceeds resource-level limits
-   - Reject if limit exceeded
-2. **Connection Capacity Check**
-   - Check if request exceeds connection-level limits
-   - Reject if limit exceeded
-3. **Prioritization Gate** (if prioritization is configured)
-   - Check if request should proceed based on prioritization
-   - Reject if gate denies request
+1. **Capacity check** — connection capacity is always evaluated;
+   resource capacity is added when `enforceCapacity` is `true`;
+   API-key capacity is added when the calling key has
+   `enforceCapacity` set. Any limit exceeded rejects the request
+   with `429 Too Many Requests`.
+2. **Prioritization gate** (if a pool definition includes the
+   resource and the connection has a minute capacity configured) —
+   the adaptive-token-scaling prioritization algorithm decides
+   whether the request proceeds given pool weights and current
+   usage. See [Prioritization](../prioritization.md).
+
+If the gate denies on a given leg, the gateway treats the denial
+like any other failure and tries the next fallback model — so
+configure your fallback chain across different connections to get
+real failover when one connection is exhausted.
 
 ### Example Scenario
 
@@ -101,22 +145,21 @@ Consider a connection with 100,000 TPM capacity and two resources:
 - Capacity: 30,000 TPM
 - `enforceCapacity`: `true`
 
-**Request Flow:**
+**Request Flow** (every request evaluates all enabled limits in a
+single pass — first violation wins):
 
 1. Request to Resource A (60,000 tokens)
 
-   - Resource capacity check: 60,000 > 50,000 → **Rejected** (429)
-   - Connection capacity check: Not reached (only 60,000 used)
+   - Resource A limit: 60,000 > 50,000 → **Rejected** (429)
 
 2. Request to Resource A (40,000 tokens)
 
-   - Resource capacity check: 40,000 ≤ 50,000 → **Pass**
-   - Connection capacity check: 40,000 ≤ 100,000 → **Pass**
+   - Resource A limit: 40,000 ≤ 50,000 → **Pass**
+   - Connection limit: 40,000 ≤ 100,000 → **Pass**
    - Request proceeds
 
 3. Request to Resource B (35,000 tokens)
-   - Resource capacity check: 35,000 > 30,000 → **Rejected** (429)
-   - Connection capacity check: Not reached
+   - Resource B limit: 35,000 > 30,000 → **Rejected** (429)
 
 ## Best Practices
 
@@ -175,7 +218,8 @@ Combine resource capacity with prioritization:
 ### Connection Capacity
 
 - **Scope**: Per connection (shared across all resources)
-- **Enforcement**: Always enforced
+- **Enforcement**: Always enforced when capacity entries are
+  configured + `enabled` on the connection
 - **Use Case**: Control total usage across all resources
 - **Example**: Limit OpenAI connection to 100,000 TPM total
 

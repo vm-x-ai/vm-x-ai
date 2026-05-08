@@ -44,7 +44,12 @@ const steps: StepDef[] = [
       ),
     description: (
       <>
-        <Typography variant="subtitle2" marginTop=".5rem">
+        <Typography
+          variant="subtitle2"
+          sx={{
+            marginTop: '.5rem',
+          }}
+        >
           What is a workspace?
         </Typography>
         <Typography variant="body2">
@@ -53,7 +58,12 @@ const steps: StepDef[] = [
           workloads, resources, usage and etc.
         </Typography>
 
-        <Typography variant="subtitle2" marginTop="1rem">
+        <Typography
+          variant="subtitle2"
+          sx={{
+            marginTop: '1rem',
+          }}
+        >
           What do I need to do?
         </Typography>
         <Typography variant="body2">
@@ -76,7 +86,12 @@ const steps: StepDef[] = [
       ),
     description: (data) => (
       <>
-        <Typography variant="subtitle2" marginTop=".5rem">
+        <Typography
+          variant="subtitle2"
+          sx={{
+            marginTop: '.5rem',
+          }}
+        >
           What is a environment?
         </Typography>
         <Typography variant="body2">
@@ -85,7 +100,12 @@ const steps: StepDef[] = [
           in a workspace to separate your workloads, resources, usage and etc.
         </Typography>
 
-        <Typography variant="subtitle2" marginTop="1rem">
+        <Typography
+          variant="subtitle2"
+          sx={{
+            marginTop: '1rem',
+          }}
+        >
           What do I need to do?
         </Typography>
         <Typography variant="body2">

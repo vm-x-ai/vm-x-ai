@@ -6,19 +6,26 @@ sidebar_position: 3
 
 This guide shows you how to deploy VM-X AI to Amazon ECS (Elastic Container Service) using AWS CDK with Fargate.
 
-## Overview
+## What gets deployed
 
-The AWS ECS example provides a complete production-ready infrastructure including:
+VM-X AI itself only requires four runtime components: the **API**, the **UI**, **PostgreSQL**, and **Redis**. Usage analytics and cost tracking are served directly from the `request_audit` table in Postgres, so there is no separate time-series database.
 
-- **ECS Fargate Cluster** for container orchestration
+The ECS example wraps those four with a production-grade AWS footprint:
+
+**Required for VM-X AI to run**
+
+- **ECS Fargate Cluster** running the `vmxai/api` and `vmxai/ui` containers
 - **VPC** with multi-AZ networking
-- **Aurora PostgreSQL** for the primary database
-- **AWS Timestream** for time-series metrics
-- **ElastiCache Serverless (Valkey)** for Redis-compatible caching
-- **Application Load Balancers** for API and UI services
-- **OpenTelemetry Collector** for observability
-- **AWS KMS** for encryption
-- **CloudWatch Logs** for centralized logging
+- **Aurora PostgreSQL** as the primary database (also stores `request_audit`)
+- **ElastiCache Serverless (Valkey)** as the Redis-compatible cluster
+- **Application Load Balancers** in front of the API and UI services
+- **AWS KMS** key (used by the API for envelope-encrypting AI provider credentials)
+
+**Optional, deployed by default**
+
+- **OpenTelemetry Collector** sidecar on each task — application observability for the gateway, not VM-X AI's product features
+- **AWS X-Ray** for distributed traces and **CloudWatch EMF** for metrics (exporters wired into the OTEL collector)
+- **CloudWatch Logs** for centralized container logs
 
 ## Prerequisites
 
@@ -31,7 +38,6 @@ Before you begin, ensure you have:
   - ECS clusters and services
   - VPCs, subnets, and networking resources
   - RDS Aurora clusters
-  - Timestream databases
   - ElastiCache serverless caches
   - KMS keys
   - IAM roles and policies
@@ -79,10 +85,9 @@ This will:
 - Create the VPC and networking infrastructure
 - Provision the ECS Fargate cluster
 - Create the Aurora PostgreSQL database
-- Create the Timestream database
 - Create the ElastiCache serverless cache
 - Create the KMS encryption key
-- Deploy the API and UI services
+- Deploy the API and UI services (each with an OTEL collector sidecar)
 - Configure all IAM roles and policies
 - Set up Application Load Balancers
 
@@ -131,7 +136,7 @@ graph TB
 
     Aurora[(Aurora PostgreSQL)]
     ElastiCache[(ElastiCache<br/>Valkey)]
-    Timestream[(Timestream Database)]
+    KMS[AWS KMS Key]
 
     Internet --> API_ALB
     Internet --> UI_ALB
@@ -143,7 +148,7 @@ graph TB
     UI_Container --> UI_OTEL
     API_Container --> Aurora
     API_Container --> ElastiCache
-    API_Container --> Timestream
+    API_Container --> KMS
 
     style Internet fill:#e3f2fd
     style API_ALB fill:#fff3e0
@@ -151,7 +156,7 @@ graph TB
     style ECS fill:#e8f5e9
     style Aurora fill:#f3e5f5
     style ElastiCache fill:#ffebee
-    style Timestream fill:#e0f2f1
+    style KMS fill:#fff9c4
 ```
 
 ## CDK Stack Overview
@@ -217,7 +222,7 @@ const database = new DatabaseCluster(this, 'Database', {
 
 ### ElastiCache Serverless (Valkey)
 
-The stack creates a serverless Valkey (Redis-compatible) cache:
+The stack creates a serverless Valkey (Redis-compatible) cache running in cluster mode:
 
 ```typescript
 const redisSecurityGroup = new SecurityGroup(this, 'ElastiCacheSecurityGroup', {
@@ -238,7 +243,7 @@ const redisCluster = new CfnServerlessCache(this, 'ServerlessCache', {
 **Key Points:**
 
 - **Engine**: Valkey (Redis-compatible)
-- **Mode**: Serverless (auto-scaling)
+- **Mode**: Serverless cluster — the API connects with `REDIS_MODE=cluster` and `REDIS_TLS=true`
 - **Network**: Public subnets (use private subnets in production)
 
 ### ECS Fargate Cluster
@@ -311,11 +316,11 @@ const uiTaskDefinition = new FargateTaskDefinition(this, 'UI/TaskDef', {
 
 - **Memory**: 1024 MiB per task
 - **CPU**: 512 CPU units (0.5 vCPU)
-- **Containers**: Each task includes application container and OTEL collector sidecar
+- **Containers**: Each task includes the application container plus an optional OTEL collector sidecar
 
 ### Container Configuration
 
-The API container is configured with environment variables and secrets:
+The API container is configured with environment variables and secrets. The vars below are the ones the API requires at boot — they map directly to the schema validated in [`packages/api/src/config/schema.ts`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/config/schema.ts):
 
 ```typescript
 apiTaskDefinition.addContainer('API/Container', {
@@ -327,14 +332,31 @@ apiTaskDefinition.addContainer('API/Container', {
     NODE_ENV: 'production',
     PORT: '3000',
     BASE_URL: `http://${apiLoadBalancer.loadBalancerDnsName}`,
+    // BASE_PATH: '/_api',                  // set if API and UI share a host
     UI_BASE_URL: `http://${uiLoadBalancer.loadBalancerDnsName}`,
+
+    // Database — DATABASE_RO_HOST is required and points at the Aurora reader endpoint.
+    // DATABASE_HOST/PORT/DB_NAME/USER/PASSWORD come in via `secrets` below.
+    DATABASE_RO_HOST: database.clusterReadEndpoint.hostname,
+    DATABASE_SSL: 'true',
+
+    // Redis cluster (ElastiCache Serverless / Valkey)
     REDIS_HOST: redisCluster.attrEndpointAddress,
     REDIS_PORT: redisCluster.attrEndpointPort,
     REDIS_MODE: 'cluster',
+    REDIS_TLS: 'true',
+
+    // Encryption — AWS KMS in production, libsodium for local/dev
     ENCRYPTION_PROVIDER: 'aws-kms',
     AWS_KMS_KEY_ID: encryptionKey.keyArn,
-    COMPLETION_USAGE_PROVIDER: 'aws-timestream',
-    AWS_TIMESTREAM_DATABASE_NAME: timestreamDatabase.databaseName!,
+    AWS_REGION: this.region,
+
+    // Optional: federated SSO via OIDC
+    // OIDC_FEDERATED_ISSUER: 'https://accounts.google.com/.well-known/openid-configuration',
+    // OIDC_FEDERATED_CLIENT_ID: '...',
+    // OIDC_FEDERATED_CLIENT_SECRET: '...',  // pull from Secrets Manager in production
+
+    // Optional: OpenTelemetry sidecar
     OTEL_ENABLED: 'true',
     OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
   },
@@ -350,10 +372,11 @@ apiTaskDefinition.addContainer('API/Container', {
 
 **Key Points:**
 
-- **Image**: Uses published `vmxai/api:latest` image
-- **Secrets**: Retrieved from AWS Secrets Manager
-- **OpenTelemetry**: Enabled with sidecar collector
-- **AWS Services**: KMS for encryption, Timestream for metrics
+- **Image**: Uses the published `vmxai/api:latest` image
+- **Database**: write-host/port/user/password/dbname injected from the auto-generated Secrets Manager secret; read host wired explicitly to the Aurora reader endpoint via `DATABASE_RO_HOST` (the API uses split read/write pools)
+- **Redis**: cluster mode against ElastiCache Serverless, TLS on
+- **Encryption**: `ENCRYPTION_PROVIDER=aws-kms` with `AWS_KMS_KEY_ID` (use `libsodium` + `LIBSODIUM_ENCRYPTION_KEY` for non-AWS or local setups)
+- **OpenTelemetry**: optional — enable when you want gateway traces/metrics; the sidecar collector exports to AWS X-Ray and CloudWatch EMF
 
 ### Fargate Services
 
@@ -427,7 +450,7 @@ Default task configuration:
 
 - **API Task**: 1024 MiB memory, 512 CPU units
 - **UI Task**: 1024 MiB memory, 512 CPU units
-- **OTEL Collector**: 512 MiB memory, 256 CPU units
+- **OTEL Collector** (optional sidecar): 512 MiB memory, 256 CPU units
 
 Modify in `lib/ecs-stack.ts`:
 
@@ -450,9 +473,11 @@ const apiService = new FargateService(this, 'API/Service', {
 });
 ```
 
-### OpenTelemetry Configuration
+### OpenTelemetry Configuration (optional)
 
-The OpenTelemetry collector configuration is stored in [`ecs-otel-config.yaml`](https://github.com/vm-x-ai/vm-x-ai/blob/main/examples/aws-cdk-ecs/ecs-otel-config.yaml) and uploaded to SSM Parameter Store. Customize by editing the file.
+The OpenTelemetry collector sidecar is purely for **gateway observability** — VM-X AI's product features (usage analytics, cost tracking, audit) work fine with it disabled. If you don't want it, drop the sidecar container from the task definitions and unset the `OTEL_*` env vars on the API container.
+
+When enabled, the collector configuration is stored in [`ecs-otel-config.yaml`](https://github.com/vm-x-ai/vm-x-ai/blob/main/examples/aws-cdk-ecs/ecs-otel-config.yaml) and uploaded to SSM Parameter Store. Customize by editing the file.
 
 The configuration file defines receivers, processors, and exporters for traces and metrics:
 
@@ -562,7 +587,7 @@ aws logs tail /aws/ecs/vm-x-ai-collector --follow
 
 ### AWS X-Ray
 
-Traces are automatically sent to AWS X-Ray. View them in the AWS X-Ray console or via CLI:
+If the OTEL sidecar is enabled, traces are sent to AWS X-Ray. View them in the AWS X-Ray console or via CLI:
 
 ```bash
 aws xray get-trace-summaries \
@@ -577,20 +602,23 @@ The stack uses **AWS Secrets Manager** and **SSM Parameter Store**:
 - **Database Credentials**: Stored in Secrets Manager (`vm-x-ai-database-secret`)
   - Automatically generated when Aurora cluster is created
   - Contains: `host`, `port`, `dbname`, `username`, `password`
+  - Pulled into the task as `DATABASE_HOST` / `DATABASE_PORT` / `DATABASE_DB_NAME` / `DATABASE_USER` / `DATABASE_PASSWORD`
 - **UI Auth Secret**: Stored in Secrets Manager (`vm-x-ai-ui-auth-secret`)
   - Auto-generated 32-character secret
 - **OpenTelemetry Config**: Stored in SSM Parameter Store (`vm-x-ai-otel-config`)
   - Contains collector configuration from `ecs-otel-config.yaml`
-- **KMS Key**: Referenced by ARN (no secret needed)
+- **KMS Key**: Referenced by ARN via `AWS_KMS_KEY_ID` (no Secrets Manager entry needed)
+
+The task execution role needs `secretsmanager:GetSecretValue` and `ssm:GetParameters` for these resources, plus `kms:Decrypt` / `kms:Encrypt` / `kms:GenerateDataKey` on the encryption key for the API task role. The CDK example wires those policies for you.
 
 ## Monitoring and Observability
 
 The stack includes:
 
-- **CloudWatch Logs**: All container logs
-- **AWS X-Ray**: Distributed tracing for API requests
-- **CloudWatch Metrics**: Custom metrics via OpenTelemetry EMF exporter
-- **Health Checks**: ALB health checks on `/healthcheck` endpoints
+- **CloudWatch Logs**: All container logs (always on)
+- **AWS X-Ray**: Distributed tracing for API requests (only when the OTEL sidecar is enabled)
+- **CloudWatch Metrics**: Custom metrics via the OpenTelemetry EMF exporter (only when the OTEL sidecar is enabled)
+- **Health Checks**: ALB health checks on `/healthcheck` endpoints (always on)
 
 :::warning CloudWatch Metric Costs
 OpenTelemetry metrics exported to CloudWatch can generate high costs due to metric cardinality. Each unique combination of metric name and dimension values is billed as a separate metric at **$0.30 per metric per month**. Monitor your metric count and consider reducing dimensions if costs become high.
@@ -612,18 +640,17 @@ aws cloudwatch list-metrics --namespace ECS/OTEL/VM-X-AI --query 'length(Metrics
 
 ## Cost Considerations
 
-Estimated monthly costs for minimal production setup:
+Estimated monthly costs for a minimal production setup:
 
 - **ECS Fargate**: ~$30-50/month (0.04/vCPU-hour + 0.004/GB-hour)
 - **Application Load Balancers**: ~$32/month (2 ALBs × $0.0225/hour)
 - **Aurora PostgreSQL**: $100-200/month (db.t3.medium)
 - **ElastiCache Serverless**: $10-30/month (pay-per-use)
-- **Timestream**: $10-50/month (pay-per-use)
 - **Data Transfer**: ~$0.09/GB for outbound
 - **CloudWatch Logs**: ~$0.50/GB ingested, $0.03/GB stored
-- **CloudWatch Metrics**: **$0.30 per metric per month** (can be significant with high-cardinality OpenTelemetry metrics)
+- **CloudWatch Metrics** (only with OTEL sidecar): **$0.30 per metric per month** (can be significant with high-cardinality OpenTelemetry metrics)
 
-**Total**: $200-400/month (excluding CloudWatch metrics, which can add $50-500+ depending on metric cardinality)
+**Total**: $170-310/month (excluding CloudWatch metrics, which can add $50-500+ depending on metric cardinality)
 
 :::important CloudWatch Metrics Cost
 CloudWatch metrics can become a significant cost driver, especially with OpenTelemetry. Each unique combination of metric name and dimension values is billed separately. For example:
@@ -645,7 +672,7 @@ To reduce costs:
 - Use smaller task sizes (reduce CPU/memory)
 - Reduce desired count to 0 when not in use
 - Use Aurora Serverless v2 for variable workloads
-- Disable optional components
+- Disable the OTEL sidecar if you don't need application observability
 - Use single-AZ deployment (not recommended for production)
 
 ## Troubleshooting
@@ -687,8 +714,9 @@ aws elbv2 describe-target-health \
 
 1. **Tasks stuck in Pending**: Check security group rules and VPC configuration
 2. **Tasks failing health checks**: Verify health check path and container configuration
-3. **Database connection failures**: Check security group rules and VPC configuration
+3. **Database connection failures**: Check security group rules and VPC configuration; verify both `DATABASE_HOST` (writer) and `DATABASE_RO_HOST` (reader) resolve from the task's subnets
 4. **Secrets not accessible**: Verify IAM role permissions for Secrets Manager
+5. **API boots but rejects KMS calls**: Make sure `AWS_REGION` is set on the task and the task role has `kms:Encrypt` / `kms:Decrypt` / `kms:GenerateDataKey` on the encryption key
 
 ## Cleanup
 
@@ -698,12 +726,9 @@ To destroy all resources:
 pnpm cdk destroy
 ```
 
-**Warning**: This will delete all resources including databases and caches. Make sure you have backups if needed.
+**Warning**: This will delete all resources including the database and cache. Make sure you have backups if needed.
 
-**Note**: Some resources may need to be deleted manually:
-
-- ElastiCache serverless cache (may take time to delete)
-- Timestream database (must be empty before deletion)
+**Note**: The ElastiCache serverless cache may take several minutes to delete after the stack tears down.
 
 ## Customization
 

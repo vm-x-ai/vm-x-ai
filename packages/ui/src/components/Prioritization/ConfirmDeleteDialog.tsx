@@ -78,7 +78,7 @@ export default function ConfirmDeletePoolDefinitionDialog({
         <DialogActions>
           <Button
             disabled={updatingDefinition}
-            variant="contained"
+            variant="text"
             onClick={handleClose}
           >
             Cancel

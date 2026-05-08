@@ -7,13 +7,17 @@ import React from 'react';
 import type { DateRangePickerValue } from '../../DateRangePicker/types';
 import { NamespaceGraph } from '../NamespaceGraph';
 import { LLMTokenSummaryTable } from './TokenSummaryTable';
-import { parseDateRangePickerValueToAPIFilter } from './utils';
 import {
-  CompletionDimensions,
-  CompletionUsageDimensionFilterDto,
-  CompletionUsageDimensionOperator,
-  CompletionUsageQueryDto,
-  getCompletionUsage,
+  parseDateRangePickerValueToAPIFilter,
+  resolveEffectiveDimensions,
+  splitDimensions,
+} from './utils';
+import {
+  RequestDimensions,
+  RequestUsageDimensionFilterDto,
+  RequestUsageDimensionOperator,
+  RequestUsageQueryDto,
+  getRequestUsage,
   GranularityUnit,
 } from '@/clients/api';
 import { MetricDefinition, MetricFormat } from '../types';
@@ -28,18 +32,17 @@ export type LLMTokenGraphProps = {
   datePickerValue: DateRangePickerValue;
   autoRefresh: boolean;
   autoRefreshInterval?: number;
+  metadataGroupBy?: string[];
+  dimensionsOverride?: string[];
+  chartId?: string;
+  metadataKeys?: string[];
 };
 
-const dimensions = [
-  CompletionDimensions.RESOURCE_ID,
-  CompletionDimensions.CONNECTION_ID,
-  CompletionDimensions.PROVIDER,
-  CompletionDimensions.MODEL,
-];
+const baseDimensions = [RequestDimensions.PROVIDER, RequestDimensions.MODEL];
 
 const metrics: MetricDefinition[] = [
   {
-    name: 'completionTokens',
+    name: 'outputTokens',
     type: 'bigint',
     format: MetricFormat.NUMBER,
   },
@@ -51,24 +54,28 @@ const metrics: MetricDefinition[] = [
 ];
 
 function getUsageBody(
-  aggregations: CompletionUsageQueryDto['agg'],
+  aggregations: RequestUsageQueryDto['agg'],
   granularity: GranularityUnit,
   filters: Record<string, string[]>,
-  datePickerValue: DateRangePickerValue
-): CompletionUsageQueryDto {
+  datePickerValue: DateRangePickerValue,
+  effectiveDimensions: string[]
+): RequestUsageQueryDto {
+  const { dimensions, metadataDimensions } =
+    splitDimensions(effectiveDimensions);
   return {
     granularity: granularity,
     dimensions,
+    metadataDimensions,
     agg: aggregations,
     filter: {
       dateRange: parseDateRangePickerValueToAPIFilter(datePickerValue),
       fields: Object.entries(filters).reduce((acc, [key, value]) => {
-        acc[key as CompletionDimensions] = {
-          operator: CompletionUsageDimensionOperator.IN,
+        acc[key as RequestDimensions] = {
+          operator: RequestUsageDimensionOperator.IN,
           value: value,
         };
         return acc;
-      }, {} as Record<CompletionDimensions, CompletionUsageDimensionFilterDto>),
+      }, {} as Record<RequestDimensions, RequestUsageDimensionFilterDto>),
     },
     orderBy: {
       time: 'asc',
@@ -78,24 +85,28 @@ function getUsageBody(
 
 function getTableUsageBody(
   filters: Record<string, string[]>,
-  datePickerValue: DateRangePickerValue
-): CompletionUsageQueryDto {
+  datePickerValue: DateRangePickerValue,
+  effectiveDimensions: string[]
+): RequestUsageQueryDto {
+  const { dimensions, metadataDimensions } =
+    splitDimensions(effectiveDimensions);
   return {
     dimensions,
+    metadataDimensions,
     agg: {
-      completionTokens: 'sum',
+      outputTokens: 'sum',
       promptTokens: 'sum',
       totalTokens: 'sum',
     },
     filter: {
       dateRange: parseDateRangePickerValueToAPIFilter(datePickerValue),
       fields: Object.entries(filters).reduce((acc, [key, value]) => {
-        acc[key as CompletionDimensions] = {
-          operator: CompletionUsageDimensionOperator.IN,
+        acc[key as RequestDimensions] = {
+          operator: RequestUsageDimensionOperator.IN,
           value: value,
         };
         return acc;
-      }, {} as Record<CompletionDimensions, CompletionUsageDimensionFilterDto>),
+      }, {} as Record<RequestDimensions, RequestUsageDimensionFilterDto>),
     },
     orderBy: {
       provider: 'asc',
@@ -112,18 +123,34 @@ export async function LLMTokenGraph({
   datePickerValue,
   autoRefresh,
   autoRefreshInterval,
+  metadataGroupBy = [],
+  dimensionsOverride,
+  chartId,
+  metadataKeys = [],
 }: LLMTokenGraphProps) {
-  const aggregations: CompletionUsageQueryDto['agg'] = {
+  const aggregations: RequestUsageQueryDto['agg'] = {
     promptTokens: 'sum',
-    completionTokens: 'sum',
+    outputTokens: 'sum',
   };
+  const effectiveDimensions = resolveEffectiveDimensions(
+    baseDimensions,
+    metadataGroupBy,
+    dimensionsOverride
+  );
+  const dimensions = effectiveDimensions;
 
-  const result = await getCompletionUsage({
+  const result = await getRequestUsage({
     path: {
       workspaceId,
       environmentId,
     },
-    body: getUsageBody(aggregations, granularity, filters, datePickerValue),
+    body: getUsageBody(
+      aggregations,
+      granularity,
+      filters,
+      datePickerValue,
+      effectiveDimensions
+    ),
   });
 
   if (result.error) {
@@ -134,12 +161,12 @@ export async function LLMTokenGraph({
     );
   }
 
-  const tableData = await getCompletionUsage({
+  const tableData = await getRequestUsage({
     path: {
       workspaceId,
       environmentId,
     },
-    body: getTableUsageBody(filters, datePickerValue),
+    body: getTableUsageBody(filters, datePickerValue, effectiveDimensions),
   });
 
   const nivoLine = {
@@ -168,12 +195,16 @@ export async function LLMTokenGraph({
             agg={aggregations}
             xLegend="LLM Tokens"
             yLegend="Tokens"
+            chartId={chartId}
+            metadataKeys={metadataKeys}
+            baseDimensionOptions={baseDimensions}
+            effectiveGroupBy={effectiveDimensions}
             autoRefresh={autoRefresh}
             autoRefreshInterval={autoRefreshInterval}
             autoRefreshAction={async () => {
               'use server';
 
-              const result = await getCompletionUsage({
+              const result = await getRequestUsage({
                 path: {
                   workspaceId,
                   environmentId,
@@ -182,7 +213,8 @@ export async function LLMTokenGraph({
                   aggregations,
                   granularity,
                   filters,
-                  datePickerValue
+                  datePickerValue,
+                  effectiveDimensions
                 ),
               });
               if (result.error) {
@@ -219,12 +251,16 @@ export async function LLMTokenGraph({
               autoRefreshAction={async () => {
                 'use server';
 
-                const result = await getCompletionUsage({
+                const result = await getRequestUsage({
                   path: {
                     workspaceId,
                     environmentId,
                   },
-                  body: getTableUsageBody(filters, datePickerValue),
+                  body: getTableUsageBody(
+                    filters,
+                    datePickerValue,
+                    effectiveDimensions
+                  ),
                 });
                 return result.data;
               }}

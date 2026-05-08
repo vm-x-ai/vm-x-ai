@@ -17,6 +17,29 @@ export const schema = z.object({
       error: 'Primary model is required.',
     }
   ),
+  // JSON string holding a `Record<string, unknown>` of default request
+  // arguments (e.g. `reasoning_effort`, `temperature`). The save action
+  // parses it; we keep it as a string in the form so the Monaco editor
+  // can show invalid-JSON markers while the user edits.
+  defaultArgsJson: z
+    .string()
+    .optional()
+    .refine(
+      (value) => {
+        if (!value || value.trim() === '') return true;
+        try {
+          const parsed = JSON.parse(value);
+          return (
+            parsed !== null &&
+            typeof parsed === 'object' &&
+            !Array.isArray(parsed)
+          );
+        } catch {
+          return false;
+        }
+      },
+      { error: 'Default args must be a JSON object.' }
+    ),
 });
 
 export type FormSchema = z.output<typeof schema>;

@@ -1,4 +1,3 @@
-import { getAiProviders, getAiResourceById } from '@/clients/api';
 import AIResourceTabs from '@/components/AIResources/Form/Edit/Tabs';
 
 export const metadata = {
@@ -15,45 +14,21 @@ type LayoutProps = {
   }>;
 };
 
+/**
+ * Resource-edit layout. The legacy `tabs` array (and the resource +
+ * providers prefetch promises that fed an inline playground panel)
+ * have been removed — the sub-tabs now live in the main sidebar's
+ * `AI Resources` group, and the inline playground was retired in
+ * favour of the dedicated `/playground` page. The shell here just
+ * wraps children in the bordered AIResourceTabs frame.
+ */
 export default async function Layout({ children, params }: LayoutProps) {
   const { workspaceId, environmentId, resourceId } = await params;
-  const tabs = [
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${resourceId}/general`,
-      name: 'General Settings',
-    },
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${resourceId}/routing`,
-      name: 'Dynamic Routing',
-    },
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${resourceId}/multi-answer`,
-      name: 'Multi-Answer',
-    },
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${resourceId}/fallback`,
-      name: 'Fallback',
-    },
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/ai-resources/edit/${resourceId}/capacity`,
-      name: 'Capacity',
-    },
-  ];
-
   return (
     <AIResourceTabs
-      tabs={tabs}
       resourceId={resourceId}
-      resourcePromise={getAiResourceById({
-        path: {
-          workspaceId,
-          environmentId,
-          resourceId,
-        },
-      }).then(({ response, ...data }) => data)}
       workspaceId={workspaceId}
       environmentId={environmentId}
-      providersPromise={getAiProviders().then(({ response, ...data }) => data)}
     >
       {children}
     </AIResourceTabs>

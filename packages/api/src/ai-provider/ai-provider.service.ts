@@ -1,13 +1,15 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { OpenAIProvider } from './providers/openai.provider';
+import { OpenAIProvider } from './openai';
+import { GeminiProvider } from './gemini';
+import { GroqProvider } from './groq';
+import { PerplexityProvider } from './perplexity';
+import { AnthropicProvider } from './anthropic';
+import { AWSBedrockInvokeProvider } from './aws-bedrock-invoke';
 import { CompletionProvider } from './ai-provider.types';
 import { throwServiceError } from '../error';
 import { ErrorCode } from '../error-code';
 import { AIProviderDto } from './dto/ai-provider.dto';
-import { AnthropicProvider } from './providers/anthropic.provider';
-import { GroqProvider } from './providers/groq.provider';
-import { GeminiProvider } from './providers/gemini.provider';
-import { AWSBedrockProvider } from './providers/aws-bedrock.provider';
+import { AWSBedrockProvider } from './aws-bedrock-converse';
 import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class AIProviderService {
@@ -19,6 +21,8 @@ export class AIProviderService {
     private readonly groqProvider: GroqProvider,
     private readonly geminiProvider: GeminiProvider,
     private readonly awsBedrockProvider: AWSBedrockProvider,
+    private readonly awsBedrockInvokeProvider: AWSBedrockInvokeProvider,
+    private readonly perplexityProvider: PerplexityProvider,
     private readonly configService: ConfigService
   ) {
     this.providers[openaiProvider.provider.id] = this.openaiProvider;
@@ -26,22 +30,29 @@ export class AIProviderService {
     this.providers[groqProvider.provider.id] = this.groqProvider;
     this.providers[geminiProvider.provider.id] = this.geminiProvider;
     this.providers[awsBedrockProvider.provider.id] = this.awsBedrockProvider;
+    this.providers[awsBedrockInvokeProvider.provider.id] =
+      this.awsBedrockInvokeProvider;
+    this.providers[perplexityProvider.provider.id] = this.perplexityProvider;
   }
 
   public getAll(): AIProviderDto[] {
     const baseUrl = this.configService.getOrThrow<string>('BASE_URL');
     const basePath = this.configService.getOrThrow<string>('BASE_PATH');
 
-    return Object.values(this.providers).map((provider) => ({
-      ...provider.provider,
-      config: {
-        ...provider.provider.config,
-        logo: {
-          ...provider.provider.config.logo,
-          url: `${baseUrl}${basePath}${provider.provider.config.logo.url}`,
+    return Object.values(this.providers).map((provider) => {
+      const { url, darkUrl } = provider.provider.config.logo;
+      return {
+        ...provider.provider,
+        config: {
+          ...provider.provider.config,
+          logo: {
+            ...provider.provider.config.logo,
+            url: `${baseUrl}${basePath}${url}`,
+            ...(darkUrl ? { darkUrl: `${baseUrl}${basePath}${darkUrl}` } : {}),
+          },
         },
-      },
-    }));
+      };
+    });
   }
 
   public get(id: string): CompletionProvider {

@@ -4,15 +4,13 @@ import { formatDuration } from '@/utils/time';
 import type { MRT_ColumnDef } from 'material-react-table';
 import React from 'react';
 import { BaseSummaryTable } from './BaseSummaryTable';
-import { CompletionUsageQueryResultDto } from '@/clients/api';
+import { RequestUsageQueryResultDto } from '@/clients/api';
 
 export type LLMRequestLatencySummaryTableProps = {
-  data: CompletionUsageQueryResultDto[];
+  data: RequestUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<
-    CompletionUsageQueryResultDto[] | undefined
-  >;
+  autoRefreshAction?: () => Promise<RequestUsageQueryResultDto[] | undefined>;
 };
 
 export function LLMRequestLatencySummaryTable({
@@ -21,7 +19,7 @@ export function LLMRequestLatencySummaryTable({
   autoRefreshInterval,
   autoRefreshAction,
 }: LLMRequestLatencySummaryTableProps) {
-  const columns: MRT_ColumnDef<CompletionUsageQueryResultDto>[] = [
+  const columns: MRT_ColumnDef<RequestUsageQueryResultDto>[] = [
     {
       accessorKey: 'resourceId.displayName',
       header: 'Resource',

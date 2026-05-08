@@ -27,23 +27,18 @@ VM-X AI is built on a modern, scalable stack designed for production use. This p
 
 #### Primary Database: PostgreSQL
 
-- **Purpose**: Configuration data, audit logs, user management
+- **Purpose**: Configuration data, request audit logs, usage analytics, user management
 - **Schema**: Managed through Kysely migrations
 - **Connection Pooling**: Separate read/write pools for scalability
 - **Features**:
   - Workspaces and environments for multi-tenancy
   - AI Connections and AI Resources configuration
-  - API Keys and user management
-  - Completion audit logs
+  - API Keys, users, roles, and policies
+  - `request_audit` table — single source of truth for every completion (token counts, latency, cost, dimensions); the usage API aggregates this table on demand to power dashboards
 
-#### Time-Series Database
+#### Usage Analytics Storage
 
-**QuestDB** (default) or **AWS Timestream**
-
-- **Purpose**: High-performance storage of usage metrics
-- **Data**: Token usage, request counts, latency metrics
-- **Query Performance**: Optimized for time-series queries
-- **Integration**: Automatic export from completion service
+There is no separate time-series store. The Usage module reads directly from the Postgres `request_audit` table and applies SQL aggregations (`date_trunc` per granularity, `percentile_cont` for latency percentiles, JSONB extracts for cost/metadata dimensions). This keeps the system to a single source of truth and avoids dual-writes.
 
 ### Caching and Capacity Tracking
 
@@ -68,11 +63,12 @@ VM-X AI is built on a modern, scalable stack designed for production use. This p
 
 ### Observability
 
-**OpenTelemetry** Integration
+**OpenTelemetry** integration provides **application-level** observability and is fully decoupled from the usage analytics data path (which lives in Postgres `request_audit`).
 
 - **Traces**: Distributed tracing across services
-- **Metrics**: Custom metrics for completion requests, routing, capacity
-- **Export**: Compatible with any OpenTelemetry backend (Datadog, Jaeger, Prometheus, etc.)
+- **Metrics**: Application metrics for completion requests, routing, capacity gates
+- **Logs**: Structured JSON logs
+- **Export**: OTLP to any OpenTelemetry backend. The bundled docker-compose ships an OTel Collector → Jaeger (traces) + Prometheus (metrics) + Loki (logs) + Grafana (dashboards) stack; you can swap in Datadog, New Relic, or any OTLP-compatible vendor.
 
 ## System Architecture
 
@@ -85,9 +81,9 @@ graph TB
     API1[API Pod<br/>NestJS<br/>Port: 3000]
     API2[API Pod<br/>NestJS<br/>Port: 3000]
 
-    PG[(PostgreSQL<br/>Config & Audit)]
-    Redis[(Redis<br/>Capacity & Cache)]
-    QuestDB[(QuestDB<br/>Metrics)]
+    PG[(PostgreSQL<br/>Config, Audit & Usage)]
+    Redis[(Redis Cluster<br/>Capacity & Cache)]
+    OTel[OTel Collector<br/>Jaeger / Prom / Loki]
     KMS[AWS KMS<br/>Encryption]
 
     Internet --> LB
@@ -99,8 +95,8 @@ graph TB
     API2 --> PG
     API1 --> Redis
     API2 --> Redis
-    API1 --> QuestDB
-    API2 --> QuestDB
+    API1 -.-> OTel
+    API2 -.-> OTel
     API1 --> KMS
     API2 --> KMS
 
@@ -111,7 +107,7 @@ graph TB
     style API2 fill:#e8f5e9
     style PG fill:#f3e5f5
     style Redis fill:#ffebee
-    style QuestDB fill:#e0f2f1
+    style OTel fill:#e0f2f1
     style KMS fill:#fff9c4
 ```
 
@@ -130,7 +126,7 @@ sequenceDiagram
     participant Connection as AI Connection
     participant Provider as AI Provider
 
-    App->>VMX: OpenAI SDK Request<br/>baseURL: /v1/completion/{workspaceId}/{environmentId}
+    App->>VMX: SDK Request<br/>baseURL: /v1/completion/{workspaceId}/{environmentId}<br/>(chat/completions, responses, or anthropic/messages)
     VMX->>Auth: Validate API Key
     Auth-->>VMX: API Key Valid
     VMX->>Resource: Load AI Resource
@@ -146,7 +142,15 @@ sequenceDiagram
     VMX-->>App: Stream to Client
 ```
 
-The application uses the standard OpenAI SDK to make requests:
+VM-X exposes three completion endpoints; pick whichever matches the SDK
+you already use, and the gateway converts shapes when the client SDK
+and the upstream provider don't match natively:
+
+- `POST /v1/completion/{ws}/{env}/chat/completions` — OpenAI Chat Completions shape
+- `POST /v1/completion/{ws}/{env}/responses` — OpenAI Responses (typed events) shape
+- `POST /v1/completion/{ws}/{env}/anthropic/messages` — Anthropic Messages shape (passes through verbatim to Anthropic and Bedrock-Invoke connections)
+
+Example using the standard OpenAI SDK against `chat/completions`:
 
 ```typescript
 import OpenAI from 'openai';
@@ -164,6 +168,11 @@ const completion = await openai.chat.completions.create({
   messages: [{ role: 'user', content: 'Hello!' }],
 });
 ```
+
+Every endpoint accepts an optional **`vmx` envelope** (correlation IDs,
+custom metadata, per-request timeouts) and a **`providerArgs`** map for
+provider-native fields the standard SDK doesn't expose. See
+[API Endpoints](./features/api/index.md) for the full contract.
 
 ### 2. Authentication & Authorization
 
@@ -294,17 +303,17 @@ flowchart TD
 ```mermaid
 flowchart LR
     A[Request Complete] --> B[Update Redis Counters]
-    A --> C[Push to QuestDB/Timestream]
-    A --> D[Store Audit Log in PostgreSQL]
+    A --> D[Insert into request_audit<br/>PostgreSQL]
+    A -.-> E[OTel: spans + metrics + logs]
 
-    B --> E[Capacity Tracking]
-    C --> F[Usage Metrics]
-    D --> G[Audit Trail]
+    B --> F[Capacity Tracking]
+    D --> G[Audit Trail + Usage Analytics]
+    E --> H[Application Observability]
 ```
 
 - Capacity counters are updated in Redis
-- Usage metrics are pushed to time-series database
-- Audit log entry is created in PostgreSQL
+- A row is inserted into the Postgres `request_audit` table — this row powers both the audit-log viewer and the usage analytics dashboards (queried via SQL aggregations on demand)
+- Application telemetry (traces, metrics, logs) is emitted via OpenTelemetry, independent of the audit/usage path
 
 ## Component Details
 
@@ -312,25 +321,27 @@ flowchart LR
 
 **Key Modules:**
 
-- **Completion Module**: Handles chat completion requests
+- **Gateway / Completion Module**: Hosts the three completion endpoints (`chat/completions`, `responses`, `anthropic/messages`) plus the routing, gate, and provider-dispatch services
 - **AI Connection Module**: Manages provider connections
 - **AI Resource Module**: Manages logical resources
 - **API Key Module**: Manages API keys and access control
-- **Capacity Module**: Tracks and enforces capacity limits
-- **Prioritization Module**: Implements prioritization algorithms
-- **Audit Module**: Stores completion audit logs
-- **Usage Module**: Stores time-series usage metrics
-- **Vault Module**: Handles credential encryption/decryption
+- **Pool Definition Module**: Capacity pools and prioritization configuration
+- **Request Audit Module**: Writes the `request_audit` row for every completion (single source of truth for audit + usage)
+- **Usage Module**: Reads `request_audit` and runs SQL aggregations to power the usage dashboards
+- **Model Pricing Module**: Per-token pricing catalog used to compute cost for each audit row
+- **Vault Module**: Handles credential encryption/decryption (AWS KMS or Libsodium)
+- **Role Module**: Roles and policy-based authorization
 
 **Key Services:**
 
-- `CompletionService`: Main request handler
+- `CompletionService`: Main request handler for `chat/completions`
+- `ResponsesService`: Handler for the Responses API endpoint
+- `AnthropicMessagesService`: Handler for the Anthropic Messages endpoint
 - `ResourceRoutingService`: Evaluates routing conditions
 - `GateService`: Capacity and prioritization checks
-- `AIConnectionService`: Connection management
-- `AIResourceService`: Resource management
-- `CompletionAuditService`: Audit logging
-- `CompletionUsageService`: Usage metrics
+- `AIConnectionService` / `AIResourceService`: Connection and resource management
+- `RequestAuditService`: Writes the audit/usage row to Postgres
+- `RequestUsageService` / `PostgresRequestUsageProvider`: Aggregates `request_audit` for dashboards
 
 ### UI Application (Next.js)
 
@@ -359,16 +370,16 @@ flowchart LR
 
 Configuration changes flow from UI to API, are stored in PostgreSQL, and cached in Redis for fast access.
 
-#### Usage Metrics
+#### Usage Analytics
 
 ```mermaid
 flowchart LR
-    API[API] --> TS[(QuestDB/Timestream)]
-    TS --> Dashboard[Dashboard]
-    TS --> Export[OpenTelemetry Export]
+    API[API] --> Audit[(PostgreSQL<br/>request_audit)]
+    Audit --> UsageAPI[Usage API<br/>SQL aggregation]
+    UsageAPI --> Dashboard[UI Dashboard]
 ```
 
-Usage metrics are written to time-series database and can be queried for dashboards or exported to OpenTelemetry.
+Every completion writes a single row to `request_audit` (token counts, latency, cost JSONB, dimensions). The Usage API runs SQL aggregations (`date_trunc`, `percentile_cont`, JSONB extracts for cost/metadata) over that table on demand to power the UI dashboards. There is no separate time-series store.
 
 #### Audit Logs
 
@@ -426,13 +437,14 @@ Audit logs are stored in PostgreSQL and can be viewed in the UI or exported.
 
 ## Observability
 
-### Metrics
+### Usage Metrics (from `request_audit`)
 
-- **Request Count**: Total requests per resource/connection
-- **Token Usage**: Prompt, completion, and total tokens
-- **Latency**: Request duration, time to first token
-- **Error Rates**: Error counts and rates
-- **Capacity Usage**: RPM and TPM utilization
+- **Request Count**: Total requests per resource/connection/model
+- **Token Usage**: Prompt, completion, cached, reasoning, and total tokens
+- **Latency**: Request duration, provider duration, gate duration, routing duration, time to first token, tokens per second
+- **Error Rates**: Error counts, success counts, failure reasons
+- **Cost**: Total/input/output/cached/reasoning cost (extracted from the `cost` JSONB column)
+- **Capacity Usage**: RPM and TPM counters tracked in Redis for in-flight enforcement
 
 ### Traces
 

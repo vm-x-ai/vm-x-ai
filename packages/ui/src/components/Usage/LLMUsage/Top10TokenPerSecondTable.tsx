@@ -2,15 +2,13 @@
 
 import React from 'react';
 import { BaseSummaryTable } from './BaseSummaryTable';
-import { CompletionUsageQueryResultDto } from '@/clients/api';
+import { RequestUsageQueryResultDto } from '@/clients/api';
 
 export type Top10TokenPerSecondTableProps = {
-  data: CompletionUsageQueryResultDto[];
+  data: RequestUsageQueryResultDto[];
   autoRefresh: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<
-    CompletionUsageQueryResultDto[] | undefined
-  >;
+  autoRefreshAction?: () => Promise<RequestUsageQueryResultDto[] | undefined>;
 };
 
 export function Top10TokenPerSecondTable({

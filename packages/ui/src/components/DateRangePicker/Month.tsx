@@ -94,7 +94,11 @@ const Month: React.FunctionComponent<MonthProps> = ({
           }
         />
 
-        <WeekDaysContainer container direction="row" component="div">
+        <WeekDaysContainer
+          container
+          component="div"
+          sx={{ flexDirection: 'row' }}
+        >
           {WEEK_DAYS.map((day) => (
             <Typography color="textSecondary" key={day} variant="caption">
               {day}
@@ -102,9 +106,13 @@ const Month: React.FunctionComponent<MonthProps> = ({
           ))}
         </WeekDaysContainer>
 
-        <DaysContainer container direction="column" component="div">
+        <DaysContainer
+          container
+          component="div"
+          sx={{ flexDirection: 'column' }}
+        >
           {chunks(getDaysInMonth(date), 7).map((week, idx) => (
-            <DaysRowContainer key={idx} container direction="row">
+            <DaysRowContainer key={idx} container sx={{ flexDirection: 'row' }}>
               {week.map((day) => {
                 const isStart = isStartOfRange(dateRange, day);
                 const isEnd = isEndOfRange(dateRange, day);

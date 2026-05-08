@@ -48,7 +48,16 @@ export class DatabaseService implements OnModuleInit, OnApplicationShutdown {
       }),
     });
 
-    const camelCasePlugin = new CamelCasePlugin();
+    // `maintainNestedObjectKeys` keeps keys inside jsonb / object
+    // columns untouched while still snake→camel-casing actual table
+    // columns. Without it, caller-supplied metadata like
+    // `{user_id: "u_42"}` round-trips through the audit row as
+    // `{userId: "u_42"}` — which silently breaks the audit UI's
+    // group-by + metadata-filter UX (groupBy=metadata.user_id finds
+    // nothing because the stored key is now `userId`).
+    const camelCasePlugin = new CamelCasePlugin({
+      maintainNestedObjectKeys: true,
+    });
     const schema = this.configService.getOrThrow<string>('DATABASE_SCHEMA');
 
     this.writerInstance = new Kysely<DB>({
@@ -100,10 +109,12 @@ export class DatabaseService implements OnModuleInit, OnApplicationShutdown {
   }
 
   async onApplicationShutdown() {
+    // `writerInstance` + `rawWriterInstance` share one PostgresDialect
+    // (and thus one pg `Pool`); same for the reader pair. Destroying
+    // both ends the underlying pool twice, which throws "Called end on
+    // pool more than once". Destroy each pool exactly once.
     await this.writerInstance.destroy();
     await this.readerInstance.destroy();
-    await this.rawWriterInstance.destroy();
-    await this.rawReaderInstance.destroy();
   }
 
   async onModuleInit() {

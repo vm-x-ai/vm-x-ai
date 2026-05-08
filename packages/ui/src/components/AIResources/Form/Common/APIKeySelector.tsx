@@ -75,13 +75,21 @@ const APIKeySelector = forwardRef(function APIKeySelector<
         getOptionLabel={(option) => optionsMap[option]?.name ?? ''}
         renderInput={(params) => (
           <>
-            <Box display="flex" gap="1rem">
+            <Box
+              sx={{
+                display: 'flex',
+                gap: '1rem',
+              }}
+            >
               <TextField
                 {...params}
                 {...renderInputTextFieldProps}
-                InputProps={{
-                  ...(params.InputProps ?? {}),
-                  ...(renderInputTextFieldProps?.InputProps ?? {}),
+                slotProps={{
+                  ...params.slotProps,
+                  input: {
+                    ...(params.slotProps.input ?? {}),
+                    ...(renderInputTextFieldProps?.slotProps?.input ?? {}),
+                  },
                 }}
               />
               {refreshAction && (

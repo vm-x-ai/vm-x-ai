@@ -66,11 +66,7 @@ export default function ConfirmDeleteRoleDialog({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button
-            disabled={deletingRole}
-            variant="contained"
-            onClick={handleClose}
-          >
+          <Button disabled={deletingRole} variant="text" onClick={handleClose}>
             Cancel
           </Button>
           <Button

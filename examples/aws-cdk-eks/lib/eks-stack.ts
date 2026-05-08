@@ -25,8 +25,6 @@ import {
   DatabaseClusterEngine,
 } from 'aws-cdk-lib/aws-rds';
 import { Key } from 'aws-cdk-lib/aws-kms';
-import { CfnDatabase } from 'aws-cdk-lib/aws-timestream';
-import * as iam from 'aws-cdk-lib/aws-iam';
 
 blueprints.HelmAddOn.validateHelmVersions = true;
 
@@ -246,14 +244,6 @@ export class EKSStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const timestreamDatabase = new CfnDatabase(
-      cluster.stack,
-      'TimestreamDatabase',
-      {
-        databaseName: 'vm-x-ai',
-      }
-    );
-
     const namespaceName = 'vm-x-ai';
 
     const namespace = new KubernetesManifest(cluster.stack, 'Namespace', {
@@ -274,9 +264,6 @@ export class EKSStack extends cdk.Stack {
 
     // Get the encryption key ARN
     const encryptionKeyArn = encryptionKey.keyArn;
-
-    // Get the Timestream database name
-    const timestreamDatabaseName = timestreamDatabase.databaseName || 'vm-x-ai';
 
     // Resolve the ingress gateway ELB DNS
     const ingressGatewayAddress = new KubernetesObjectValue(
@@ -304,36 +291,6 @@ export class EKSStack extends cdk.Stack {
     // Grant KMS permissions
     encryptionKey.grantDecrypt(apiServiceAccount.role);
     encryptionKey.grantEncrypt(apiServiceAccount.role);
-
-    // Grant Timestream permissions
-    apiServiceAccount.role.attachInlinePolicy(
-      new iam.Policy(cluster.stack, 'TimestreamPolicy', {
-        statements: [
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: [
-              'timestream:Describe*',
-              'timestream:Write*',
-              'timestream:List*',
-              'timestream:Select',
-              'timestream:Query',
-              'timestream:CreateTable',
-              'timestream:DeleteTable',
-              'timestream:UpdateTable',
-            ],
-            resources: [
-              `arn:aws:timestream:${this.region}:${this.account}:database/${timestreamDatabaseName}/*`,
-              `arn:aws:timestream:${this.region}:${this.account}:database/${timestreamDatabaseName}`,
-            ],
-          }),
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ['timestream:DescribeEndpoints'],
-            resources: [`*`],
-          }),
-        ],
-      })
-    );
 
     apiServiceAccount.node.addDependency(namespace);
 
@@ -371,12 +328,6 @@ export class EKSStack extends cdk.Stack {
           },
           aws: {
             region: this.region,
-          },
-          timeseriesDb: {
-            provider: 'aws-timestream',
-            awsTimestream: {
-              databaseName: timestreamDatabaseName,
-            },
           },
         },
 
@@ -453,11 +404,6 @@ export class EKSStack extends cdk.Stack {
               },
             },
           },
-        },
-
-        // Disable QuestDB
-        questdb: {
-          enabled: false,
         },
 
         // OpenTelemetry configuration
