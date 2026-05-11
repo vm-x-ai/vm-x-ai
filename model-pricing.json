@@ -1,0 +1,2237 @@
+{
+  "version": "2026-05-10",
+  "models": [
+    {
+      "provider": "anthropic",
+      "model": "claude-3-7-sonnet-20250219",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-3-haiku-20240307",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.00000125,
+      "cachedInputCostPerToken": 3e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-3-opus-20240229",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-4-opus-20250514",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-4-sonnet-20250514",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5",
+      "inputCostPerToken": 0.000001,
+      "outputCostPerToken": 0.000005,
+      "cachedInputCostPerToken": 1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001",
+      "inputCostPerToken": 0.000001,
+      "outputCostPerToken": 0.000005,
+      "cachedInputCostPerToken": 1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-1",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-1-20250805",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-20250514",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-5",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-5-20251101",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-6",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-6-20260205",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-7",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-7-20260416",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "amazon.nova-2-lite-v1:0",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "amazon.nova-2-pro-preview-20251202-v1:0",
+      "inputCostPerToken": 0.0000021875,
+      "outputCostPerToken": 0.0000175,
+      "cachedInputCostPerToken": 5.46875e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "amazon.nova-lite-v1:0",
+      "inputCostPerToken": 6e-8,
+      "outputCostPerToken": 2.4e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "amazon.nova-micro-v1:0",
+      "inputCostPerToken": 3.5e-8,
+      "outputCostPerToken": 1.4e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "amazon.nova-pro-v1:0",
+      "inputCostPerToken": 8e-7,
+      "outputCostPerToken": 0.0000032,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-haiku-4-5-20251001-v1:0",
+      "inputCostPerToken": 0.000001,
+      "outputCostPerToken": 0.000005,
+      "cachedInputCostPerToken": 1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-opus-4-1-20250805-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-opus-4-20250514-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-opus-4-5-20251101-v1:0",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-opus-4-6-v1",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-opus-4-7",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-sonnet-4-20250514-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "anthropic.claude-sonnet-4-6",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "apac.amazon.nova-2-lite-v1:0",
+      "inputCostPerToken": 3.3e-7,
+      "outputCostPerToken": 0.00000275,
+      "cachedInputCostPerToken": 8.25e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "apac.amazon.nova-2-pro-preview-20251202-v1:0",
+      "inputCostPerToken": 0.0000021875,
+      "outputCostPerToken": 0.0000175,
+      "cachedInputCostPerToken": 5.46875e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "apac.amazon.nova-lite-v1:0",
+      "inputCostPerToken": 6.3e-8,
+      "outputCostPerToken": 2.52e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "apac.amazon.nova-micro-v1:0",
+      "inputCostPerToken": 3.7e-8,
+      "outputCostPerToken": 1.48e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "apac.amazon.nova-pro-v1:0",
+      "inputCostPerToken": 8.4e-7,
+      "outputCostPerToken": 0.00000336,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "apac.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000055,
+      "cachedInputCostPerToken": 1.1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "apac.anthropic.claude-sonnet-4-20250514-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "au.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000055,
+      "cachedInputCostPerToken": 1.1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "au.anthropic.claude-opus-4-6-v1",
+      "inputCostPerToken": 0.0000055,
+      "outputCostPerToken": 0.0000275,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "au.anthropic.claude-opus-4-7",
+      "inputCostPerToken": 0.0000055,
+      "outputCostPerToken": 0.0000275,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "au.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "inputCostPerToken": 0.0000033,
+      "outputCostPerToken": 0.0000165,
+      "cachedInputCostPerToken": 3.3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "au.anthropic.claude-sonnet-4-6",
+      "inputCostPerToken": 0.0000033,
+      "outputCostPerToken": 0.0000165,
+      "cachedInputCostPerToken": 3.3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.amazon.nova-2-lite-v1:0",
+      "inputCostPerToken": 3.3e-7,
+      "outputCostPerToken": 0.00000275,
+      "cachedInputCostPerToken": 8.25e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.amazon.nova-2-pro-preview-20251202-v1:0",
+      "inputCostPerToken": 0.0000021875,
+      "outputCostPerToken": 0.0000175,
+      "cachedInputCostPerToken": 5.46875e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.amazon.nova-lite-v1:0",
+      "inputCostPerToken": 7.8e-8,
+      "outputCostPerToken": 3.12e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.amazon.nova-micro-v1:0",
+      "inputCostPerToken": 4.6e-8,
+      "outputCostPerToken": 1.84e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.amazon.nova-pro-v1:0",
+      "inputCostPerToken": 0.00000105,
+      "outputCostPerToken": 0.0000042,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000055,
+      "cachedInputCostPerToken": 1.1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-opus-4-1-20250805-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-opus-4-20250514-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-opus-4-5-20251101-v1:0",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-opus-4-6-v1",
+      "inputCostPerToken": 0.0000055,
+      "outputCostPerToken": 0.0000275,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-opus-4-7",
+      "inputCostPerToken": 0.0000055,
+      "outputCostPerToken": 0.0000275,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-sonnet-4-20250514-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "inputCostPerToken": 0.0000033,
+      "outputCostPerToken": 0.0000165,
+      "cachedInputCostPerToken": 3.3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.anthropic.claude-sonnet-4-6",
+      "inputCostPerToken": 0.0000033,
+      "outputCostPerToken": 0.0000165,
+      "cachedInputCostPerToken": 3.3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "eu.mistral.pixtral-large-2502-v1:0",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000006,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "global.amazon.nova-2-lite-v1:0",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "inputCostPerToken": 0.000001,
+      "outputCostPerToken": 0.000005,
+      "cachedInputCostPerToken": 1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "global.anthropic.claude-opus-4-5-20251101-v1:0",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "global.anthropic.claude-opus-4-6-v1",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "global.anthropic.claude-opus-4-7",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000025,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "global.anthropic.claude-sonnet-4-20250514-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "global.anthropic.claude-sonnet-4-6",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "jp.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000055,
+      "cachedInputCostPerToken": 1.1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "jp.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "inputCostPerToken": 0.0000033,
+      "outputCostPerToken": 0.0000165,
+      "cachedInputCostPerToken": 3.3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "meta.llama3-3-70b-instruct-v1:0",
+      "inputCostPerToken": 7.2e-7,
+      "outputCostPerToken": 7.2e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "meta.llama4-maverick-17b-instruct-v1:0",
+      "inputCostPerToken": 2.4e-7,
+      "outputCostPerToken": 9.7e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "meta.llama4-scout-17b-instruct-v1:0",
+      "inputCostPerToken": 1.7e-7,
+      "outputCostPerToken": 6.6e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "mistral.devstral-2-123b",
+      "inputCostPerToken": 4e-7,
+      "outputCostPerToken": 0.000002,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "mistral.magistral-small-2509",
+      "inputCostPerToken": 5e-7,
+      "outputCostPerToken": 0.0000015,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "mistral.ministral-3-14b-instruct",
+      "inputCostPerToken": 2e-7,
+      "outputCostPerToken": 2e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "mistral.ministral-3-3b-instruct",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 1e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "mistral.ministral-3-8b-instruct",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 1.5e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "mistral.mistral-large-3-675b-instruct",
+      "inputCostPerToken": 5e-7,
+      "outputCostPerToken": 0.0000015,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "mistral.voxtral-mini-3b-2507",
+      "inputCostPerToken": 4e-8,
+      "outputCostPerToken": 4e-8,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "mistral.voxtral-small-24b-2507",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 3e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us-gov.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "inputCostPerToken": 0.0000033,
+      "outputCostPerToken": 0.0000165,
+      "cachedInputCostPerToken": 3.3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.amazon.nova-2-lite-v1:0",
+      "inputCostPerToken": 3.3e-7,
+      "outputCostPerToken": 0.00000275,
+      "cachedInputCostPerToken": 8.25e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.amazon.nova-2-pro-preview-20251202-v1:0",
+      "inputCostPerToken": 0.0000021875,
+      "outputCostPerToken": 0.0000175,
+      "cachedInputCostPerToken": 5.46875e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.amazon.nova-lite-v1:0",
+      "inputCostPerToken": 6e-8,
+      "outputCostPerToken": 2.4e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.amazon.nova-micro-v1:0",
+      "inputCostPerToken": 3.5e-8,
+      "outputCostPerToken": 1.4e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.amazon.nova-premier-v1:0",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.0000125,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.amazon.nova-pro-v1:0",
+      "inputCostPerToken": 8e-7,
+      "outputCostPerToken": 0.0000032,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000055,
+      "cachedInputCostPerToken": 1.1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-opus-4-1-20250805-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-opus-4-20250514-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+      "inputCostPerToken": 0.0000055,
+      "outputCostPerToken": 0.0000275,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-opus-4-6-v1",
+      "inputCostPerToken": 0.0000055,
+      "outputCostPerToken": 0.0000275,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-opus-4-7",
+      "inputCostPerToken": 0.0000055,
+      "outputCostPerToken": 0.0000275,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "inputCostPerToken": 0.0000033,
+      "outputCostPerToken": 0.0000165,
+      "cachedInputCostPerToken": 3.3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.anthropic.claude-sonnet-4-6",
+      "inputCostPerToken": 0.0000033,
+      "outputCostPerToken": 0.0000165,
+      "cachedInputCostPerToken": 3.3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.meta.llama3-3-70b-instruct-v1:0",
+      "inputCostPerToken": 7.2e-7,
+      "outputCostPerToken": 7.2e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.meta.llama4-maverick-17b-instruct-v1:0",
+      "inputCostPerToken": 2.4e-7,
+      "outputCostPerToken": 9.7e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.meta.llama4-scout-17b-instruct-v1:0",
+      "inputCostPerToken": 1.7e-7,
+      "outputCostPerToken": 6.6e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock",
+      "model": "us.mistral.pixtral-large-2502-v1:0",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000006,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "ai21.j2-mid-v1",
+      "inputCostPerToken": 0.0000125,
+      "outputCostPerToken": 0.0000125,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "ai21.j2-ultra-v1",
+      "inputCostPerToken": 0.0000188,
+      "outputCostPerToken": 0.0000188,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "ai21.jamba-1-5-large-v1:0",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000008,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "ai21.jamba-1-5-mini-v1:0",
+      "inputCostPerToken": 2e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "ai21.jamba-instruct-v1:0",
+      "inputCostPerToken": 5e-7,
+      "outputCostPerToken": 7e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "amazon.titan-text-express-v1",
+      "inputCostPerToken": 0.0000013,
+      "outputCostPerToken": 0.0000017,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "amazon.titan-text-lite-v1",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "amazon.titan-text-premier-v1:0",
+      "inputCostPerToken": 5e-7,
+      "outputCostPerToken": 0.0000015,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-3-5-haiku-20241022-v1:0",
+      "inputCostPerToken": 8e-7,
+      "outputCostPerToken": 0.000004,
+      "cachedInputCostPerToken": 8e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-3-7-sonnet-20240620-v1:0",
+      "inputCostPerToken": 0.0000036,
+      "outputCostPerToken": 0.000018,
+      "cachedInputCostPerToken": 3.6e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-3-haiku-20240307-v1:0",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.00000125,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-3-opus-20240229-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-3-sonnet-20240229-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-instant-v1",
+      "inputCostPerToken": 8e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-mythos-preview",
+      "inputCostPerToken": 0,
+      "outputCostPerToken": 0,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-v1",
+      "inputCostPerToken": 0.000008,
+      "outputCostPerToken": 0.000024,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "anthropic.claude-v2:1",
+      "inputCostPerToken": 0.000008,
+      "outputCostPerToken": 0.000024,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "apac.anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "apac.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "apac.anthropic.claude-3-haiku-20240307-v1:0",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.00000125,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "apac.anthropic.claude-3-sonnet-20240229-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "cohere.command-light-text-v14",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "cohere.command-r-plus-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "cohere.command-r-v1:0",
+      "inputCostPerToken": 5e-7,
+      "outputCostPerToken": 0.0000015,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "cohere.command-text-v14",
+      "inputCostPerToken": 0.0000015,
+      "outputCostPerToken": 0.000002,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.anthropic.claude-3-5-haiku-20241022-v1:0",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.00000125,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.anthropic.claude-3-haiku-20240307-v1:0",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.00000125,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.anthropic.claude-3-opus-20240229-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.anthropic.claude-3-sonnet-20240229-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.meta.llama3-2-1b-instruct-v1:0",
+      "inputCostPerToken": 1.3e-7,
+      "outputCostPerToken": 1.3e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "eu.meta.llama3-2-3b-instruct-v1:0",
+      "inputCostPerToken": 1.9e-7,
+      "outputCostPerToken": 1.9e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama2-13b-chat-v1",
+      "inputCostPerToken": 7.5e-7,
+      "outputCostPerToken": 0.000001,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama2-70b-chat-v1",
+      "inputCostPerToken": 0.00000195,
+      "outputCostPerToken": 0.00000256,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-1-405b-instruct-v1:0",
+      "inputCostPerToken": 0.00000532,
+      "outputCostPerToken": 0.000016,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-1-70b-instruct-v1:0",
+      "inputCostPerToken": 9.9e-7,
+      "outputCostPerToken": 9.9e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-1-8b-instruct-v1:0",
+      "inputCostPerToken": 2.2e-7,
+      "outputCostPerToken": 2.2e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-2-11b-instruct-v1:0",
+      "inputCostPerToken": 3.5e-7,
+      "outputCostPerToken": 3.5e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-2-1b-instruct-v1:0",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 1e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-2-3b-instruct-v1:0",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 1.5e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-2-90b-instruct-v1:0",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000002,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-70b-instruct-v1:0",
+      "inputCostPerToken": 0.00000265,
+      "outputCostPerToken": 0.0000035,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "meta.llama3-8b-instruct-v1:0",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "mistral.mistral-7b-instruct-v0:2",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 2e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "mistral.mistral-large-2402-v1:0",
+      "inputCostPerToken": 0.000008,
+      "outputCostPerToken": 0.000024,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "mistral.mistral-large-2407-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000009,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "mistral.mistral-small-2402-v1:0",
+      "inputCostPerToken": 0.000001,
+      "outputCostPerToken": 0.000003,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "mistral.mixtral-8x7b-instruct-v0:1",
+      "inputCostPerToken": 4.5e-7,
+      "outputCostPerToken": 7e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+      "inputCostPerToken": 8e-7,
+      "outputCostPerToken": 0.000004,
+      "cachedInputCostPerToken": 8e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.anthropic.claude-3-haiku-20240307-v1:0",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.00000125,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.anthropic.claude-3-opus-20240229-v1:0",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.000075,
+      "cachedInputCostPerToken": 0.0000015,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.anthropic.claude-3-sonnet-20240229-v1:0",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.meta.llama3-1-405b-instruct-v1:0",
+      "inputCostPerToken": 0.00000532,
+      "outputCostPerToken": 0.000016,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.meta.llama3-1-70b-instruct-v1:0",
+      "inputCostPerToken": 9.9e-7,
+      "outputCostPerToken": 9.9e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.meta.llama3-1-8b-instruct-v1:0",
+      "inputCostPerToken": 2.2e-7,
+      "outputCostPerToken": 2.2e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.meta.llama3-2-11b-instruct-v1:0",
+      "inputCostPerToken": 3.5e-7,
+      "outputCostPerToken": 3.5e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.meta.llama3-2-1b-instruct-v1:0",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 1e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.meta.llama3-2-3b-instruct-v1:0",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 1.5e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "aws-bedrock-invoke",
+      "model": "us.meta.llama3-2-90b-instruct-v1:0",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000002,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.0-flash",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-001",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite",
+      "inputCostPerToken": 7.5e-8,
+      "outputCostPerToken": 3e-7,
+      "cachedInputCostPerToken": 1.875e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.0-flash-lite-001",
+      "inputCostPerToken": 7.5e-8,
+      "outputCostPerToken": 3e-7,
+      "cachedInputCostPerToken": 1.875e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "cachedInputCostPerToken": 3e-8,
+      "reasoningCostPerToken": 0.0000025
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 1e-8,
+      "reasoningCostPerToken": 4e-7
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-lite-preview-06-17",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 4e-7
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-flash-native-audio-latest",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-pro",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-2.5-pro-preview-tts",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3-flash-preview",
+      "inputCostPerToken": 5e-7,
+      "outputCostPerToken": 0.000003,
+      "cachedInputCostPerToken": 5e-8,
+      "reasoningCostPerToken": 0.000003
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3-pro-preview",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000012,
+      "cachedInputCostPerToken": 2e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.1-flash-lite-preview",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.0000015,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0.0000015
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.1-flash-live-preview",
+      "inputCostPerToken": 7.5e-7,
+      "outputCostPerToken": 0.0000045,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.1-pro-preview",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000012,
+      "cachedInputCostPerToken": 2e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.1-pro-preview-customtools",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000012,
+      "cachedInputCostPerToken": 2e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-flash-latest",
+      "inputCostPerToken": 3e-7,
+      "outputCostPerToken": 0.0000025,
+      "cachedInputCostPerToken": 3e-8,
+      "reasoningCostPerToken": 0.0000025
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-flash-lite-latest",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 1e-8,
+      "reasoningCostPerToken": 4e-7
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-pro-latest",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "llama-3.1-8b-instant",
+      "inputCostPerToken": 5e-8,
+      "outputCostPerToken": 8e-8,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "llama-3.3-70b-versatile",
+      "inputCostPerToken": 5.9e-7,
+      "outputCostPerToken": 7.9e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "inputCostPerToken": 2e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "inputCostPerToken": 1.1e-7,
+      "outputCostPerToken": 3.4e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "meta-llama/llama-guard-4-12b",
+      "inputCostPerToken": 2e-7,
+      "outputCostPerToken": 2e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "moonshotai/kimi-k2-instruct-0905",
+      "inputCostPerToken": 0.000001,
+      "outputCostPerToken": 0.000003,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "openai/gpt-oss-120b",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "openai/gpt-oss-20b",
+      "inputCostPerToken": 7.5e-8,
+      "outputCostPerToken": 3e-7,
+      "cachedInputCostPerToken": 3.75e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "openai/gpt-oss-safeguard-20b",
+      "inputCostPerToken": 7.5e-8,
+      "outputCostPerToken": 3e-7,
+      "cachedInputCostPerToken": 3.7e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "groq",
+      "model": "qwen/qwen3-32b",
+      "inputCostPerToken": 2.9e-7,
+      "outputCostPerToken": 5.9e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "chatgpt-4o-latest",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4",
+      "inputCostPerToken": 0.00003,
+      "outputCostPerToken": 0.00006,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4-turbo",
+      "inputCostPerToken": 0.00001,
+      "outputCostPerToken": 0.00003,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4-turbo-2024-04-09",
+      "inputCostPerToken": 0.00001,
+      "outputCostPerToken": 0.00003,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4-turbo-preview",
+      "inputCostPerToken": 0.00001,
+      "outputCostPerToken": 0.00003,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4.1",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000008,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4.1-2025-04-14",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000008,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4.1-mini",
+      "inputCostPerToken": 4e-7,
+      "outputCostPerToken": 0.0000016,
+      "cachedInputCostPerToken": 1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4.1-mini-2025-04-14",
+      "inputCostPerToken": 4e-7,
+      "outputCostPerToken": 0.0000016,
+      "cachedInputCostPerToken": 1e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4.1-nano",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4.1-nano-2025-04-14",
+      "inputCostPerToken": 1e-7,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0.00000125,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-2024-05-13",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-2024-08-06",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0.00000125,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-2024-11-20",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0.00000125,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-audio-preview",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-audio-preview-2024-12-17",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-audio-preview-2025-06-03",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini-2024-07-18",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini-audio-preview",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini-audio-preview-2024-12-17",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini-realtime-preview",
+      "inputCostPerToken": 6e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini-realtime-preview-2024-12-17",
+      "inputCostPerToken": 6e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 3e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini-search-preview",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini-search-preview-2025-03-11",
+      "inputCostPerToken": 1.5e-7,
+      "outputCostPerToken": 6e-7,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-realtime-preview",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.00002,
+      "cachedInputCostPerToken": 0.0000025,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-realtime-preview-2024-12-17",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.00002,
+      "cachedInputCostPerToken": 0.0000025,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-realtime-preview-2025-06-03",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.00002,
+      "cachedInputCostPerToken": 0.0000025,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-search-preview",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0.00000125,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-search-preview-2025-03-11",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0.00000125,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-2025-08-07",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-chat",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-chat-latest",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.000002,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-mini-2025-08-07",
+      "inputCostPerToken": 2.5e-7,
+      "outputCostPerToken": 0.000002,
+      "cachedInputCostPerToken": 2.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "inputCostPerToken": 5e-8,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 5e-9,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-nano-2025-08-07",
+      "inputCostPerToken": 5e-8,
+      "outputCostPerToken": 4e-7,
+      "cachedInputCostPerToken": 5e-9,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-search-api",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5-search-api-2025-10-14",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.1",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.1-2025-11-13",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.1-chat-latest",
+      "inputCostPerToken": 0.00000125,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 1.25e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "inputCostPerToken": 0.00000175,
+      "outputCostPerToken": 0.000014,
+      "cachedInputCostPerToken": 1.75e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.2-2025-12-11",
+      "inputCostPerToken": 0.00000175,
+      "outputCostPerToken": 0.000014,
+      "cachedInputCostPerToken": 1.75e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.2-chat-latest",
+      "inputCostPerToken": 0.00000175,
+      "outputCostPerToken": 0.000014,
+      "cachedInputCostPerToken": 1.75e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.3-chat-latest",
+      "inputCostPerToken": 0.00000175,
+      "outputCostPerToken": 0.000014,
+      "cachedInputCostPerToken": 1.75e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 2.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-2026-03-05",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 2.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-mini",
+      "inputCostPerToken": 7.5e-7,
+      "outputCostPerToken": 0.0000045,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-mini-2026-03-17",
+      "inputCostPerToken": 7.5e-7,
+      "outputCostPerToken": 0.0000045,
+      "cachedInputCostPerToken": 7.5e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-nano",
+      "inputCostPerToken": 2e-7,
+      "outputCostPerToken": 0.00000125,
+      "cachedInputCostPerToken": 2e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-nano-2026-03-17",
+      "inputCostPerToken": 2e-7,
+      "outputCostPerToken": 0.00000125,
+      "cachedInputCostPerToken": 2e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.5",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.00003,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.5-2026-04-23",
+      "inputCostPerToken": 0.000005,
+      "outputCostPerToken": 0.00003,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-audio",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-audio-1.5",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-audio-2025-08-28",
+      "inputCostPerToken": 0.0000025,
+      "outputCostPerToken": 0.00001,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-audio-mini",
+      "inputCostPerToken": 6e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-audio-mini-2025-10-06",
+      "inputCostPerToken": 6e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-audio-mini-2025-12-15",
+      "inputCostPerToken": 6e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-realtime",
+      "inputCostPerToken": 0.000004,
+      "outputCostPerToken": 0.000016,
+      "cachedInputCostPerToken": 4e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-realtime-1.5",
+      "inputCostPerToken": 0.000004,
+      "outputCostPerToken": 0.000016,
+      "cachedInputCostPerToken": 4e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-realtime-2025-08-28",
+      "inputCostPerToken": 0.000004,
+      "outputCostPerToken": 0.000016,
+      "cachedInputCostPerToken": 4e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-realtime-mini",
+      "inputCostPerToken": 6e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-realtime-mini-2025-10-06",
+      "inputCostPerToken": 6e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 6e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-realtime-mini-2025-12-15",
+      "inputCostPerToken": 6e-7,
+      "outputCostPerToken": 0.0000024,
+      "cachedInputCostPerToken": 6e-8,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "o1",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.00006,
+      "cachedInputCostPerToken": 0.0000075,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "o1-2024-12-17",
+      "inputCostPerToken": 0.000015,
+      "outputCostPerToken": 0.00006,
+      "cachedInputCostPerToken": 0.0000075,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "o3",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000008,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "o3-2025-04-16",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000008,
+      "cachedInputCostPerToken": 5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "o3-mini",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000044,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "o3-mini-2025-01-31",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000044,
+      "cachedInputCostPerToken": 5.5e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "o4-mini",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000044,
+      "cachedInputCostPerToken": 2.75e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "openai",
+      "model": "o4-mini-2025-04-16",
+      "inputCostPerToken": 0.0000011,
+      "outputCostPerToken": 0.0000044,
+      "cachedInputCostPerToken": 2.75e-7,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "perplexity",
+      "model": "sonar",
+      "inputCostPerToken": 0.000001,
+      "outputCostPerToken": 0.000001,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "perplexity",
+      "model": "sonar-deep-research",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000008,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0.000003
+    },
+    {
+      "provider": "perplexity",
+      "model": "sonar-pro",
+      "inputCostPerToken": 0.000003,
+      "outputCostPerToken": 0.000015,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "perplexity",
+      "model": "sonar-reasoning",
+      "inputCostPerToken": 0.000001,
+      "outputCostPerToken": 0.000005,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    },
+    {
+      "provider": "perplexity",
+      "model": "sonar-reasoning-pro",
+      "inputCostPerToken": 0.000002,
+      "outputCostPerToken": 0.000008,
+      "cachedInputCostPerToken": 0,
+      "reasoningCostPerToken": 0
+    }
+  ]
+}
