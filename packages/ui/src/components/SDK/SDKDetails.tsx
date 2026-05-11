@@ -3,6 +3,7 @@
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
+import AdvancedPatternsGuide from './AdvancedPatternsGuide';
 import OpenAIAdapterGuide from './OpenAIAdapterGuide';
 
 export type SDKDetailsProps = {
@@ -39,7 +40,12 @@ export default function SDKDetails({
                 <Typography variant="body2">{environmentId}</Typography>
               </Grid>
             </Grid>
-            <Grid container marginTop="1rem">
+            <Grid
+              container
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <Grid size={12}>
                 <Typography variant="subtitle2">Base URL:</Typography>
                 <Typography variant="body2">{baseUrl}</Typography>
@@ -50,6 +56,14 @@ export default function SDKDetails({
       )}
       <Grid size={12}>
         <OpenAIAdapterGuide
+          workspaceId={workspaceId}
+          environmentId={environmentId}
+          baseUrl={baseUrl}
+          resource={resource}
+        />
+      </Grid>
+      <Grid size={12}>
+        <AdvancedPatternsGuide
           workspaceId={workspaceId}
           environmentId={environmentId}
           baseUrl={baseUrl}

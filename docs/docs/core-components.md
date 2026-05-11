@@ -99,7 +99,7 @@ An **AI Connection** represents a connection to a specific AI provider with its 
 
 An AI Connection encapsulates:
 
-- **Provider**: The AI provider (OpenAI, Anthropic, Google Gemini, Groq, AWS Bedrock)
+- **Provider**: The AI provider (OpenAI, Anthropic, Google Gemini, Groq, Perplexity, AWS Bedrock Converse, AWS Bedrock-Invoke)
 - **Credentials**: Encrypted API keys or authentication tokens
 - **Capacity**: Custom capacity limits (e.g., 100 RPM, 100,000 TPM)
 - **Discovered Capacity**: Automatically discovered rate limits from the provider
@@ -161,6 +161,12 @@ An AI Resource is the abstraction your applications interact with. It includes:
 
 ### Key Features
 
+:::info Use `connectionName` instead of `connectionId`
+The examples below reference connections by `connectionId` (UUID), but every model config slot — the primary model, each routing `then`, and every entry in `fallbackModels` — also accepts a `connectionName` field. This lets you reference a connection by its human-readable name (e.g. `"openai-prod"`) instead of its UUID, which is handy for configs that are checked into source control or shared across environments.
+
+If both fields are set, `connectionId` wins and no name lookup happens. If only `connectionName` is set, VM-X resolves it to a connection in the request's environment before dispatch and 400s if no match is found.
+:::
+
 #### 🎯 **Dynamic Routing**
 
 Route requests to different models based on conditions. VM-X AI provides a comprehensive set of routing conditions:
@@ -181,6 +187,26 @@ Route requests to different models based on conditions. VM-X AI provides a compr
 - `GREATER_THAN` - Field is greater than value
 - `CONTAINS` - Field contains value (for strings)
 - `PATTERN` - Field matches regex pattern (for strings)
+
+:::info `connectionId` or `connectionName` — both work
+The examples below use `connectionId` (the connection's UUID), but every
+model-config slot — the primary `model`, every routing `then` block,
+`fallbackModels[]`, and `secondaryModels[]` — also accepts
+`connectionName`. The gateway resolves the name to a UUID before
+dispatch, so name-only configs work end-to-end:
+
+```json
+{
+  "provider": "groq",
+  "connectionName": "groq-primary",
+  "model": "llama-3.1-70b-versatile"
+}
+```
+
+If both fields are set, `connectionId` wins (no name lookup). A
+`connectionName` that doesn't exist in this workspace/environment
+returns a clean 400 before dispatch.
+:::
 
 **Example: Route based on input token count**
 

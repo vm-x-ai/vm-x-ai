@@ -1,6 +1,7 @@
 'use client';
 
 import type { MRT_VisibilityState } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
@@ -78,6 +79,7 @@ export default function PermissionTable() {
     [permissions?.modules]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: permissions?.modules || [],
@@ -90,8 +92,10 @@ export default function PermissionTable() {
     enableSorting: false,
     enableColumnActions: false,
     enablePagination: false,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     enableStickyHeader: true,
     muiTableContainerProps: { sx: { maxHeight: '500px' } },

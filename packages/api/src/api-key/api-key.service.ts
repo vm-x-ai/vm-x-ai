@@ -14,6 +14,7 @@ import { ListApiKeyDto } from './dto/list-api-key.dto';
 import { GetApiKeyDto } from './dto/get-api-key.dto';
 import { sql, Transaction } from 'kysely';
 import { DB } from '../storage/entities.generated';
+import { camelCaseEmbeds } from '../storage/embed-case';
 
 @Injectable()
 export class ApiKeyService {
@@ -40,7 +41,9 @@ export class ApiKeyService {
       .orderBy('createdAt', 'desc')
       .execute();
 
-    return apiKeys.map(({ hash, ...apiKey }) => apiKey);
+    return apiKeys.map(({ hash, ...apiKey }) =>
+      camelCaseEmbeds(apiKey, ['createdByUser', 'updatedByUser'])
+    );
   }
 
   public async getById(payload: GetApiKeyDto): Promise<ApiKeyEntity>;
@@ -66,15 +69,19 @@ export class ApiKeyService {
         apiKeyId,
         !!includesUsers
       ),
-      () =>
-        this.db.reader
+      async () => {
+        const row = await this.db.reader
           .selectFrom('apiKeys')
           .selectAll('apiKeys')
           .$if(!!includesUsers, this.db.includeEntityControlUsers('apiKeys'))
           .where('workspaceId', '=', workspaceId)
           .where('environmentId', '=', environmentId)
           .where('apiKeyId', '=', apiKeyId)
-          .executeTakeFirst()
+          .executeTakeFirst();
+        return row
+          ? camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+          : undefined;
+      }
     );
 
     if (throwOnNotFound && !apiKey) {

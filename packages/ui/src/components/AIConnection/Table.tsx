@@ -9,17 +9,18 @@ import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { MRT_VisibilityState } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
   useMaterialReactTable,
 } from 'material-react-table';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useEffect } from 'react';
 import ConfirmDeleteAIConnectionDialog from './ConfirmDeleteDialog';
 import { AiConnectionEntity, AiProviderDto } from '@/clients/api';
+import ProviderLogo from '@/components/Providers/ProviderLogo';
 
 export type AIConnectionTableProps = {
   workspaceId?: string;
@@ -87,10 +88,9 @@ export default function AIConnectionTable({
             label={providersMap[row.provider]?.name ?? 'Unkown'}
             icon={
               <Box>
-                <Image
+                <ProviderLogo
                   alt={providersMap[row.provider]?.name}
-                  loader={({ src }) => src}
-                  src={providersMap[row.provider]?.config.logo.url}
+                  logo={providersMap[row.provider]?.config.logo}
                   height={20}
                   width={20}
                 />
@@ -133,6 +133,7 @@ export default function AIConnectionTable({
     [providersMap, theme.palette.primary.main]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: data || [],
@@ -144,8 +145,10 @@ export default function AIConnectionTable({
     enableColumnResizing: false,
     enableSorting: false,
     enableColumnActions: false,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     muiTableBodyRowProps: ({ row }) => ({
       onClick: () => {
@@ -156,10 +159,10 @@ export default function AIConnectionTable({
       sx: (theme) => ({
         cursor: 'pointer',
         '&:hover': {
-          backgroundColor: `${theme.palette.secondary.light} !important`,
+          backgroundColor: `${theme.palette.action.hover} !important`,
         },
         '&.Mui-selected': {
-          backgroundColor: `${theme.palette.secondary.light} !important`,
+          backgroundColor: `${theme.palette.action.selected} !important`,
         },
       }),
     }),

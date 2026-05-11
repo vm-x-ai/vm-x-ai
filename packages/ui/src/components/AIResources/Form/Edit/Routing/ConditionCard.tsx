@@ -5,7 +5,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import ChevronDownIcon from '@mui/icons-material/ExpandMore';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
-import { grey, blue } from '@mui/material/colors';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
@@ -28,15 +27,17 @@ export type OperatorTagProps = {
 function OperatorTag({ operator, onClick }: OperatorTagProps) {
   return (
     <Box
-      position="absolute"
-      top="-1.6em"
-      width="100%"
-      sx={{ pl: '2.3em' }}
       onClick={onClick}
+      sx={{
+        position: 'absolute',
+        top: '-1.6em',
+        width: '100%',
+        pl: '2.3em',
+      }}
     >
       <Typography
         variant="caption"
-        sx={{ color: grey[500], cursor: 'pointer' }}
+        sx={{ color: 'text.secondary', cursor: 'pointer' }}
       >
         {operator}
       </Typography>
@@ -134,9 +135,11 @@ export default function ConditionCard({
 
   return (
     <Box
-      position="relative"
       ref={ref}
       data-handler-id={collectedProps.handlerId}
+      sx={{
+        position: 'relative',
+      }}
     >
       {index > 0 && operator && (
         <OperatorTag operator={operator} onClick={switchOperator} />
@@ -146,29 +149,46 @@ export default function ConditionCard({
           width: 'calc(100% - 2em)',
           mb: 1,
           ml: '2em',
-          border: expanded ? `1px solid ${grey[300]}` : '1px solid transparent',
+          border: expanded
+            ? '1px solid var(--mui-palette-divider)'
+            : '1px solid transparent',
           borderRadius: 2,
         }}
       >
         {/* RULE CARD HEADER */}
         <Box
+          onClick={() => setExpanded(!expanded)}
           sx={{
-            backgroundColor: expanded ? blue[50] : grey[100],
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            // Theme-aware tints — `action.selected`/`action.hover` are
+            // alpha-blended overlays on top of `background.paper`, so
+            // they read as a subtle highlight on both light and dark
+            // schemes (vs the previous `blue[50]` / `grey[100]` which
+            // were near-white in dark mode).
+            backgroundColor: expanded
+              ? 'var(--mui-palette-action-selected)'
+              : 'var(--mui-palette-action-hover)',
             borderRadius: 2,
             height: '2.5em',
             p: 2,
             pl: 1,
             cursor: 'pointer',
+
             '&:hover': {
-              backgroundColor: expanded ? blue[100] : grey[200],
+              backgroundColor: expanded
+                ? 'var(--mui-palette-action-focus)'
+                : 'var(--mui-palette-action-selected)',
             },
           }}
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          onClick={() => setExpanded(!expanded)}
         >
-          <Box display="flex" alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
             <IconButton size="small">
               {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
             </IconButton>
@@ -176,7 +196,7 @@ export default function ConditionCard({
               {condition.label}
             </Typography>
           </Box>
-          <IconButton size="small" sx={{ color: grey[600], p: 0.5 }}>
+          <IconButton size="small" sx={{ color: 'text.secondary', p: 0.5 }}>
             <CloseIcon
               fontSize="small"
               onClick={() => {

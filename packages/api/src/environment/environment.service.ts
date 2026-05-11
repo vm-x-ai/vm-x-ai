@@ -9,6 +9,7 @@ import { UserEntity } from '../users/entities/user.entity';
 import { UpdateEnvironmentDto } from './dto/update-environment.dto';
 import { ListEnvironmentDto } from './dto/list-environment.dto';
 import { GetEnvironmentDto } from './dto/get-environment.dto';
+import { camelCaseEmbeds } from '../storage/embed-case';
 
 @Injectable()
 export class EnvironmentService {
@@ -21,7 +22,7 @@ export class EnvironmentService {
     workspaceId,
     includesUsers,
   }: ListEnvironmentDto): Promise<EnvironmentEntity[]> {
-    return await this.db.reader
+    const rows = await this.db.reader
       .selectFrom('environments')
       .selectAll('environments')
       .$if(!!includesUsers, this.db.includeEntityControlUsers('environments'))
@@ -30,6 +31,9 @@ export class EnvironmentService {
       )
       .orderBy('createdAt', 'desc')
       .execute();
+    return rows.map((row) =>
+      camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+    );
   }
 
   public async getById(payload: GetEnvironmentDto): Promise<EnvironmentEntity>;
@@ -50,8 +54,8 @@ export class EnvironmentService {
   ): Promise<EnvironmentEntity | undefined> {
     const environment = await this.cache.wrap(
       this.getEnvironmentCacheKey(workspaceId, environmentId, !!includesUsers),
-      () =>
-        this.db.reader
+      async () => {
+        const row = await this.db.reader
           .selectFrom('environments')
           .selectAll('environments')
           .$if(
@@ -60,7 +64,11 @@ export class EnvironmentService {
           )
           .where('workspaceId', '=', workspaceId)
           .where('environmentId', '=', environmentId)
-          .executeTakeFirst()
+          .executeTakeFirst();
+        return row
+          ? camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+          : undefined;
+      }
     );
 
     if (throwOnNotFound && !environment) {

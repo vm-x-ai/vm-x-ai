@@ -4,26 +4,30 @@ sidebar_position: 1
 
 # Roles
 
-Roles manage permissions using granular policies. Each role defines:
+Roles manage permissions using granular policies. Each role has a name, an
+optional description, and a `policy` document made up of one or more
+**statements**. Each statement defines:
 
-- **Actions**: What operations can be performed
-- **Resources**: What resources can be accessed
-- **Effect**: Whether to allow or deny the action
+- **Effect**: Whether to `allow` or `deny` the matching action/resource pair
+- **Actions**: Which operations the statement applies to (e.g. `ai-connection:create`)
+- **Resources**: Which resource ARNs the statement applies to (e.g. `workspace:*:environment:*:ai-connection:*`)
 
 ## Role Policy Structure
 
-A role policy consists of statements:
+A role policy is a JSON document with a `$schema` URL and a list of
+`statements`:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["ai-connection:create", "ai-connection:get"],
       "resources": ["workspace:*:environment:*:ai-connection:*"]
     },
     {
-      "effect": "DENY",
+      "effect": "deny",
       "actions": ["workspace:delete"],
       "resources": ["workspace:*"]
     }
@@ -31,33 +35,43 @@ A role policy consists of statements:
 }
 ```
 
+:::important
+`effect` is the string `"allow"` or `"deny"` — lowercase. These are the only
+two values accepted by the API.
+:::
+
 ## Wildcards
 
-Roles support wildcards for flexible permission management:
+Both `actions` and `resources` support wildcards:
 
-- `*` matches any value
+- `*` matches any sequence of characters (zero or more)
 - `?` matches a single character
 
 Examples:
 
-- `workspace:*` matches all workspaces
-- `workspace:production` matches only the "production" workspace
-- `*:get` matches all "get" actions
+- `workspace:*` matches all workspace actions or all workspace resources
+- `workspace:production` matches only the `production` workspace
+- `*:get` matches every `get` action across all modules
 - `ai-connection:*` matches all AI connection actions
+
+Patterns are converted to regular expressions internally
+(`*` → `.*`, `?` → `.`), so they match anywhere in the string.
 
 ## Default Roles
 
-VM-X AI includes three default roles:
+VM-X AI seeds three default roles on first migration. They are owned by the
+seed admin user.
 
-### Admin
+### `admin`
 
 Full access to everything:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*"],
       "resources": ["*"]
     }
@@ -65,20 +79,22 @@ Full access to everything:
 }
 ```
 
-### Power User
+### `power-user`
 
-Can create workspaces, environments, connections, and resources, but cannot manage roles or users:
+Can do anything except create, update, or delete users and roles. Note that
+this role still allows `user:get`, `user:list`, `role:get`, and `role:list`:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "DENY",
-      "actions": ["user:*", "role:*"],
+      "effect": "deny",
+      "actions": ["user:create", "user:update", "user:delete", "role:create", "role:update", "role:delete"],
       "resources": ["*"]
     },
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*"],
       "resources": ["*"]
     }
@@ -86,15 +102,19 @@ Can create workspaces, environments, connections, and resources, but cannot mana
 }
 ```
 
-### Read Only
+`power-user` is also the default role assigned to users who sign in for the
+first time through OIDC federation (see [Users](./users.md)).
 
-Can only read/list resources:
+### `read-only`
+
+Can only read or list resources:
 
 ```json
 {
+  "$schema": "https://vm-x.ai/schema/role-policy.json",
   "statements": [
     {
-      "effect": "ALLOW",
+      "effect": "allow",
       "actions": ["*:get", "*:list"],
       "resources": ["*"]
     }
@@ -109,63 +129,101 @@ Can only read/list resources:
 3. Fill in role details:
 
    - **Name**: Role name
-   - **Description**: Role description
+   - **Description**: Role description (optional)
    - **Policy**: Define policy statements
 
 4. Add policy statements:
-   - **Effect**: ALLOW or DENY
+   - **Effect**: `allow` or `deny`
    - **Actions**: List of actions (e.g., `ai-connection:create`)
-   - **Resources**: List of resources (e.g., `workspace:*:environment:*:ai-connection:*`)
+   - **Resources**: List of resource ARNs (e.g., `workspace:*:environment:*:ai-connection:*`)
 
 ## Available Actions
 
-Actions follow the pattern: `{module}:{operation}`
-
+Actions follow the pattern `{module}:{operation}`. The full list is exposed
+by the API at `GET /role/permissions` and rendered in the UI policy editor.
 Common actions:
 
-- `workspace:create`, `workspace:get`, `workspace:list`, `workspace:update`, `workspace:delete`
-- `environment:create`, `environment:get`, `environment:list`, `environment:update`, `environment:delete`
-- `ai-connection:create`, `ai-connection:get`, `ai-connection:list`, `ai-connection:update`, `ai-connection:delete`
-- `ai-resource:create`, `ai-resource:get`, `ai-resource:list`, `ai-resource:update`, `ai-resource:delete`
-- `api-key:create`, `api-key:get`, `api-key:list`, `api-key:update`, `api-key:delete`
-- `user:create`, `user:get`, `user:list`, `user:update`, `user:delete`
-- `role:create`, `role:get`, `role:list`, `role:update`, `role:delete`
+- **Workspace**: `workspace:list`, `workspace:get`, `workspace:get-members`,
+  `workspace:create`, `workspace:update`, `workspace:update-member-role`,
+  `workspace:delete`, `workspace:assign`, `workspace:unassign`
+- **Environment**: `environment:list`, `environment:get`, `environment:create`,
+  `environment:update`, `environment:delete`
+- **AI Connection**: `ai-connection:list`, `ai-connection:get`,
+  `ai-connection:create`, `ai-connection:update`, `ai-connection:delete`
+- **AI Resource**: `ai-resource:list`, `ai-resource:get`, `ai-resource:create`,
+  `ai-resource:update`, `ai-resource:delete`
+- **API Key**: `api-key:list`, `api-key:get`, `api-key:create`,
+  `api-key:update`, `api-key:delete`
+- **Pool Definition**: `pool-definition:get`, `pool-definition:update`,
+  `pool-definition:delete`
+- **Completion**: `completion:execute`
+- **Completion Batch**: `completion-batch:list`, `completion-batch:get`,
+  `completion-batch:create`, `completion-batch:cancel`
+- **Completion Metrics**: `completion-metrics:get-error-rate`
+- **Request Audit**: `request-audit:list`
+- **Request Usage**: `request-usage:query`
+- **User**: `user:list`, `user:get`, `user:create`, `user:update`, `user:delete`
+- **Role**: `role:list`, `role:get`, `role:get-members`, `role:create`,
+  `role:update`, `role:delete`, `role:assign`, `role:unassign`
 
 ## Resource Patterns
 
-Resources follow the pattern: `{module}:{identifier}:{submodule}:{identifier}:...`
+Resources follow a hierarchical pattern that nests by parent. The exact
+templates per module are:
+
+| Module             | Base resource                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| Workspace          | `workspace:{workspace.name}`                                                                |
+| Environment        | `workspace:{workspace.name}:environment:{environment.name}`                                 |
+| AI Connection      | `workspace:{workspace.name}:environment:{environment.name}:ai-connection:{connection.name}` |
+| AI Resource        | `workspace:{workspace.name}:environment:{environment.name}:ai-resource:{resource.name}`     |
+| API Key            | `workspace:{workspace.name}:environment:{environment.name}:api-key:{apiKey.name}`           |
+| Pool Definition    | `workspace:{workspace.name}:environment:{environment.name}:pool-definition`                 |
+| Completion         | `workspace:{workspace.name}:environment:{environment.name}:completion`                      |
+| Completion Batch   | `workspace:{workspace.name}:environment:{environment.name}:completion-batch:{batch.id}`     |
+| Completion Metrics | `workspace:{workspace.name}:environment:{environment.name}:completion-metrics`              |
+| Request Audit      | `workspace:{workspace.name}:environment:{environment.name}:request-audit`                   |
+| Request Usage      | `workspace:{workspace.name}:environment:{environment.name}:request-usage`                   |
+| User               | `user:{user.email}`                                                                         |
+| Role               | `role:{role.name}`                                                                          |
 
 Examples:
 
-- `workspace:*` - All workspaces
-- `workspace:production` - Specific workspace
-- `workspace:*:environment:*` - All environments in all workspaces
-- `workspace:production:environment:staging` - Specific environment
-- `workspace:*:environment:*:ai-connection:*` - All AI connections
-- `workspace:production:environment:staging:ai-connection:openai` - Specific AI connection
+- `workspace:*` — all workspaces
+- `workspace:production` — specific workspace
+- `workspace:*:environment:*` — all environments in all workspaces
+- `workspace:production:environment:staging` — specific environment
+- `workspace:*:environment:*:ai-connection:*` — all AI connections
+- `workspace:production:environment:staging:ai-connection:openai` — specific AI connection
 
 ## Assigning Roles to Users
 
-1. Navigate to **Settings** → **Users**
-2. Click on a user
-3. Click **Roles**
-4. Click **Assign Role**
-5. Select a role
-6. Click **Assign**
+Roles are assigned from the **role** side, not the user side. Each role tracks
+its members; a user can hold any number of roles.
+
+1. Navigate to **Settings** → **Roles**
+2. Click on a role
+3. Click **Assign Users**
+4. Select one or more users
+5. Click **Save**
+
+Programmatically this maps to `POST /role/{roleId}/assign` with a
+`{ "userIds": [...] }` payload, gated by the `role:assign` action on the
+target role's resource.
 
 ## Best Practices
 
 ### 1. Principle of Least Privilege
 
 - Grant only the minimum permissions needed
-- Use DENY statements to explicitly block actions
+- Use `deny` statements to explicitly block dangerous actions
 - Review permissions regularly
 
 ### 2. Use Default Roles When Possible
 
-- Start with default roles (admin, power-user, read-only)
-- Create custom roles only when needed
-- Document custom role purposes
+- Start with the seeded `admin`, `power-user`, and `read-only` roles
+- Create custom roles only when necessary
+- Document the purpose of every custom role
 
 ### 3. Organize by Function
 
@@ -177,26 +235,26 @@ Create roles for:
 
 ### 4. Test Permissions
 
-- Test role permissions before assigning
+- Test role permissions before assigning to real users
 - Verify users can perform required actions
 - Verify users cannot perform unauthorized actions
 
 ### 5. Regular Review
 
-- Review user roles regularly
+- Review user role assignments regularly
 - Remove unused roles
-- Update roles as requirements change
+- Update policies as requirements change
 
 ## Troubleshooting
 
 ### Role Not Working
 
-If a role is not working:
+If a role is not behaving as expected:
 
-1. **Check Policy Syntax**: Verify the policy JSON is valid
-2. **Check Action Names**: Verify action names are correct
-3. **Check Resource Patterns**: Verify resource patterns match
-4. **Check Statement Order**: DENY statements are evaluated first
+1. **Check Policy Syntax**: Verify the policy JSON is valid and `effect` is lowercase
+2. **Check Action Names**: Verify action names match the table above
+3. **Check Resource Patterns**: Verify resource patterns include every level of the hierarchy you expect
+4. **Check `deny` Statements**: A matching `deny` always wins over `allow`
 
 ## Next Steps
 

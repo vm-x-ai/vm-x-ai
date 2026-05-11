@@ -1,3 +1,4 @@
+import playwright from 'eslint-plugin-playwright';
 /* eslint-disable import/no-anonymous-default-export */
 import { FlatCompat } from '@eslint/eslintrc';
 import { dirname } from 'path';
@@ -12,11 +13,17 @@ const compat = new FlatCompat({
 });
 
 export default [
+  playwright.configs['flat/recommended'],
   ...fixupConfigRules(compat.extends('next')),
   ...fixupConfigRules(compat.extends('next/core-web-vitals')),
   ...baseConfig,
   ...nx.configs['flat/react-typescript'],
   {
     ignores: ['.next/**/*', '**/out-tsc', 'src/clients/api/**/*'],
+  },
+  {
+    files: ['**/*.ts', '**/*.js'],
+    // Override or add rules here
+    rules: {},
   },
 ];

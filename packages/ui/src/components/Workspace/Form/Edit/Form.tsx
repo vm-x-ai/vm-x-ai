@@ -46,7 +46,7 @@ export default function WorkspaceEditForm({
   }, [router, state]);
 
   const form = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       workspaceId: workspace.workspaceId,
       name: workspace.name,
@@ -229,7 +229,12 @@ export default function WorkspaceEditForm({
                   )}
                 />
               </Grid>
-              <Grid size={12} marginTop="1rem">
+              <Grid
+                size={12}
+                sx={{
+                  marginTop: '1rem',
+                }}
+              >
                 <SubmitButton label="Save" submittingLabel="Saving..." />
               </Grid>
             </form>

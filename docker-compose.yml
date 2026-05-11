@@ -49,7 +49,6 @@ services:
       - redis2
       - redis3
       - redis-cluster-init
-      - timeseriesdb
     network_mode: host
     environment:
       LOCAL: true
@@ -79,19 +78,6 @@ services:
       # Libsodium openssl rand -base64 32
       # Only used for development
       LIBSODIUM_ENCRYPTION_KEY: mPpddUYSuhIkuLq6MqeARZSEBZiwWm0HwEGQD5YSMFc=
-
-      # Timeseries Database
-      COMPLETION_USAGE_PROVIDER: questdb
-
-      # QuestDB
-      QUESTDB_HOST: localhost
-      QUESTDB_PORT: 8812
-      QUESTDB_USER: admin
-      QUESTDB_PASSWORD: password
-      QUESTDB_DB_NAME: vmxai
-
-      # AWS Timestream
-      AWS_TIMESTREAM_DATABASE_NAME: test1
 
       # UI
       UI_BASE_URL: http://localhost:3001
@@ -226,16 +212,3 @@ services:
         sleep 5 &&
         echo yes | redis-cli --cluster create 127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 --cluster-replicas 0"
     network_mode: host
-
-  # -------------------------------
-  # QuestDB (Timeseries Database)
-  # -------------------------------
-  timeseriesdb:
-    image: questdb/questdb:9.1.1
-    environment:
-      QDB_PG_USER: admin
-      QDB_PG_PASSWORD: password
-      QDB_PG_DATABASE: vmxai
-    ports:
-      - '9000:9000'
-      - '8812:8812'

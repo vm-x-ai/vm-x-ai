@@ -2,7 +2,6 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
@@ -68,7 +67,7 @@ export default function AIResourceFallbackEditForm({
   );
 
   const { control, handleSubmit, setValue, watch } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       fallbackModels: data.fallbackModels ?? [],
       useFallback: data.useFallback ?? false,
@@ -107,8 +106,23 @@ export default function AIResourceFallbackEditForm({
           }}
           noValidate
         >
-          <Grid container size={12} marginTop="1rem">
-            <Grid size={3}>
+          <Grid
+            container
+            size={12}
+            spacing={2}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
+            {/*
+              Toggle is short, so 2 columns is plenty; the rest of the
+              row goes to the fallback-models table so wide rows
+              (Provider / Connection / Model / Actions + edit menu)
+              don't need horizontal scrolling. The contextual caption
+              moves to its own row below the table — keeping it on the
+              right was squeezing the table even when set to 2 columns.
+            */}
+            <Grid size={2}>
               <FormControlLabel
                 control={
                   <Controller
@@ -122,48 +136,44 @@ export default function AIResourceFallbackEditForm({
                 label="Use fallback"
               />
             </Grid>
-            <Grid size={5}>
-              <Grid size={12}>
-                <Controller
-                  name="fallbackModels"
-                  control={control}
-                  render={({ field }) => (
-                    <MultiConnectionModelSelector
-                      {...field}
-                      providersMap={providersMap}
-                      onChange={(value) => {
-                        field.onChange(value);
-                        if (value?.length) {
-                          setValue('useFallback', true);
-                        }
-                      }}
-                      connections={connections}
-                      workspaceId={workspaceId}
-                      environmentId={environmentId}
-                      refreshConnectionAction={refreshConnectionAction}
-                      noRecordsToDisplay="No fallback models configured"
-                    />
-                  )}
-                />
-              </Grid>
+            <Grid size={10}>
+              <Controller
+                name="fallbackModels"
+                control={control}
+                render={({ field }) => (
+                  <MultiConnectionModelSelector
+                    {...field}
+                    providersMap={providersMap}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      if (value?.length) {
+                        setValue('useFallback', true);
+                      }
+                    }}
+                    connections={connections}
+                    workspaceId={workspaceId}
+                    environmentId={environmentId}
+                    refreshConnectionAction={refreshConnectionAction}
+                    noRecordsToDisplay="No fallback models configured"
+                  />
+                )}
+              />
             </Grid>
-            <Grid size={3}>
-              <Box
-                sx={{
-                  paddingLeft: '1rem',
-                  paddingRight: '1rem',
-                }}
-              >
-                <Typography variant="caption" color="gray">
-                  Enabling fallback ensures that a second model is called if
-                  your primary model returns an error
-                </Typography>
-              </Box>
+            <Grid size={12}>
+              <Typography variant="caption" color="text.secondary">
+                Enabling fallback ensures that a second model is called if your
+                primary model returns an error.
+              </Typography>
             </Grid>
           </Grid>
 
-          <Grid size={12} marginTop="1rem">
-            <SubmitButton label="Save" submittingLabel="Saving..." />
+          <Grid
+            size={12}
+            sx={{
+              marginTop: '1rem',
+            }}
+          >
+            <SubmitButton label="Save" submittingLabel="Saving..." sticky />
           </Grid>
         </form>
       </Grid>

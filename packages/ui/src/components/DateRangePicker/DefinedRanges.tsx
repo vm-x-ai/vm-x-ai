@@ -24,13 +24,15 @@ const DefinedRanges: React.FunctionComponent<DefinedRangesProps> = (props) => {
       {props.ranges.map((range, idx) => (
         <ListItemButton key={idx} onClick={() => props.setRange(range)}>
           <ListItemText
-            primaryTypographyProps={{
-              style: {
-                fontWeight: isSameRange(range, props.selectedRange)
-                  ? 'bold'
-                  : 'normal',
+            slotProps={{
+              primary: {
+                style: {
+                  fontWeight: isSameRange(range, props.selectedRange)
+                    ? 'bold'
+                    : 'normal',
+                },
+                variant: 'body2',
               },
-              variant: 'body2',
             }}
           >
             {range.label}

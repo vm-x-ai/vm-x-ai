@@ -1,0 +1,73 @@
+{
+  "name": "vercel-ai-example",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "examples/vercel-ai/src",
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p tsconfig.lib.json --noEmit",
+        "cwd": "{projectRoot}"
+      },
+      "cache": true
+    },
+    "setup": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/setup.sh",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "openai-chat": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/openai-chat.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "openai-responses": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/openai-responses.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "anthropic": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/anthropic.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "streaming": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/streaming.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "tools": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/tools.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "object": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/object.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "vmx-envelope": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx src/vmx-envelope.ts",
+        "cwd": "{projectRoot}"
+      }
+    }
+  },
+  "tags": ["example", "vercel-ai"]
+}

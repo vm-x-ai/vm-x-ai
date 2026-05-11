@@ -51,6 +51,9 @@
   "references": [
     {
       "path": "../libs/shared/ai-provider"
+    },
+    {
+      "path": "./tsconfig.e2e.json"
     }
   ]
 }

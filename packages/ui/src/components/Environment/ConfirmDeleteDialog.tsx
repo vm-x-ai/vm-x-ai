@@ -71,7 +71,7 @@ export default function ConfirmDeleteEnvironmentDialog({
         <DialogActions>
           <Button
             disabled={deletingEnvironment}
-            variant="contained"
+            variant="text"
             onClick={handleClose}
           >
             Cancel

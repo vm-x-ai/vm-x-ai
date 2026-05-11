@@ -62,43 +62,90 @@ Route requests that include function calling or tool usage to models that suppor
 
 ## Available Routing Fields and Expressions
 
-VM-X AI provides a comprehensive set of routing conditions based on request characteristics:
+Routing conditions evaluate against a small set of request-shaped
+variables. The OpenAI-shape body is always available under `request.*`
+regardless of which endpoint the caller used (Chat Completions,
+Responses, or Anthropic Messages) — Responses and Anthropic requests
+are converted to OpenAI shape before routing runs.
 
 ### Token-Based Conditions
 
 - **`tokens.input`**: Number of input tokens in the request
   - Example: Route to Groq if input tokens < 100
-- **`request.allMessagesContent.length`**: Total character length of all messages
-  - Example: Route based on prompt length in characters
 
-### Content-Based Conditions
+### Request Conditions
 
-- **`request.lastMessage.content`**: Content of the last user message
-  - Supports: `CONTAINS` (text search), `PATTERN` (regex pattern matching)
-  - Example: Route to specific model if message contains certain keywords
-- **`request.allMessagesContent`**: Combined content of all messages
-  - Supports: `CONTAINS` (text search)
-  - Example: Route if any message contains specific text
+- **`request.model`**: The resource name the caller targeted (the
+  request's `model` field).
+- **`request.messagesCount`**: Number of messages in the request.
+- **`request.toolsCount`**: Number of tools declared on the request.
+  Use `GREATER_THAN 0` to check whether the request uses tools at all.
+- **`request.firstMessage`** / **`request.lastMessage`**: First and
+  last message objects. Read `.content` for the text body. Both are
+  `undefined` when the request has no messages.
+- **`request.allMessagesContent`**: All message contents joined into
+  a single string. Supports `CONTAINS` and `PATTERN`. Length-based
+  routing uses `request.allMessagesContent.length` with a numeric
+  comparator.
 
-### Tool-Based Conditions
+### Format and Native-Body Conditions
 
-- **`request.toolsCount`**: Number of tools in the request
-  - Supports: `GREATER_THAN` (typically with value 0 to check if tools exist)
-  - Example: Route to GPT-4 if request has tools
+Routing rules can also branch on the **input format** the client
+used and read fields the OpenAI conversion would otherwise drop:
 
-### Error Rate Conditions
+- **`request.format`**: One of `"openai"`, `"responses"`,
+  `"anthropic"`. Lets a single resource apply different rules
+  depending on which endpoint was hit.
+- **`request.nativeBody`**: The original request body, before
+  format conversion. Use this to read provider-native fields that
+  the OpenAI shape doesn't model — for example
+  `request.nativeBody.thinking` (Anthropic extended thinking),
+  `request.nativeBody.cache_control` (Anthropic prompt caching),
+  `request.nativeBody.instructions` or `request.nativeBody.reasoning`
+  (Responses-only fields).
 
-- **`errorRate(5)`**: Error rate in the last 5 minutes
-- **`errorRate(10)`**: Error rate in the last 10 minutes
-  - Supports: `GREATER_THAN` (percentage)
-  - Example: Switch to fallback provider if error rate > 10% in last 10 minutes
+These fields are evaluated through EJS, so they appear in advanced-
+mode routing expressions like
+`<%= request.format === 'anthropic' && request.nativeBody.thinking %>`.
+
+### Error-Rate Function
+
+- **`errorRate(windowMinutes)`** — async function returning the
+  error-rate percentage for the resource's primary
+  connection/model over the last `windowMinutes`. Defaults to
+  10 minutes when called with no argument. Supports the numeric
+  comparators (`GREATER_THAN`, `LESS_THAN`, …).
+  - Example: Switch providers when `errorRate(5) GREATER_THAN 10`
+    (more than 10% errors in the last 5 minutes).
 
 ## Available Comparators
 
-- **`LESS_THAN`**: Field is less than value
-- **`GREATER_THAN`**: Field is greater than value
-- **`CONTAINS`**: Field contains value (for strings)
-- **`PATTERN`**: Field matches regex pattern (for strings)
+The full set, all of which are valid on numeric and string fields
+where it makes sense:
+
+- Equality: `EQUAL`, `NOT_EQUAL`
+- Numeric: `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN`,
+  `LESS_THAN_OR_EQUAL`
+- String: `CONTAINS`, `NOT_CONTAINS`, `STARTS_WITH`, `ENDS_WITH`,
+  `PATTERN` (regex)
+- Membership: `IN`, `NOT_IN` (against a comma-delimited list or
+  JSON array value)
+- Existence: `EXISTS` (truthy check)
+
+## Routing Actions
+
+Each route declares an action. There are two:
+
+- **`CALL_MODEL`** — when the route matches, the request is
+  dispatched to the configured `then` model (provider, connection,
+  model, and optional per-model `maxRetries` / `timeoutMs`). This
+  is the default action used by token-based, error-rate-based, and
+  traffic-splitting routes.
+- **`BLOCK`** — when the route matches, the gateway short-circuits
+  and returns `400 Bad Request` to the caller without calling any
+  provider. Use this to enforce policy at the routing layer (for
+  example, block requests whose prompt matches a known
+  prompt-injection probe).
 
 ## Traffic Splitting
 
@@ -119,7 +166,13 @@ Use traffic splitting for A/B testing, gradual rollouts, or canary deployments. 
 - Gradually increase the percentage as confidence grows
 - Use audit logs to track which route each request took
 
-The `traffic` field specifies the percentage (0-100) of matching requests that should use this route. If multiple routing conditions match the same request, the first matching condition with traffic splitting is applied.
+The `traffic` field is set on the route's `then` model config and
+specifies the percentage (0-100) of matching requests that should use
+this route. Routes are evaluated in declared order; on a match without
+`traffic`, the first matching route wins. With `traffic`, the gateway
+rolls dice — if the dice roll fails, evaluation continues to the next
+route, so a downstream route can still pick up the remaining
+percentage. If no route matches, the resource's primary model is used.
 
 ![Traffic Splitting Configuration](/pages/ai-resource-dynamic-traffic.png)
 

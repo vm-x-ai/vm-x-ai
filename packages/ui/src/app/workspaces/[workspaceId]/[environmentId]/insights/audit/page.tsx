@@ -11,6 +11,7 @@ import {
   parseAsString,
   parseAsIsoDateTime,
   parseAsInteger,
+  parseAsJson,
   createLoader,
   SearchParams,
 } from 'nuqs/server';
@@ -19,7 +20,8 @@ import {
   getAiProviders,
   getAiResources,
   getApiKeys,
-  getCompletionAudit,
+  getRequestAudit,
+  getRequestAuditMetadataKeys,
 } from '@/clients/api';
 
 export type PageProps = {
@@ -36,6 +38,13 @@ const relativeValueParser = parseAsInteger.withDefault(7);
 const pageSizeParser = parseAsInteger.withDefault(100);
 const pageIndexParser = parseAsInteger.withDefault(0);
 
+const metadataFiltersParser = parseAsJson<Record<string, string>>((value) => {
+  if (typeof value === 'string') {
+    return JSON.parse(value);
+  }
+  return value as Record<string, string>;
+}).withDefault({});
+
 const loadSearchParams = createLoader({
   pageIndex: pageIndexParser,
   pageSize: pageSizeParser,
@@ -46,7 +55,15 @@ const loadSearchParams = createLoader({
   end: parseAsIsoDateTime,
   resourceId: parseAsString,
   connectionId: parseAsString,
+  // Deep-link target for the playground: clicking a chat reply
+  // navigates here with `?requestId=<x-vmx-request-id>` so the table
+  // auto-filters to that single row.
+  requestId: parseAsString,
   statusCode: parseAsInteger,
+  metadataKey: parseAsString,
+  metadataValue: parseAsString,
+  metadataFilters: metadataFiltersParser,
+  groupBy: parseAsString,
 });
 
 export default async function Page({ params, searchParams }: PageProps) {
@@ -70,9 +87,9 @@ export default async function Page({ params, searchParams }: PageProps) {
     (date) => date?.toISOString() ?? new Date().toISOString()
   );
 
-  const [auditData, providers, resources, connections, apiKeys] =
+  const [auditData, providers, resources, connections, apiKeys, metadataKeys] =
     await Promise.all([
-      getCompletionAudit({
+      getRequestAudit({
         path: {
           workspaceId,
           environmentId,
@@ -80,11 +97,20 @@ export default async function Page({ params, searchParams }: PageProps) {
         query: {
           connectionId: loadQueryParams.connectionId,
           resourceId: loadQueryParams.resourceId,
+          requestId: loadQueryParams.requestId,
           statusCode: loadQueryParams.statusCode,
           startDate: start,
           endDate: end,
           pageIndex: loadQueryParams.pageIndex,
           pageSize: loadQueryParams.pageSize,
+          metadataKey: loadQueryParams.metadataKey,
+          metadataValue: loadQueryParams.metadataValue,
+          metadataFilters:
+            loadQueryParams.metadataFilters &&
+            Object.keys(loadQueryParams.metadataFilters).length > 0
+              ? JSON.stringify(loadQueryParams.metadataFilters)
+              : undefined,
+          groupBy: loadQueryParams.groupBy,
         },
       }),
       getAiProviders(),
@@ -101,6 +127,12 @@ export default async function Page({ params, searchParams }: PageProps) {
         },
       }),
       getApiKeys({
+        path: {
+          workspaceId,
+          environmentId,
+        },
+      }),
+      getRequestAuditMetadataKeys({
         path: {
           workspaceId,
           environmentId,
@@ -128,6 +160,7 @@ export default async function Page({ params, searchParams }: PageProps) {
           environmentId={environmentId}
           data={auditData.data}
           providersMap={providersMap}
+          metadataKeys={metadataKeys.data ?? []}
           resourcesMap={
             resources.data
               ? resources.data.reduce(

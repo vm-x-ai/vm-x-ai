@@ -1,9 +1,9 @@
-import { CompletionUsageQueryResultDto } from '@/clients/api';
+import { RequestUsageQueryResultDto } from '@/clients/api';
 
 export function groupDataByTime(
-  data: CompletionUsageQueryResultDto[]
-): Record<string, CompletionUsageQueryResultDto[]> {
-  return data.reduce<Record<string, CompletionUsageQueryResultDto[]>>(
+  data: RequestUsageQueryResultDto[]
+): Record<string, RequestUsageQueryResultDto[]> {
+  return data.reduce<Record<string, RequestUsageQueryResultDto[]>>(
     (acc, curr) => {
       const time = curr.time;
       if (!acc[time]) {
@@ -13,6 +13,6 @@ export function groupDataByTime(
       acc[time].push(curr);
       return acc;
     },
-    {} as Record<string, CompletionUsageQueryResultDto[]>
+    {} as Record<string, RequestUsageQueryResultDto[]>
   );
 }

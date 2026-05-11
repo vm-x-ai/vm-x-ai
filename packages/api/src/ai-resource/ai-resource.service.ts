@@ -14,6 +14,9 @@ import { PoolDefinitionEntry } from '../pool-definition/entities/pool-definition
 import { ApiKeyService } from '../api-key/api-key.service';
 import { DatabaseError } from 'pg';
 import { PoolDefinitionService } from '../pool-definition/pool-definition.service';
+import { AIConnectionService } from '../ai-connection/ai-connection.service';
+import { resolveAllModelConnections } from './common/model-resolver';
+import { camelCaseEmbeds } from '../storage/embed-case';
 
 @Injectable()
 export class AIResourceService {
@@ -21,7 +24,8 @@ export class AIResourceService {
     private readonly db: DatabaseService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly apiKeyService: ApiKeyService,
-    private readonly poolDefinitionService: PoolDefinitionService
+    private readonly poolDefinitionService: PoolDefinitionService,
+    private readonly aiConnectionService: AIConnectionService
   ) {}
 
   public async getAll({
@@ -30,7 +34,7 @@ export class AIResourceService {
     includesUsers = false,
     connectionId,
   }: ListAIResourceDto): Promise<AIResourceEntity[]> {
-    return await this.db.reader
+    const rows = await this.db.reader
       .selectFrom('aiResources')
       .selectAll('aiResources')
       .$if(!!includesUsers, this.db.includeEntityControlUsers('aiResources'))
@@ -60,6 +64,13 @@ export class AIResourceService {
       )
       .orderBy('createdAt', 'desc')
       .execute();
+    // Kysely's row shape (JsonValue for jsonb columns) is structurally
+    // compatible with the validator-decorated AIResourceEntity but TS
+    // sees them as distinct under strict mode — a single boundary cast
+    // avoids spamming each field declaration with the union.
+    return rows.map((row) =>
+      camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+    ) as unknown as AIResourceEntity[];
   }
 
   public async getById(payload: GetAIResourceDto): Promise<AIResourceEntity>;
@@ -90,8 +101,8 @@ export class AIResourceService {
         resourceId,
         !!includesUsers
       ),
-      () =>
-        this.db.reader
+      async () => {
+        const row = await this.db.reader
           .selectFrom('aiResources')
           .selectAll('aiResources')
           .$if(
@@ -101,7 +112,11 @@ export class AIResourceService {
           .where('workspaceId', '=', workspaceId)
           .where('environmentId', '=', environmentId)
           .where('resourceId', '=', resourceId)
-          .executeTakeFirst()
+          .executeTakeFirst();
+        return row
+          ? camelCaseEmbeds(row, ['createdByUser', 'updatedByUser'])
+          : undefined;
+      }
     );
 
     if (throwOnNotFound && !aiResource) {
@@ -110,7 +125,7 @@ export class AIResourceService {
       });
     }
 
-    return aiResource;
+    return aiResource as AIResourceEntity | undefined;
   }
 
   public async getByName(
@@ -168,16 +183,16 @@ export class AIResourceService {
       });
     }
 
-    return aiResource;
+    return aiResource as AIResourceEntity | undefined;
   }
 
   public async getByIds(resourceIds: string[]): Promise<AIResourceEntity[]> {
     if (resourceIds.length === 0) return [];
-    return await this.db.reader
+    return (await this.db.reader
       .selectFrom('aiResources')
       .selectAll('aiResources')
       .where('resourceId', 'in', resourceIds)
-      .execute();
+      .execute()) as unknown as AIResourceEntity[];
   }
 
   public async create(
@@ -186,8 +201,18 @@ export class AIResourceService {
     payload: CreateAIResourceDto,
     user: UserEntity
   ): Promise<AIResourceEntity> {
+    // Resolve any `connectionName` references on the payload's primary
+    // model + fallback / secondary / routing models BEFORE persisting.
+    // The DB only ever stores resolved `connectionId` UUIDs; renaming
+    // a connection later doesn't break stored resources.
+    payload = await resolveAllModelConnections(
+      payload,
+      workspaceId,
+      environmentId,
+      this.aiConnectionService
+    );
     try {
-      return await this.db.writer.transaction().execute(async (tx) => {
+      return (await this.db.writer.transaction().execute(async (tx) => {
         const { assignApiKeys, ...rest } = payload;
         const aiResource = await tx
           .insertInto('aiResources')
@@ -207,6 +232,9 @@ export class AIResourceService {
               ? JSON.stringify(payload.capacity)
               : null,
             enforceCapacity: payload.enforceCapacity,
+            defaultArgs: payload.defaultArgs
+              ? JSON.stringify(payload.defaultArgs)
+              : null,
             createdBy: user.id,
             updatedBy: user.id,
           })
@@ -224,7 +252,7 @@ export class AIResourceService {
         }
 
         return aiResource;
-      });
+      })) as unknown as AIResourceEntity;
     } catch (error) {
       if (error instanceof DatabaseError && error.code === '23505') {
         throwServiceError(
@@ -246,6 +274,14 @@ export class AIResourceService {
     payload: UpdateAIResourceDto,
     user: UserEntity
   ): Promise<AIResourceEntity> {
+    // Same `connectionName` → `connectionId` resolution as `create`,
+    // so an update payload can carry name-only model configs.
+    payload = await resolveAllModelConnections(
+      payload,
+      workspaceId,
+      environmentId,
+      this.aiConnectionService
+    );
     const { updated, old } = await this.db.writer
       .transaction()
       .execute(async (tx) => {
@@ -284,6 +320,12 @@ export class AIResourceService {
             capacity: payload.capacity
               ? JSON.stringify(payload.capacity)
               : undefined,
+            defaultArgs:
+              payload.defaultArgs === undefined
+                ? undefined
+                : payload.defaultArgs === null
+                ? null
+                : JSON.stringify(payload.defaultArgs),
             updatedBy: user.id,
             updatedAt: new Date(),
           })
@@ -302,7 +344,7 @@ export class AIResourceService {
       this.getAIResourceByNameCacheKey(workspaceId, environmentId, old.name),
     ]);
 
-    return updated;
+    return updated as unknown as AIResourceEntity;
   }
 
   public async delete(

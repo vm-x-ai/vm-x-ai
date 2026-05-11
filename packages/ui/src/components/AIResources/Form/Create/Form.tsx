@@ -72,7 +72,7 @@ export default function CreateAIResourceForm({
     handleSubmit,
     formState: { errors },
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       workspaceId,
       environmentId,
@@ -155,7 +155,13 @@ export default function CreateAIResourceForm({
               <Typography variant="subtitle2">Primary Model</Typography>
               <Divider />
             </Grid>
-            <Grid container size={12} marginTop="1rem">
+            <Grid
+              container
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <Grid size={12}>
                 <Controller
                   name="model"
@@ -188,13 +194,24 @@ export default function CreateAIResourceForm({
                 />
               </Grid>
             </Grid>
-            <Grid size={12} marginTop="1rem">
+            <Grid
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <Typography variant="subtitle2">
                 Assign Roles (Optional)
               </Typography>
               <Divider />
             </Grid>
-            <Grid container size={12} marginTop="1rem">
+            <Grid
+              container
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <Grid size={12}>
                 <Controller
                   name="assignApiKeys"
@@ -215,8 +232,18 @@ export default function CreateAIResourceForm({
                 />
               </Grid>
             </Grid>
-            <Grid size={12} marginTop="1rem">
-              <Box display="flex" justifyContent="flex-end">
+            <Grid
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+              >
                 {' '}
                 <SubmitButton label="Save" submittingLabel="Saving..." />
               </Box>

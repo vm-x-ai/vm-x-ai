@@ -10,6 +10,17 @@ const nextConfig = {
   // See: https://nx.dev/recipes/next/next-config-setup
   nx: {},
 
+  // The playground accepts image / audio / file uploads inline on chat
+  // requests. The default Next.js Server Action body limit is 1 MB which
+  // refuses any meaningfully-sized attachment; bump to 100 MB to match
+  // the API-side Fastify limit. (Server Actions only — route handlers
+  // already accept up to the platform default.)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
+  },
+
   compiler: {
     // For other options, see https://nextjs.org/docs/architecture/nextjs-compiler#emotion
     emotion: true,

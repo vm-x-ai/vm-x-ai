@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { editor } from 'monaco-editor';
 import { cn } from '@/lib/utils';
 import useDebounceValue from '@/hooks/use-debounce-value';
+import { useResolvedColorScheme } from '@/hooks/use-resolved-color-scheme';
 import Tooltip from '@mui/material/Tooltip';
 
 export type EditorProps = Omit<MonacoEditorProps, 'theme' | 'onChange'> & {
@@ -95,6 +96,12 @@ export default function Editor({
     onChange,
   });
 
+  // Track the active MUI scheme so Monaco's chrome (background, gutter,
+  // syntax theme) follows the rest of the UI. `useResolvedColorScheme`
+  // is the canonical resolver for the cssVariables + colorSchemes setup
+  // — `useTheme().palette.mode` would stay pinned at the default.
+  const monacoTheme = useResolvedColorScheme() === 'dark' ? 'vs-dark' : 'vs';
+
   useEffect(() => {
     if (!editorRef.current?.hasTextFocus()) {
       setValue(props.value ?? '');
@@ -127,6 +134,7 @@ export default function Editor({
       <div className="flex flex-col w-full h-full gap-3">
         <MonacoEditor
           {...props}
+          theme={monacoTheme}
           value={value}
           className={cn(
             props.className,

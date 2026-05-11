@@ -20,7 +20,7 @@ import Markdown from '@/components/Markdown';
 import { AWS_REGIONS, AWS_REGIONS_MAP } from '@/consts/aws';
 import ejs from 'ejs';
 import type { JSONSchema7 } from 'json-schema';
-import Image from 'next/image';
+import ProviderLogo from '@/components/Providers/ProviderLogo';
 import { useMemo } from 'react';
 import type { Control, FieldErrors } from 'react-hook-form';
 import { Controller } from 'react-hook-form';
@@ -58,9 +58,11 @@ function ProviderFieldsetForm({
         .map(([key, def], index) => (
           <Grid
             size={12}
-            marginTop={index === 0 ? '1rem' : 'none'}
             spacing={3}
             key={key}
+            sx={{
+              marginTop: index === 0 ? '1rem' : 'none',
+            }}
           >
             <Controller
               name={`config.${baseKey}${key}`}
@@ -77,7 +79,9 @@ function ProviderFieldsetForm({
                       checked={field.value}
                       onChange={(e) => field.onChange(e.target.checked)}
                       color="primary"
-                      inputProps={{ 'aria-label': def.title }}
+                      slotProps={{
+                        input: { 'aria-label': def.title },
+                      }}
                     />
                   );
                 } else if (
@@ -123,7 +127,12 @@ function ProviderFieldsetForm({
                         <Typography variant="subtitle2">{def.title}</Typography>
                         <Divider />
                       </Grid>
-                      <Grid size={12} marginBottom="1rem">
+                      <Grid
+                        size={12}
+                        sx={{
+                          marginBottom: '1rem',
+                        }}
+                      >
                         <ProviderFieldsetForm
                           control={control}
                           errors={errors?.[key]}
@@ -160,11 +169,13 @@ function ProviderFieldsetForm({
 
                 return (
                   <Box
-                    display="flex"
-                    flexDirection="column"
-                    gap={1}
-                    width="100%"
-                    padding={0}
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1,
+                      width: '100%',
+                      padding: 0,
+                    }}
                   >
                     <TextField
                       {...field}
@@ -175,11 +186,18 @@ function ProviderFieldsetForm({
                       placeholder={
                         (def as Record<string, string>).placeholder ?? ''
                       }
+                      // Provider connection schemas mark sensitive fields
+                      // (API keys, secrets) with `format: "secret"`. Render
+                      // those as password inputs so the value is masked in
+                      // the DOM — protects shoulder-surfing in screen
+                      // shares and stops the e2e suite's video recording
+                      // from capturing the key in plaintext.
+                      type={def.format === 'secret' ? 'password' : 'text'}
                       error={!!errors?.[key]?.message}
                     />
                     <Box
-                      padding={0}
                       sx={{
+                        padding: 0,
                         fontSize: '0.75rem',
                         color: 'text.secondary',
                       }}
@@ -236,11 +254,15 @@ export default function ProviderFieldset({
                 renderOption={(props, option) => {
                   return (
                     <li {...props}>
-                      <Box display="flex" gap={1}>
-                        <Image
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          gap: 1,
+                        }}
+                      >
+                        <ProviderLogo
                           alt={option.name}
-                          loader={({ src }) => src}
-                          src={option.config.logo.url}
+                          logo={option.config.logo}
                           height={20}
                           width={25}
                         />
@@ -260,29 +282,32 @@ export default function ProviderFieldset({
                     label="AI Provider"
                     error={!!errors.provider?.message}
                     helperText={errors.provider?.message}
-                    InputProps={{
-                      ...(params.InputProps ?? {}),
-                      ...(field.value
-                        ? {
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <Image
-                                  alt={providersMap[field.value].name}
-                                  loader={({ src }) => src}
-                                  src={
-                                    providersMap[field.value].config.logo.url
-                                  }
-                                  height={20}
-                                  width={25}
-                                  style={{
-                                    marginLeft: '.2rem',
-                                    marginTop: '.2rem',
-                                  }}
-                                />
-                              </InputAdornment>
-                            ),
-                          }
-                        : {}),
+                    slotProps={{
+                      ...params.slotProps,
+
+                      input: {
+                        ...(params.slotProps.input ?? {}),
+                        ...(field.value
+                          ? {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <ProviderLogo
+                                    alt={providersMap[field.value].name}
+                                    logo={
+                                      providersMap[field.value]?.config.logo
+                                    }
+                                    height={20}
+                                    width={25}
+                                    style={{
+                                      marginLeft: '.2rem',
+                                      marginTop: '.2rem',
+                                    }}
+                                  />
+                                </InputAdornment>
+                              ),
+                            }
+                          : {}),
+                      },
                     }}
                   />
                 )}
@@ -294,7 +319,12 @@ export default function ProviderFieldset({
       <Grid container size={12}>
         {providersMap[provider] && (
           <>
-            <Grid size={12} marginTop="1rem">
+            <Grid
+              size={12}
+              sx={{
+                marginTop: '1rem',
+              }}
+            >
               <Typography variant="subtitle2">
                 {providersMap[provider].config.connection.form.title as string}
               </Typography>
@@ -327,9 +357,11 @@ export default function ProviderFieldset({
                           <Grid container size={12} spacing={3}>
                             <Grid size={12}>
                               <Box
-                                display="flex"
-                                gap={1}
-                                flexDirection="column"
+                                sx={{
+                                  display: 'flex',
+                                  gap: 1,
+                                  flexDirection: 'column',
+                                }}
                               >
                                 {element.elements.map((element, index) => {
                                   if (element.type === 'typography') {
@@ -394,9 +426,11 @@ export default function ProviderFieldset({
                         </Button>
                         {element.helperText && (
                           <Box
-                            marginBottom={
-                              (element.sx?.marginBottom as string) ?? undefined
-                            }
+                            sx={{
+                              marginBottom:
+                                (element.sx?.marginBottom as string) ??
+                                undefined,
+                            }}
                           >
                             <Typography variant="caption" color="textSecondary">
                               <Markdown>{element.helperText}</Markdown>

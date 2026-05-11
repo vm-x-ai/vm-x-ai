@@ -14,6 +14,7 @@ import {
   type MRT_ColumnDef,
   useMaterialReactTable,
 } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import { useMemo, useState } from 'react';
 
 type CapacityTableRow = CapacityEntity;
@@ -173,6 +174,7 @@ export default function CapacityTable({ data, onChange }: CapacityTableProps) {
     [data, onChange, validationErrors]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data,
@@ -186,8 +188,10 @@ export default function CapacityTable({ data, onChange }: CapacityTableProps) {
     editDisplayMode: 'table',
     enableEditing: true,
     enableRowActions: true,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     initialState: {
       columnPinning: {

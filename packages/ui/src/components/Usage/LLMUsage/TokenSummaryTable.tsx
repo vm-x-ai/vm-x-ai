@@ -4,15 +4,13 @@ import { numberWithCommas } from '@/utils/number';
 import type { MRT_ColumnDef } from 'material-react-table';
 import React from 'react';
 import { BaseSummaryTable } from './BaseSummaryTable';
-import { CompletionUsageQueryResultDto } from '@/clients/api';
+import { RequestUsageQueryResultDto } from '@/clients/api';
 
 export type LLMTokenSummaryTableProps = {
-  data: CompletionUsageQueryResultDto[];
+  data: RequestUsageQueryResultDto[];
   autoRefresh?: boolean;
   autoRefreshInterval?: number;
-  autoRefreshAction?: () => Promise<
-    CompletionUsageQueryResultDto[] | undefined
-  >;
+  autoRefreshAction?: () => Promise<RequestUsageQueryResultDto[] | undefined>;
 };
 
 export function LLMTokenSummaryTable({
@@ -21,7 +19,7 @@ export function LLMTokenSummaryTable({
   autoRefreshInterval,
   autoRefreshAction,
 }: LLMTokenSummaryTableProps) {
-  const columns: MRT_ColumnDef<CompletionUsageQueryResultDto>[] = [
+  const columns: MRT_ColumnDef<RequestUsageQueryResultDto>[] = [
     {
       accessorKey: 'resourceId.displayName',
       header: 'Resource',
@@ -39,10 +37,10 @@ export function LLMTokenSummaryTable({
       header: 'Model',
     },
     {
-      accessorKey: 'completionTokens',
-      header: 'Completion Tokens',
+      accessorKey: 'outputTokens',
+      header: 'Output Tokens',
       Cell: ({ row: { original: row } }) =>
-        numberWithCommas((row.completionTokens as number) ?? 0),
+        numberWithCommas((row.outputTokens as number) ?? 0),
     },
     {
       accessorKey: 'promptTokens',

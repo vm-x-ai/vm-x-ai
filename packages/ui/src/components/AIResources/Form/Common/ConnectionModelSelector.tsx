@@ -10,7 +10,6 @@ import type { TextFieldProps } from '@mui/material/TextField';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useMemo, forwardRef } from 'react';
 import {
@@ -18,6 +17,7 @@ import {
   AiProviderDto,
   AiResourceModelConfigEntity,
 } from '@/clients/api';
+import ProviderLogo from '@/components/Providers/ProviderLogo';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 
@@ -85,15 +85,23 @@ const ConnectionModelSelector = forwardRef<
     [connections]
   );
   const [selectedConnection, setSelectedConnection] =
-    useState<AiConnectionEntity | null>(() =>
-      props.value && !Array.isArray(props.value)
-        ? connectionMap.get(props.value.connectionId) ?? null
-        : null
-    );
+    useState<AiConnectionEntity | null>(() => {
+      if (!props.value || Array.isArray(props.value)) return null;
+      const { connectionId } = props.value;
+      return connectionId ? connectionMap.get(connectionId) ?? null : null;
+    });
 
   return (
     <div ref={ref} className="flex gap-2 w-full items-start">
-      <div className="w-1/2">
+      {/* Connection field takes the full row before a connection is
+          picked (the model field below is conditional on
+          `selectedConnection`). Once a connection is selected, the
+          connection input gets 60% and the model-ID input 40% — a
+          plain 50/50 split was too tight on the narrower edit form
+          (the connection name + provider icon got truncated to
+          "Op..."), and model IDs ("gpt-4.1") are short enough to fit
+          comfortably in the smaller column. */}
+      <div className={selectedConnection ? 'w-3/5' : 'w-full'}>
         <Autocomplete
           {...props}
           options={connections}
@@ -121,10 +129,9 @@ const ConnectionModelSelector = forwardRef<
                 sx={{ '& > img': { mr: 2, flexShrink: 0 } }}
                 {...optionProps}
               >
-                <Image
+                <ProviderLogo
                   alt={providersMap[option.provider].name}
-                  loader={({ src }) => src}
-                  src={providersMap[option.provider].config.logo.url}
+                  logo={providersMap[option.provider]?.config.logo}
                   height={20}
                   width={25}
                 />
@@ -142,19 +149,20 @@ const ConnectionModelSelector = forwardRef<
                   {...params}
                   {...renderConnectionInputTextFieldProps}
                   slotProps={{
+                    ...params.slotProps,
+
                     input: {
-                      ...(params.InputProps ?? {}),
+                      ...(params.slotProps.input ?? {}),
                       sx: {
                         width: '100%',
                       },
                       startAdornment: selectedConnection && (
                         <InputAdornment position="start">
-                          <Image
+                          <ProviderLogo
                             alt={providersMap[selectedConnection.provider].name}
-                            loader={({ src }) => src}
-                            src={
-                              providersMap[selectedConnection.provider].config
-                                .logo.url
+                            logo={
+                              providersMap[selectedConnection.provider]?.config
+                                .logo
                             }
                             height={20}
                             width={25}
@@ -184,7 +192,7 @@ const ConnectionModelSelector = forwardRef<
                               </Tooltip>
                             </div>
                           )}
-                          {params.InputProps?.endAdornment}
+                          {params.slotProps.input?.endAdornment}
                         </InputAdornment>
                       ),
                     },
@@ -210,19 +218,28 @@ const ConnectionModelSelector = forwardRef<
         />
       </div>
       {selectedConnection && (
-        <div className="w-1/2 flex gap-2">
+        <div className="w-2/5 flex gap-2">
           <TextField
             {...renderModelInputTextFieldProps}
-            value={props.value?.model}
+            // Falling back to '' avoids the controlled→uncontrolled
+            // warning the React dev runtime logs when `props.value`
+            // is initially undefined and only populated after a user
+            // interaction.
+            value={props.value?.model ?? ''}
             variant="outlined"
             margin="normal"
             fullWidth
             sx={{ marginTop: '0px' }}
             type="text"
             onChange={(event) => {
+              // Emit only the three keys the consumer's resource
+              // model entity expects — spreading the full
+              // `AiConnectionEntity` would leak unrelated fields
+              // (createdAt/updatedBy/etc.) into the form state.
               onChange?.(event, {
-                ...selectedConnection,
+                provider: selectedConnection.provider,
                 model: event.target.value,
+                connectionId: selectedConnection.connectionId,
               });
             }}
             label={renderModelInputTextFieldProps?.label ?? 'Model ID'}

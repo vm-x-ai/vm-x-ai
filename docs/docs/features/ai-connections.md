@@ -10,10 +10,15 @@ AI Connections represent connections to specific AI providers with their credent
 
 An AI Connection encapsulates:
 
-- **Provider**: The AI provider (OpenAI, Anthropic, Google Gemini, Groq, AWS Bedrock)
-- **Credentials**: Encrypted API keys or authentication tokens
-- **Capacity**: Custom capacity limits (e.g., 100 RPM, 100,000 TPM)
-- **Discovered Capacity**: Automatically discovered rate limits from the provider
+- **Provider**: One of the seven supported providers — OpenAI,
+  Anthropic, Google Gemini, Groq, Perplexity, AWS Bedrock (Converse),
+  AWS Bedrock-Invoke (Anthropic on AWS).
+- **Credentials**: Encrypted API key or AWS IAM role.
+- **Capacity**: Custom capacity limits (e.g., 100 RPM, 100,000 TPM).
+- **Discovered Capacity**: Automatically discovered rate limits from the provider.
+
+See the [LLM Providers](../integrations/providers/index.md) index for a
+side-by-side capability matrix and per-provider deep dives.
 
 ## Creating an AI Connection
 
@@ -56,11 +61,13 @@ You can also use the quick add feature for faster connection setup:
 
 ### Google Gemini
 
+The provider id is `gemini` (not `google`).
+
 ```json
 {
-  "provider": "google",
+  "provider": "gemini",
   "config": {
-    "apiKey": "..."
+    "apiKey": "AIza..."
   }
 }
 ```
@@ -71,18 +78,68 @@ You can also use the quick add feature for faster connection setup:
 {
   "provider": "groq",
   "config": {
-    "apiKey": "..."
+    "apiKey": "gsk_..."
   }
 }
 ```
 
-### AWS Bedrock
+### Perplexity
 
-AWS Bedrock uses IAM roles for authentication. You need to create an IAM role in your AWS account and provide its ARN:
+```json
+{
+  "provider": "perplexity",
+  "config": {
+    "apiKey": "pplx-..."
+  }
+}
+```
+
+### AWS Bedrock (Converse)
+
+The unified Bedrock Converse API — supports every Bedrock foundation
+model (Claude, Llama, Mistral, Nova, …) at the cost of losing
+Anthropic-only features in conversion. AWS Bedrock uses IAM role
+assumption rather than an API key:
 
 ```json
 {
   "provider": "aws-bedrock",
+  "config": {
+    "region": "us-east-1",
+    "iamRoleArn": "arn:aws:iam::123456789012:role/vm-x-ai-bedrock-role",
+    "performanceConfig": {
+      "latency": "optimized"
+    },
+    "guardrailConfig": {
+      "guardrailIdentifier": "abc123guardrail",
+      "guardrailVersion": "DRAFT",
+      "trace": "enabled"
+    }
+  }
+}
+```
+
+Both `performanceConfig` and `guardrailConfig` are optional.
+`performanceConfig.latency` is `'standard' | 'optimized'` and applies
+to every Converse call on the connection. `guardrailConfig` attaches
+a Bedrock Guardrail (by ID or full ARN) to every inference call;
+`trace` defaults to `'enabled'` so the audit row sees the guardrail
+assessments.
+
+### AWS Bedrock-Invoke (Anthropic on AWS)
+
+Same IAM-role auth as `aws-bedrock` — including the optional
+`performanceConfig` and `guardrailConfig` blocks shown above — but
+the wire shape is the full Anthropic Messages API via Bedrock's
+`InvokeModel`. Use this when running Claude on AWS **and** you need
+Anthropic-only features (`cache_control`, extended `thinking`, server
+tools) preserved end-to-end. See the
+[AWS Bedrock-Invoke provider page](../integrations/providers/aws-bedrock-invoke.md)
+for the full feature matrix.
+
+```json
+{
+  "provider": "aws-bedrock-invoke",
   "config": {
     "region": "us-east-1",
     "iamRoleArn": "arn:aws:iam::123456789012:role/vm-x-ai-bedrock-role"
@@ -90,13 +147,15 @@ AWS Bedrock uses IAM roles for authentication. You need to create an IAM role in
 }
 ```
 
-**IAM Role Setup:**
+### IAM Role Setup (Bedrock providers)
 
-1. Create an IAM role in your AWS account with Bedrock permissions
-2. Configure the role's trust policy to allow VM-X AI to assume it
-3. Use the role ARN in the connection configuration
+Both Bedrock providers share the same IAM-role setup:
 
-A CloudFormation template is available in the repository at [`packages/api/assets/aws/cfn/bedrock-iam-role.yaml`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/assets/aws/cfn/bedrock-iam-role.yaml) to help you create the required IAM role.
+1. Create an IAM role in your AWS account with Bedrock permissions.
+2. Configure the role's trust policy to allow VM-X AI to assume it.
+3. Use the role ARN in the connection configuration.
+
+A CloudFormation template is available in the repository at [`packages/api/assets/aws/cfn/bedrock-iam-role.yaml`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/assets/aws/cfn/bedrock-iam-role.yaml) — same template works for both providers.
 
 ## Capacity Configuration
 
@@ -104,11 +163,18 @@ Capacity limits control how many requests and tokens can be used within a time p
 
 ### Capacity Periods
 
-Supported periods:
+Supported periods (all values lowercase on the wire):
 
 - **minute**: Requests/tokens per minute
 - **hour**: Requests/tokens per hour
 - **day**: Requests/tokens per day
+- **week**: Requests/tokens per week
+- **month**: Requests/tokens per month
+- **lifetime**: Cumulative cap with no rolling window
+
+Each capacity entry can also carry an optional `enabled` flag and a
+`dimension` (currently only `source-ip`) so the limit applies
+per-source-IP instead of globally.
 
 ### Example Configuration
 

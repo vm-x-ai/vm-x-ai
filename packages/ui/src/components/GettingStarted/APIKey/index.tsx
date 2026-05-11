@@ -54,7 +54,12 @@ export default function GenerateApiKeyStep() {
 
   return (
     <Grid container spacing={3}>
-      <Grid size={12} marginTop="3rem">
+      <Grid
+        size={12}
+        sx={{
+          marginTop: '3rem',
+        }}
+      >
         {(isPending || isGenerating) && (
           <Alert severity="info">Generating API key...</Alert>
         )}
@@ -77,7 +82,13 @@ export default function GenerateApiKeyStep() {
         )}
       </Grid>
       {!isPending && !isGenerating && (
-        <Grid size={12} marginTop="1rem" marginBottom="1rem">
+        <Grid
+          size={12}
+          sx={{
+            marginTop: '1rem',
+            marginBottom: '1rem',
+          }}
+        >
           <Button
             variant="contained"
             component={Link}

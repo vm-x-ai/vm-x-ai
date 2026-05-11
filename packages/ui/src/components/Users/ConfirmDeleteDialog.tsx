@@ -70,11 +70,7 @@ export default function ConfirmDeleteUserDialog({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button
-            disabled={deletingUser}
-            variant="contained"
-            onClick={handleClose}
-          >
+          <Button disabled={deletingUser} variant="text" onClick={handleClose}>
             Cancel
           </Button>
           <Button

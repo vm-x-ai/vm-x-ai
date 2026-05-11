@@ -116,7 +116,15 @@ function Crumb({
   }, [textGenerator]);
 
   if (last) {
-    return <Typography color="text.primary">{text}</Typography>;
+    return (
+      <Typography
+        sx={{
+          color: 'text.primary',
+        }}
+      >
+        {text}
+      </Typography>
+    );
   }
 
   return (

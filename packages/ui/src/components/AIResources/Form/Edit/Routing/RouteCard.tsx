@@ -5,7 +5,6 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EastIcon from '@mui/icons-material/East';
 import ChevronDownIcon from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
-import { grey, blue } from '@mui/material/colors';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
@@ -164,21 +163,36 @@ export default function RouteCard({
           <Box
             onClick={handleExpandClick}
             sx={{
-              backgroundColor: expanded ? blue[50] : grey[100],
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              // Theme-aware tints — `action.selected`/`action.hover`
+              // are alpha overlays on top of `background.paper`, so
+              // they read as a subtle highlight on both light and
+              // dark schemes (vs the previous `blue[50]` /
+              // `grey[100]` which were near-white in dark mode).
+              backgroundColor: expanded
+                ? 'var(--mui-palette-action-selected)'
+                : 'var(--mui-palette-action-hover)',
               borderRadius: 2,
               height: '3.7em',
               p: 2,
               pl: 1,
               cursor: 'pointer',
+
               '&:hover': {
-                backgroundColor: expanded ? blue[100] : grey[200],
+                backgroundColor: expanded
+                  ? 'var(--mui-palette-action-focus)'
+                  : 'var(--mui-palette-action-selected)',
               },
             }}
-            display="flex"
-            alignItems="center"
-            justifyContent="space-between"
           >
-            <Box display="flex" alignItems="center">
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
               <IconButton size="small" disableRipple>
                 {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
               </IconButton>
@@ -199,10 +213,22 @@ export default function RouteCard({
         </Grid>
 
         {/* MODEL SELECTOR */}
-        <Grid size={5} display="flex" alignItems="center">
-          <Box display="flex" alignItems="center" width="100%">
+        <Grid
+          size={5}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+            }}
+          >
             <Box sx={{ alignSelf: 'flex-start', mt: 2 }}>
-              <EastIcon sx={{ color: grey[600], mr: 1 }} />
+              <EastIcon sx={{ color: 'text.secondary', mr: 1 }} />
             </Box>
             <ActionSelector
               providersMap={providersMap}
@@ -310,7 +336,7 @@ export default function RouteCard({
                       width: 'calc(100% - 2em)',
                       ml: '2em',
                       border: '1px dashed',
-                      borderColor: grey[400],
+                      borderColor: 'divider',
                       borderRadius: 2,
                       height: '2.5em',
                       display: 'flex',
@@ -318,19 +344,28 @@ export default function RouteCard({
                       p: 1,
                       '&:hover': {
                         border: '1px solid',
-                        borderColor: blue[600],
+                        borderColor: 'primary.main',
                         transition:
                           'border-color 0.6s ease, border-style 0.6s ease',
                       },
                     }}
                   >
-                    <Box display="flex" alignItems="center">
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                    >
                       <IconButton size="small">
                         <AddIcon />
                       </IconButton>
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 'normal', ml: 1, color: grey[600] }}
+                        sx={{
+                          fontWeight: 'normal',
+                          ml: 1,
+                          color: 'text.secondary',
+                        }}
                       >
                         Add New Rule
                       </Typography>

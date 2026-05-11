@@ -7,24 +7,17 @@ import { styled } from '@mui/material/styles';
 const CustomTabList: React.FC<TabListProps> = styled((props: TabListProps) => (
   <TabList {...props} />
 ))(({ theme }) => ({
-  border: '.1rem solid var(--mui-palette-divider)',
+  border: '1px solid var(--mui-palette-divider)',
   backgroundColor: 'var(--mui-palette-background-paper)',
 
+  // Single solid primary-colour underline; the previous two-layer
+  // indicator combined `secondary.main` (now near-black under the new
+  // palette) with `primary.main`, which collapsed to a near-black bar
+  // in light mode. A flat primary indicator reads better against the
+  // hairline-bordered tab list.
   '& .MuiTabs-indicator': {
-    height: '.2rem',
-    backgroundColor: theme.palette.secondary.main,
-    transform: 'scaleX(0.8)',
-    transformOrigin: 'center',
-  },
-
-  '& .MuiTabs-indicator::after': {
-    content: '""',
-    display: 'block',
-    position: 'absolute',
-    width: '100%', // versus the previous line (same width)
-    height: '.2rem',
-    backgroundColor: theme.palette.primary.main, // Dark blue
-    bottom: '.2rem',
+    height: '2px',
+    backgroundColor: theme.palette.primary.main,
   },
 }));
 

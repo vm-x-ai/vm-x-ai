@@ -76,54 +76,20 @@ export const configSchema = Joi.object({
   AWS_REGION: Joi.string().when('ENCRYPTION_PROVIDER', {
     is: 'aws-kms',
     then: Joi.required(),
-    otherwise: Joi.when('COMPLETION_USAGE_PROVIDER', {
-      is: 'aws-timestream',
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
-  }),
-
-  // TimeseriesDB
-  COMPLETION_USAGE_PROVIDER: Joi.string()
-    .valid('questdb', 'aws-timestream')
-    .default('questdb'),
-
-  // QuestDB Usage Provider
-  QUESTDB_HOST: Joi.string().hostname().when('COMPLETION_USAGE_PROVIDER', {
-    is: 'questdb',
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  QUESTDB_PORT: Joi.number().port().when('COMPLETION_USAGE_PROVIDER', {
-    is: 'questdb',
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  QUESTDB_USER: Joi.string().when('COMPLETION_USAGE_PROVIDER', {
-    is: 'questdb',
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  QUESTDB_PASSWORD: Joi.string().when('COMPLETION_USAGE_PROVIDER', {
-    is: 'questdb',
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  QUESTDB_DB_NAME: Joi.string().when('COMPLETION_USAGE_PROVIDER', {
-    is: 'questdb',
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-
-  // AWS Timestream Usage Provider
-  AWS_TIMESTREAM_DATABASE_NAME: Joi.string().when('COMPLETION_USAGE_PROVIDER', {
-    is: 'aws-timestream',
-    then: Joi.required(),
     otherwise: Joi.optional(),
   }),
 
   // Batch Queue
   BATCH_QUEUE_VISIBILITY_TIMEOUT: Joi.number().default(1000 * 120), // 2 minutes
+
+  // Model Pricing Sync
+  PRICING_SYNC_ENABLED: Joi.boolean().default(true),
+  PRICING_SYNC_URL: Joi.string()
+    .uri()
+    .default(
+      'https://raw.githubusercontent.com/vm-x-ai/vm-x-ai/main/model-pricing.json'
+    ),
+  PRICING_SYNC_CRON: Joi.string().default('0 3 * * *'),
 
   // UI
   UI_BASE_URL: Joi.string().uri().required(),

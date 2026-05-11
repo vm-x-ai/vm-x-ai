@@ -10,13 +10,25 @@ import Grid from '@mui/material/Grid';
 import Tab from '@mui/material/Tab';
 import Typography from '@mui/material/Typography';
 import React, { useMemo, useState } from 'react';
-import dedent from 'string-dedent';
+import { useResolvedColorScheme } from '@/hooks/use-resolved-color-scheme';
+import {
+  type EndpointDefinition,
+  type EndpointId,
+  type Language,
+  getEndpoints,
+} from './snippets';
 
 export type SDKDetailsProps = {
   workspaceId: string;
   environmentId: string;
   baseUrl: string;
   resource?: string;
+};
+
+const LANGUAGE_LABELS: Record<Language, string> = {
+  nodejs: 'Node.js',
+  python: 'Python',
+  curl: 'cURL',
 };
 
 export default function OpenAIAdapterGuide({
@@ -29,131 +41,115 @@ export default function OpenAIAdapterGuide({
     () => resource || '<VM_X_RESOURCE_NAME>',
     [resource]
   );
-  const [value, setValue] = useState('nodejs');
+  const monacoTheme = useResolvedColorScheme() === 'dark' ? 'vs-dark' : 'vs';
+  const [endpointId, setEndpointId] = useState<EndpointId>('chat');
+  const [language, setLanguage] = useState<Language>('nodejs');
 
-  const handleChange = (event: React.SyntheticEvent, newValue: string) => {
-    setValue(newValue);
-  };
+  const endpoints = useMemo(
+    () => getEndpoints({ workspaceId, environmentId, baseUrl, resourceName }),
+    [workspaceId, environmentId, baseUrl, resourceName]
+  );
 
   return (
     <Grid container spacing={3}>
       <Grid size={12}>
-        <Typography variant="h6">OpenAI Completion API Adapter</Typography>
+        <Typography variant="h6">Completion API Adapters</Typography>
         <Divider />
+        <Typography variant="caption" color="text.secondary">
+          Same workspace + environment, three request shapes. Pick the one that
+          matches the SDK you&apos;re already using.
+        </Typography>
       </Grid>
       <Grid size={12}>
         <Box sx={{ width: '100%', typography: 'body1' }}>
-          <TabContext value={value}>
+          {/* Outer tabs — endpoint shape */}
+          <TabContext value={endpointId}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
               <TabList
-                onChange={handleChange}
-                aria-label="lab API tabs example"
+                onChange={(_, v) => setEndpointId(v as EndpointId)}
+                aria-label="Endpoint adapter"
               >
-                <Tab label="Node.js" value="nodejs" />
-                <Tab label="Python" value="python" />
-                <Tab label="cURL" value="curl" />
+                {endpoints.map((ep) => (
+                  <Tab key={ep.id} label={ep.label} value={ep.id} />
+                ))}
               </TabList>
             </Box>
-            <Box border={1} borderColor="divider" borderTop={0}>
-              <TabPanel value="nodejs">
-                <Editor
-                  height="300px"
-                  options={{
-                    readOnly: true,
-                  }}
-                  defaultLanguage="typescript"
-                  defaultValue={dedent`
-                  import OpenAI from "openai";
-
-                  const workspaceId = "${workspaceId}";
-                  const environmentId = "${environmentId}";
-                  const resourceName = "${resourceName}";
-
-                  const openai = new OpenAI({
-                    baseURL: \`${baseUrl}/v1/completion/\${workspaceId}/\${environmentId}\`,
-                    apiKey: '<VM_X_API_KEY>',
-                  });
-
-                  async function main() {
-                    const completion = await openai.chat.completions.create({
-                      messages: [{ role: "system", content: "You are a helpful assistant." }],
-                      model: resourceName, // VM-X Resource Name
-                    });
-
-                    console.log(completion.choices[0]);
-                  }
-
-                  main();
-                  `}
+            {endpoints.map((ep) => (
+              <TabPanel key={ep.id} value={ep.id} sx={{ p: 0, pt: 2 }}>
+                <EndpointPanel
+                  endpoint={ep}
+                  language={language}
+                  onLanguageChange={setLanguage}
+                  monacoTheme={monacoTheme}
                 />
               </TabPanel>
-              <TabPanel value="python">
-                <Editor
-                  height="300px"
-                  options={{
-                    readOnly: true,
-                  }}
-                  defaultLanguage="python"
-                  defaultValue={dedent`
-                  from openai import OpenAI
-
-                  workspace_id = "${workspaceId}"
-                  environment_id = "${environmentId}"
-                  resource_name = "${resourceName}"
-
-                  client = OpenAI(
-                      base_url=f'${baseUrl}/v1/completion/{workspace_id}/{environment_id}',
-                      api_key='<VM_X_API_KEY>',
-                  )
-
-                  completion = client.chat.completions.create(
-                      model=resource_name, # VM-X Resource Name
-                      messages=[
-                          {"role": "system", "content": "You are a helpful assistant."},
-                          {"role": "user", "content": "Hello!"}
-                      ]
-                  )
-
-                  print(completion.choices[0].message)
-                  `}
-                />
-              </TabPanel>
-              <TabPanel value="curl">
-                <Editor
-                  height="300px"
-                  options={{
-                    readOnly: true,
-                  }}
-                  defaultLanguage="shell"
-                  defaultValue={dedent`
-                  export WORKSPACE_ID="${workspaceId}"
-                  export ENVIRONMENT_ID="${environmentId}"
-                  export RESOURCE_NAME="${resourceName}"
-                  export VM_X_API_KEY="<VM_X_API_KEY>"
-
-                  curl ${baseUrl}/v1/completion/$WORKSPACE_ID/$ENVIRONMENT_ID/chat/completions \\
-                    -H "Content-Type: application/json" \\
-                    -H "Authorization: Bearer $VM_X_API_KEY" \\
-                    -d '{
-                      "model": "${resource}",
-                      "messages": [
-                        {
-                          "role": "system",
-                          "content": "You are a helpful assistant."
-                        },
-                        {
-                          "role": "user",
-                          "content": "Hello!"
-                        }
-                      ]
-                    }'
-                  `}
-                />
-              </TabPanel>
-            </Box>
+            ))}
           </TabContext>
         </Box>
       </Grid>
     </Grid>
+  );
+}
+
+type EndpointPanelProps = {
+  endpoint: EndpointDefinition;
+  language: Language;
+  onLanguageChange: (lang: Language) => void;
+  monacoTheme: 'vs' | 'vs-dark';
+};
+
+function EndpointPanel({
+  endpoint,
+  language,
+  onLanguageChange,
+  monacoTheme,
+}: EndpointPanelProps) {
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        {endpoint.description}
+      </Typography>
+      {/* Inner tabs — language */}
+      <TabContext value={language}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <TabList
+            onChange={(_, v) => onLanguageChange(v as Language)}
+            aria-label="Code language"
+          >
+            {endpoint.snippets.map((s) => (
+              <Tab
+                key={s.language}
+                label={LANGUAGE_LABELS[s.language]}
+                value={s.language}
+              />
+            ))}
+          </TabList>
+        </Box>
+        {endpoint.snippets.map((snippet) => (
+          <TabPanel
+            key={snippet.language}
+            value={snippet.language}
+            sx={{ p: 0 }}
+          >
+            <Box
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                borderTop: 0,
+              }}
+            >
+              <Editor
+                height="320px"
+                theme={monacoTheme}
+                options={{ readOnly: true, minimap: { enabled: false } }}
+                defaultLanguage={snippet.monaco}
+                language={snippet.monaco}
+                value={snippet.code}
+              />
+            </Box>
+          </TabPanel>
+        ))}
+      </TabContext>
+    </Box>
   );
 }

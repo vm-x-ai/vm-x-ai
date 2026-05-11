@@ -26,7 +26,7 @@ export default function CreateEnvironmentStep() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       name: 'dev',
     },

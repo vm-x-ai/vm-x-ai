@@ -6,6 +6,17 @@ sidebar_position: 1
 
 This guide shows you how to deploy VM-X AI to a local Minikube cluster using Helm with Istio ingress.
 
+## What gets deployed
+
+VM-X AI requires only four runtime components:
+
+- **API** (`vmxai/api`) — the NestJS gateway, exposed on port `3000`
+- **UI** (`vmxai/ui`) — the Next.js frontend, exposed on port `3001`
+- **PostgreSQL** — primary store for everything, including the `request_audit` table that powers usage analytics
+- **Redis** — used for queues and caching; runs as a single node on Minikube and as a cluster (3 nodes) in production
+
+Everything else — the OpenTelemetry collector, Jaeger, Prometheus, Loki, and Grafana — is **optional application observability**. The chart wires it up for you when you flip the `otel.*.enabled` flags, but the gateway runs fine without it. Usage analytics are read straight from Postgres (`request_audit`), not from a time-series database.
+
 ## Prerequisites
 
 Before you begin, ensure you have:
@@ -317,7 +328,7 @@ kubectl top nodes
 
 ### Access Observability Tools
 
-With the default Minikube values, observability tools are enabled:
+The default Minikube values enable the optional observability stack (collector + Jaeger + Prometheus + Loki + Grafana). It exists purely to give you traces, logs, and dashboards for the gateway itself — VM-X AI's product features (usage analytics, cost tracking, audit) work without any of it. Disable any of them by setting the matching `otel.<component>.enabled: false` if you don't need them.
 
 - **Grafana**: http://vm-x-ai.local/grafana (if ingress enabled)
 - **Jaeger**: http://vm-x-ai.local/jaeger (if ingress enabled)

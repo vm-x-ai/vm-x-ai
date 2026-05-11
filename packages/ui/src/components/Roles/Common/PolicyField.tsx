@@ -34,7 +34,13 @@ export default function PolicyField() {
           <Divider />
         </Grid>
         <Grid container size={12} spacing={3}>
-          <Grid size={6} paddingTop={3} paddingRight={3}>
+          <Grid
+            size={6}
+            sx={{
+              paddingTop: 3,
+              paddingRight: 3,
+            }}
+          >
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Controller
                 name="policy"
@@ -72,7 +78,12 @@ export default function PolicyField() {
                 marginTop: '1rem',
               }}
             >
-              <Typography variant="caption" fontWeight={700}>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 How to Use the Permissions Table & Define Your Role Policy
               </Typography>
               <Typography variant="caption">

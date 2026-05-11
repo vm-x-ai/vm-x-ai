@@ -1,0 +1,79 @@
+{
+  "name": "claude-agent-sdk-python-example",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "examples/claude-agent-sdk-python/claude_agent_sdk_example",
+  "targets": {
+    "lock": { "executor": "@nxlv/python:lock", "options": { "update": false } },
+    "sync": { "executor": "@nxlv/python:sync", "options": {} },
+    "add": { "executor": "@nxlv/python:add", "options": {} },
+    "update": { "executor": "@nxlv/python:update", "options": {} },
+    "remove": { "executor": "@nxlv/python:remove", "options": {} },
+    "build": {
+      "executor": "@nxlv/python:build",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "outputPath": "{projectRoot}/dist",
+        "publish": false,
+        "lockedVersions": true,
+        "bundleLocalDependencies": true
+      },
+      "cache": true
+    },
+    "lint": {
+      "executor": "@nxlv/python:ruff-check",
+      "outputs": [],
+      "options": { "lintFilePatterns": ["claude_agent_sdk_example"] },
+      "cache": true
+    },
+    "format": {
+      "executor": "@nxlv/python:ruff-format",
+      "outputs": [],
+      "options": { "filePatterns": ["claude_agent_sdk_example"] },
+      "cache": true
+    },
+    "install": {
+      "executor": "@nxlv/python:install",
+      "options": {
+        "silent": false,
+        "args": "",
+        "verbose": false,
+        "debug": false
+      }
+    },
+    "setup": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "bash scripts/setup.sh",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "quickstart": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "uv run python -m claude_agent_sdk_example.quickstart",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "tools": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "uv run python -m claude_agent_sdk_example.tools",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "vmx-envelope": {
+      "executor": "@nxlv/python:run-commands",
+      "options": {
+        "command": "uv run python -m claude_agent_sdk_example.vmx_envelope",
+        "cwd": "{projectRoot}"
+      }
+    }
+  },
+  "tags": ["example", "claude-agent-sdk"],
+  "release": {
+    "version": {
+      "versionActions": "@nxlv/python/src/release/version-actions"
+    }
+  }
+}

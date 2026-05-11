@@ -1,59 +1,17 @@
-'use client';
-
-import LockOpenIcon from '@mui/icons-material/LockOpen';
-import SubTabs from '@/components/Tabs/SubTabs';
-import { usePathname } from 'next/navigation';
-import { use } from 'react';
-
 type LayoutProps = {
   children: React.ReactNode;
-  params: Promise<{
-    workspaceId: string;
-    environmentId: string;
-  }>;
 };
 
-export default function Layout({ children, params }: LayoutProps) {
-  const { workspaceId, environmentId } = use(params);
-  const pathname = usePathname();
-
-  const tabs = [
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/security/auth/role/overview`,
-      value: `/workspaces/${workspaceId}/${environmentId}/security/auth/role`,
-      name: 'Roles',
-      icon: <LockOpenIcon />,
-      children: () => {
-        if (!pathname?.includes('security/auth/role/edit')) {
-          return [];
-        }
-
-        const pathElements = pathname?.split('/');
-        if (!pathElements) {
-          return [];
-        }
-        const apiKeyId = pathElements[pathElements.length - 2];
-
-        return [
-          {
-            path: `/workspaces/${workspaceId}/${environmentId}/security/auth/role/edit/${apiKeyId}/general`,
-            name: 'General Settings',
-          },
-          {
-            path: `/workspaces/${workspaceId}/${environmentId}/security/auth/role/edit/${apiKeyId}/capacity`,
-            name: 'Capacity',
-          },
-        ];
-      },
-    },
-  ];
-
-  return (
-    <SubTabs
-      tabs={tabs}
-      pathPattern={'^/workspaces/[^/]+/[^/]+/[^/]+/[^/]+/[^/]+'}
-    >
-      {children}
-    </SubTabs>
-  );
+/**
+ * Security used to wrap children in a `SubTabs` left rail with a
+ * single `Roles` tab. That nav now lives in the main sidebar (under
+ * `Security`), so the page body keeps its full width.
+ *
+ * The role-edit sub-tabs (`General Settings`, `Capacity`) for a
+ * specific role still render as horizontal tabs inside the role-edit
+ * page itself — those are scoped to a single role and don't belong in
+ * the global sidebar.
+ */
+export default function Layout({ children }: LayoutProps) {
+  return <>{children}</>;
 }

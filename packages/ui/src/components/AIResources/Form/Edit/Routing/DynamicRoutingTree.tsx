@@ -57,12 +57,18 @@ export default function DynamicRoutingTree({
 
   return (
     <Box sx={{ width: '100%' }}>
-      <Box display="flex" alignItems="center" gap={1} sx={{ my: 5 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          my: 5,
+        }}
+      >
         <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
           Routes
         </Typography>
       </Box>
-
       <Grid container spacing={3} sx={{ mt: 5 }}>
         <DndProvider backend={HTML5Backend}>
           {data.map((route, index) => (
@@ -113,6 +119,9 @@ export default function DynamicRoutingTree({
                     setRecentlyAdded(data.length);
                   }}
                   sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
                     border: '1px dashed',
                     borderColor: grey[400],
                     borderRadius: 2,
@@ -120,6 +129,7 @@ export default function DynamicRoutingTree({
                     p: 2,
                     pl: 1,
                     cursor: 'pointer',
+
                     '&:hover': {
                       border: '1px solid',
                       borderColor: blue[600],
@@ -127,11 +137,13 @@ export default function DynamicRoutingTree({
                         'border-color 0.6s ease, border-style 0.6s ease',
                     },
                   }}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
                 >
-                  <Box display="flex" alignItems="center">
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
                     <IconButton size="small">
                       <AddIcon />
                     </IconButton>

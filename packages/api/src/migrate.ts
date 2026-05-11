@@ -7,10 +7,6 @@ import { configSchema } from './config/schema';
 import { MigrationsModule } from './migrations/migrations.module';
 import { MigrationsService } from './migrations/migrations.service';
 import { AppLoggerModule } from './logger/logger.module';
-import { QuestDBMigrationsModule } from './completion/usage/questdb/migrations/migrations.module';
-import { QuestDBMigrationsService } from './completion/usage/questdb/migrations/migrations.service';
-import { AWSTimestreamMigrationsModule } from './completion/usage/aws-timestream/migrations/migrations.module';
-import { AWSTimestreamMigrationsService } from './completion/usage/aws-timestream/migrations/migrations.service';
 import { BaseMigrationsService } from './migrations/base';
 
 const baseImports = [
@@ -27,28 +23,11 @@ const baseImports = [
 })
 class DBMigrationModule {}
 
-@Module({
-  imports: [...baseImports, QuestDBMigrationsModule],
-})
-class QuestDBMigrationModule {}
-
-@Module({
-  imports: [...baseImports, AWSTimestreamMigrationsModule],
-})
-class AWSTimestreamMigrationModule {}
-
 async function runMigration() {
-  let app: INestApplicationContext;
   const argv = await yargs(hideBin(process.argv))
     .option('reset', {
       type: 'boolean',
       description: 'Reset the database migrations',
-    })
-    .option('type', {
-      type: 'string',
-      choices: ['app', 'questdb', 'aws-timestream'],
-      description: 'Run migrations for App, QuestDB or AWS Timestream',
-      default: 'app',
     })
     .option('target', {
       type: 'string',
@@ -56,28 +35,9 @@ async function runMigration() {
     })
     .parse();
 
-  let migrator: BaseMigrationsService;
-  switch (argv.type) {
-    case 'app': {
-      app = await NestFactory.createApplicationContext(DBMigrationModule);
-      migrator = app.get(MigrationsService);
-      break;
-    }
-    case 'questdb': {
-      app = await NestFactory.createApplicationContext(QuestDBMigrationModule);
-      migrator = app.get(QuestDBMigrationsService);
-      break;
-    }
-    case 'aws-timestream': {
-      app = await NestFactory.createApplicationContext(
-        AWSTimestreamMigrationModule
-      );
-      migrator = app.get(AWSTimestreamMigrationsService);
-      break;
-    }
-    default:
-      throw new Error(`Invalid migration type: ${argv.type}`);
-  }
+  const app: INestApplicationContext =
+    await NestFactory.createApplicationContext(DBMigrationModule);
+  const migrator: BaseMigrationsService = app.get(MigrationsService);
 
   try {
     if (argv.reset) {

@@ -68,7 +68,7 @@ const Header: React.FunctionComponent<HeaderProps> = ({
   };
 
   return (
-    <StyledGrid container alignItems="center">
+    <StyledGrid container sx={{ alignItems: 'center' }}>
       <IconContainer>
         <StyledIconButton disabled={prevDisabled} onClick={onClickPrevious}>
           <ChevronLeft color={prevDisabled ? 'disabled' : 'action'} />

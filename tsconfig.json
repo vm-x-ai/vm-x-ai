@@ -17,6 +17,12 @@
     },
     {
       "path": "./examples/aws-cdk-ecs"
+    },
+    {
+      "path": "./examples/claude-agent-sdk-ts"
+    },
+    {
+      "path": "./examples/vercel-ai"
     }
   ]
 }

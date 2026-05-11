@@ -32,14 +32,14 @@ import {
   COMPLETION_BASE_RESOURCE,
   COMPLETION_MODULE_NAME,
   COMPLETION_RESOURCE_ITEM,
-} from '../completion/permissions/actions';
+} from '../gateway/permissions/actions';
 import {
   COMPLETION_BATCH_BASE_RESOURCE,
   COMPLETION_BATCH_MODULE_NAME,
   COMPLETION_BATCH_RESOURCE_ITEM,
-} from '../completion/batch/permissions/actions';
-import { CompletionBatchActions } from '../completion/batch/permissions/actions';
-import { CompletionActions } from '../completion/permissions/actions';
+} from '../gateway/batch/permissions/actions';
+import { CompletionBatchActions } from '../gateway/batch/permissions/actions';
+import { CompletionActions } from '../gateway/permissions/actions';
 import {
   AI_RESOURCE_MODULE_NAME,
   AIResourceActions,
@@ -51,13 +51,13 @@ import {
   COMPLETION_METRICS_MODULE_NAME,
   COMPLETION_METRICS_RESOURCE_ITEM,
   CompletionMetricsActions,
-} from '../completion/metrics/permissions/actions';
+} from '../gateway/metrics/permissions/actions';
 import {
-  COMPLETION_AUDIT_BASE_RESOURCE,
-  COMPLETION_AUDIT_MODULE_NAME,
-  COMPLETION_AUDIT_RESOURCE_ITEM,
-  CompletionAuditActions,
-} from '../completion/audit/permissions/actions';
+  REQUEST_AUDIT_BASE_RESOURCE,
+  REQUEST_AUDIT_MODULE_NAME,
+  REQUEST_AUDIT_RESOURCE_ITEM,
+  RequestAuditActions,
+} from '../audit/permissions/actions';
 import {
   USER_BASE_RESOURCE,
   USER_MODULE_NAME,
@@ -71,11 +71,11 @@ import {
   ROLE_RESOURCE_ITEM,
 } from './permissions/actions';
 import {
-  COMPLETION_USAGE_BASE_RESOURCE,
-  COMPLETION_USAGE_MODULE_NAME,
-  COMPLETION_USAGE_RESOURCE_ITEM,
-  CompletionUsageActions,
-} from '../completion/usage/permissions/actions';
+  REQUEST_USAGE_BASE_RESOURCE,
+  REQUEST_USAGE_MODULE_NAME,
+  REQUEST_USAGE_RESOURCE_ITEM,
+  RequestUsageActions,
+} from '../usage/permissions/actions';
 import { StringKeyOf } from 'ts-enum-util/dist/types/types';
 
 function getEnumValues<T extends Record<StringKeyOf<T>, string>>(
@@ -142,16 +142,16 @@ export const modules = [
     itemResource: COMPLETION_METRICS_RESOURCE_ITEM,
   },
   {
-    name: COMPLETION_AUDIT_MODULE_NAME,
-    actions: getEnumValues(CompletionAuditActions),
-    baseResource: COMPLETION_AUDIT_BASE_RESOURCE,
-    itemResource: COMPLETION_AUDIT_RESOURCE_ITEM,
+    name: REQUEST_AUDIT_MODULE_NAME,
+    actions: getEnumValues(RequestAuditActions),
+    baseResource: REQUEST_AUDIT_BASE_RESOURCE,
+    itemResource: REQUEST_AUDIT_RESOURCE_ITEM,
   },
   {
-    name: COMPLETION_USAGE_MODULE_NAME,
-    actions: getEnumValues(CompletionUsageActions),
-    baseResource: COMPLETION_USAGE_BASE_RESOURCE,
-    itemResource: COMPLETION_USAGE_RESOURCE_ITEM,
+    name: REQUEST_USAGE_MODULE_NAME,
+    actions: getEnumValues(RequestUsageActions),
+    baseResource: REQUEST_USAGE_BASE_RESOURCE,
+    itemResource: REQUEST_USAGE_RESOURCE_ITEM,
   },
   {
     name: USER_MODULE_NAME,

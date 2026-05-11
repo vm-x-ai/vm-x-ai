@@ -36,7 +36,6 @@ services:
     depends_on:
       - postgres
       - redis
-      - timeseriesdb
     network_mode: host
     environment:
       LOCAL: true
@@ -66,16 +65,6 @@ services:
       # Only used for development
       LIBSODIUM_ENCRYPTION_KEY: mPpddUYSuhIkuLq6MqeARZSEBZiwWm0HwEGQD5YSMFc=
 
-      # Timeseries Database
-      COMPLETION_USAGE_PROVIDER: questdb
-
-      # QuestDB
-      QUESTDB_HOST: localhost
-      QUESTDB_PORT: 8812
-      QUESTDB_USER: admin
-      QUESTDB_PASSWORD: password
-      QUESTDB_DB_NAME: vmxai
-
       # UI
       UI_BASE_URL: http://localhost:3001
 
@@ -102,16 +91,3 @@ services:
     ports:
       - '6379:6379'
     network_mode: host
-
-  # -------------------------------
-  # QuestDB (Timeseries Database)
-  # -------------------------------
-  timeseriesdb:
-    image: questdb/questdb:9.1.1
-    environment:
-      QDB_PG_USER: admin
-      QDB_PG_PASSWORD: password
-      QDB_PG_DATABASE: vmxai
-    ports:
-      - '9000:9000'
-      - '8812:8812'

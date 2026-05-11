@@ -86,11 +86,39 @@
       "options": {
         "testTargetName": "test"
       }
+    },
+    {
+      "plugin": "@nx/playwright/plugin",
+      "options": {
+        "targetName": "e2e"
+      }
     }
   ],
   "targetDefaults": {
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "configurations": {
+        "unit": {
+          "args": ["--project=unit"]
+        },
+        "integration": {
+          "args": ["--project=integration"]
+        },
+        "live": {
+          "args": ["--project=live"]
+        },
+        "coverage": {
+          "args": [
+            "--project=unit",
+            "--project=integration",
+            "--project=live",
+            "--coverage"
+          ]
+        },
+        "all": {
+          "args": ["--project=unit", "--project=integration", "--project=live"]
+        }
+      }
     }
   },
   "tui": {

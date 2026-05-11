@@ -42,7 +42,7 @@ export default function RoleForm({ submitAction, role }: RoleFormProps) {
   }, [router, state]);
 
   const form = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       roleId: role?.roleId ?? undefined,
       name: role?.name ?? '',
@@ -182,7 +182,12 @@ export default function RoleForm({ submitAction, role }: RoleFormProps) {
                   )}
                 />
               </Grid>
-              <Grid size={12} marginTop="1rem">
+              <Grid
+                size={12}
+                sx={{
+                  marginTop: '1rem',
+                }}
+              >
                 <SubmitButton label="Save" submittingLabel="Saving..." />
               </Grid>
             </form>

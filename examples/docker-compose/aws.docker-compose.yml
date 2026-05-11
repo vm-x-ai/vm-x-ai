@@ -63,12 +63,6 @@ services:
 
       AWS_KMS_KEY_ID: <YOUR_AWS_KMS_KEY_ID>
 
-      # Timeseries Database
-      COMPLETION_USAGE_PROVIDER: aws-timestream
-
-      # AWS Timestream
-      AWS_TIMESTREAM_DATABASE_NAME: <YOUR_AWS_TIMESTREAM_DATABASE_NAME>
-
       # UI
       UI_BASE_URL: http://localhost:3001
 

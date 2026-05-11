@@ -53,15 +53,6 @@ secrets:
       portKey: 'port'
       databaseKey: 'database'
       usernameKey: 'username'
-  questdb:
-    method: eso
-    externalSecrets:
-      secretKey: 'vmxai/production/questdb'
-      passwordKey: 'password'
-      hostKey: 'host'
-      portKey: 'port'
-      databaseKey: 'database'
-      usernameKey: 'username'
   ui:
     method: eso
     externalSecrets:
@@ -95,15 +86,6 @@ secrets:
       portKey: 'port' # Optional, only if using external PostgreSQL
       databaseKey: 'database' # Optional, only if using external PostgreSQL
       usernameKey: 'username' # Optional, only if using external PostgreSQL
-  questdb:
-    method: external
-    external:
-      secretName: 'questdb-credentials'
-      passwordKey: 'password'
-      hostKey: 'host' # Optional, only if using external QuestDB
-      portKey: 'port' # Optional, only if using external QuestDB
-      databaseKey: 'database' # Optional, only if using external QuestDB
-      usernameKey: 'username' # Optional, only if using external QuestDB
   ui:
     method: external
     external:
@@ -121,14 +103,6 @@ Create secrets separately:
 ```bash
 kubectl create secret generic postgresql-credentials \
   --from-literal=password='your-secure-password' \
-  --namespace vm-x-ai
-
-kubectl create secret generic questdb-credentials \
-  --from-literal=password='your-secure-password' \
-  --from-literal=host='questdb.example.com' \
-  --from-literal=port='8812' \
-  --from-literal=database='vmxai' \
-  --from-literal=username='admin' \
   --namespace vm-x-ai
 
 kubectl create secret generic ui-auth-secret \
@@ -176,8 +150,6 @@ For development, auto-generation is acceptable:
 secrets:
   database:
     method: create
-  questdb:
-    method: create
   ui:
     method: create
   libsodium:
@@ -191,9 +163,6 @@ secrets:
 ```yaml
 secrets:
   database:
-    method: eso # or "external"
-    # ... configuration
-  questdb:
     method: eso # or "external"
     # ... configuration
   ui:

@@ -14,10 +14,6 @@ api:
   podDisruptionBudget:
     enabled: true
     minAvailable: 2
-  timeseriesDb:
-    provider: aws-timestream
-    awsTimestream:
-      databaseName: 'vmxai-production'
   encryption:
     provider: aws-kms # Recommended for production
     awsKms:
@@ -57,10 +53,6 @@ redis:
       enabled: true
       size: 50Gi
       storageClass: 'fast-ssd'
-
-# Use external QuestDB or AWS Timestream (recommended for production)
-questdb:
-  enabled: false
 
 # Encryption is configured via api.encryption.provider (aws-kms recommended for production)
 
@@ -141,11 +133,6 @@ secrets:
     external:
       secretName: 'postgresql-credentials' # Create this secret separately
       passwordKey: 'password'
-  questdb:
-    method: external
-    external:
-      secretName: 'questdb-credentials'
-      passwordKey: 'password'
   ui:
     method: create
   # Libsodium encryption key (only needed if using libsodium provider)
@@ -158,11 +145,6 @@ secrets:
 #     method: eso
 #     externalSecrets:
 #       secretKey: "vmxai/production/postgresql"
-#       passwordKey: "password"
-#   questdb:
-#     method: eso
-#     externalSecrets:
-#       secretKey: "vmxai/production/questdb"
 #       passwordKey: "password"
 #   ui:
 #     method: create

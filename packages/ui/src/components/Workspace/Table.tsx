@@ -12,6 +12,7 @@ import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { MRT_VisibilityState } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
@@ -125,6 +126,7 @@ export default function WorkspaceTable({
     [theme.palette.primary.main]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: data || [],
@@ -137,8 +139,10 @@ export default function WorkspaceTable({
     enableSorting: true,
     enableColumnActions: false,
     enableExpanding: true,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     getSubRows: (row) => ('environments' in row ? row.environments || [] : []),
     renderRowActions: ({ row }) => (
@@ -202,10 +206,10 @@ export default function WorkspaceTable({
       sx: (theme) => ({
         cursor: 'pointer',
         '&:hover': {
-          backgroundColor: `${theme.palette.secondary.light} !important`,
+          backgroundColor: `${theme.palette.action.hover} !important`,
         },
         '&.Mui-selected': {
-          backgroundColor: `${theme.palette.secondary.light} !important`,
+          backgroundColor: `${theme.palette.action.selected} !important`,
         },
       }),
     }),

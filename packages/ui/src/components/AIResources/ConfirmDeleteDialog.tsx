@@ -83,7 +83,7 @@ export default function ConfirmDeleteResourceDialog({
         <DialogActions>
           <Button
             disabled={deletingResource}
-            variant="contained"
+            variant="text"
             onClick={handleClose}
           >
             Cancel

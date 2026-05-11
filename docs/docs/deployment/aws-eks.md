@@ -6,18 +6,25 @@ sidebar_position: 2
 
 This guide shows you how to deploy VM-X AI to Amazon EKS (Elastic Kubernetes Service) using AWS CDK and the provided example stack.
 
-## Overview
+## What gets deployed
 
-The AWS EKS example provides a complete production-ready infrastructure including:
+VM-X AI itself only requires four runtime components: the **API**, the **UI**, **PostgreSQL**, and **Redis**. Usage analytics and cost tracking are served directly from the `request_audit` table in Postgres, so there is no separate time-series database.
 
-- **EKS Cluster** with managed node groups
+The EKS example wraps those four with a production-grade AWS footprint:
+
+**Required for VM-X AI to run**
+
+- **EKS Cluster** with managed node groups (Auto Mode)
 - **VPC** with multi-AZ networking
-- **Aurora PostgreSQL** for the primary database
-- **AWS Timestream** for time-series metrics
-- **Istio Service Mesh** for advanced traffic management
-- **OpenTelemetry** observability stack
-- **AWS KMS** for encryption
-- **External Secrets Operator** for secret management
+- **Aurora PostgreSQL** as the primary database (also stores `request_audit`)
+- **Redis cluster** (3-node, deployed by the Helm chart)
+- **AWS KMS** key (used by the API for envelope-encrypting AI provider credentials)
+
+**Optional, deployed by default**
+
+- **Istio Service Mesh** for ingress, mTLS, and traffic management
+- **OpenTelemetry stack** (collector + Jaeger + Prometheus + Loki + Grafana) — application observability for the gateway, not VM-X AI's product features
+- **External Secrets Operator** to sync the database credentials from AWS Secrets Manager into Kubernetes
 
 ## Prerequisites
 
@@ -32,7 +39,6 @@ Before you begin, ensure you have:
   - EKS clusters and node groups
   - VPCs, subnets, and networking resources
   - RDS Aurora clusters
-  - Timestream databases
   - KMS keys
   - IAM roles and policies
   - Security groups
@@ -102,7 +108,6 @@ This will:
 - Create the VPC and networking infrastructure
 - Provision the EKS cluster with all add-ons
 - Create the Aurora PostgreSQL database
-- Create the Timestream database
 - Create the KMS encryption key
 - Deploy the VM-X AI Helm chart from the published repository
 - Configure all IAM roles and service accounts
@@ -156,7 +161,6 @@ graph TB
     end
 
     Aurora[(Aurora PostgreSQL)]
-    Timestream[(Timestream Database)]
     KMS[AWS KMS Key]
 
     Internet --> NLB
@@ -166,14 +170,12 @@ graph TB
     API --> Redis
     API --> OTEL
     API --> Aurora
-    API --> Timestream
     API --> KMS
 
     style Internet fill:#e3f2fd
     style NLB fill:#fff3e0
     style EKS fill:#e8f5e9
     style Aurora fill:#f3e5f5
-    style Timestream fill:#e0f2f1
     style KMS fill:#fff9c4
 ```
 
@@ -396,12 +398,6 @@ const helmChart = new HelmChart(cluster.stack, 'VmXAiHelmChart', {
       aws: {
         region: this.region,
       },
-      timeseriesDb: {
-        provider: 'aws-timestream',
-        awsTimestream: {
-          databaseName: timestreamDatabaseName,
-        },
-      },
     },
 
     // UI configuration with minimal resources
@@ -454,11 +450,6 @@ const helmChart = new HelmChart(cluster.stack, 'VmXAiHelmChart', {
           },
         },
       },
-    },
-
-    // Disable QuestDB (using AWS Timestream)
-    questdb: {
-      enabled: false,
     },
 
     // OpenTelemetry configuration
@@ -569,8 +560,7 @@ const helmChart = new HelmChart(cluster.stack, 'VmXAiHelmChart', {
 
 - **Repository**: Uses published Helm chart from GitHub Pages
 - **Encryption**: AWS KMS for production-grade encryption
-- **Time-series**: AWS Timestream for metrics storage (QuestDB disabled)
-- **Database**: External Aurora PostgreSQL with SSL enabled
+- **Database**: External Aurora PostgreSQL with SSL enabled (also stores `request_audit` for usage analytics)
 - **Redis**: 3-node cluster with persistence
 - **Service Account**: IRSA (IAM Roles for Service Accounts) for secure AWS access
 - **Secrets**: External Secrets Operator for database credentials
@@ -657,12 +647,11 @@ Estimated monthly costs for minimal production setup:
 - **EKS Cluster**: ~$73/month
 - **EKS Node Groups**: $50-200/month (depends on instance types)
 - **Aurora PostgreSQL**: $100-200/month (db.t3.medium)
-- **Timestream**: $10-50/month (pay-per-use)
 - **NLB**: ~$16/month
 - **NAT Gateway**: ~$32/month
 - **EBS Volumes**: ~$0.10/GB/month
 
-**Total**: $300-500/month
+**Total**: $270-520/month
 
 To reduce costs:
 

@@ -70,7 +70,7 @@ export default function ConfirmDeleteWorkspaceDialog({
         <DialogActions>
           <Button
             disabled={deletingWorkspace}
-            variant="contained"
+            variant="text"
             onClick={handleClose}
           >
             Cancel

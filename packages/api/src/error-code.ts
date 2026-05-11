@@ -52,6 +52,13 @@ export enum ErrorCode {
   // Role errors
   ROLE_NOT_FOUND = 'ROLE_NOT_FOUND',
   NOT_AUTHORIZED = 'NOT_AUTHORIZED',
+
+  // Generic
+  GENERIC_ENTITY_NOT_FOUND = 'GENERIC_ENTITY_NOT_FOUND',
+  GENERIC_VALIDATION = 'GENERIC_VALIDATION',
+
+  // Model Pricing
+  MODEL_PRICING_NOT_FOUND = 'MODEL_PRICING_NOT_FOUND',
 }
 
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -121,4 +128,12 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ErrorCode.ROLE_NOT_FOUND]: 'Role ${roleId} not found',
   [ErrorCode.NOT_AUTHORIZED]:
     "You are not authorized to perform '${action}' action on '${resource}' resource",
+
+  // Generic
+  [ErrorCode.GENERIC_ENTITY_NOT_FOUND]: '${entity} ${id} not found',
+  [ErrorCode.GENERIC_VALIDATION]: 'Validation error: ${reason}',
+
+  // Model Pricing
+  [ErrorCode.MODEL_PRICING_NOT_FOUND]:
+    'Model pricing for provider ${provider} and model ${model} not found',
 };

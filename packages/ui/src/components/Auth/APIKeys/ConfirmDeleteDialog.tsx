@@ -75,7 +75,7 @@ export default function ConfirmDeleteAPIKeyDialog({
         <DialogActions>
           <Button
             disabled={deletingApiKey}
-            variant="contained"
+            variant="text"
             onClick={handleClose}
           >
             Cancel

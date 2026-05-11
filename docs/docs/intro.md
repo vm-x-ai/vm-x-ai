@@ -15,7 +15,7 @@ VM-X AI is a server and UI application that acts as a **routing and management l
 - **Automatic Fallback**: Ensure high availability by automatically falling back to alternative providers when primary ones fail
 - **Capacity Management**: Define and enforce custom capacity limits (RPM, TPM) per connection and resource
 - **Prioritization**: Allocate capacity across multiple resources using sophisticated prioritization algorithms
-- **Usage Analytics**: Track every request with comprehensive audit logs and time-series metrics
+- **Usage Analytics**: Track every request via Postgres-backed audit logs aggregated on demand into usage dashboards
 - **OpenAI Compatibility**: Use the standard OpenAI SDK to connect to VM-X and access any supported provider
 
 ## The Problem We Solve
@@ -60,8 +60,8 @@ Managing AI credentials and access requires:
 
 Understanding AI usage patterns requires:
 
-- Request-level audit logs
-- Time-series metrics for capacity planning
+- Request-level audit logs in Postgres for usage analysis and capacity planning
+- OpenTelemetry traces, metrics, and logs for application-level observability (decoupled from usage data)
 - Integration with existing observability stacks
 - Cost attribution and analysis
 
@@ -100,10 +100,10 @@ Understanding AI usage patterns requires:
 
 ### 📈 **Observability**
 
-- Every request stored in audit logs
-- Time-series metrics for usage analysis
-- OpenTelemetry integration for distributed tracing
-- Export to QuestDB, AWS Timestream, or any OpenTelemetry-compatible backend
+- Every request stored in the Postgres `request_audit` table; usage dashboards query this table directly
+- OpenTelemetry integration for distributed tracing, application metrics, and structured logs
+- Optional export to Jaeger / Prometheus / Loki / Grafana (or any OTel-compatible backend)
+- Application-level observability is fully decoupled from usage analytics — disabling OTel does not affect audit/usage data
 
 ### 🔌 **OpenAI Compatibility**
 
@@ -143,25 +143,39 @@ VM-X AI is ideal for:
 
 - You need detailed metrics and traces for AI workloads
 - You want to integrate with existing observability stacks (Datadog, Prometheus, etc.)
-- You need time-series data for capacity planning
+- You need request-level audit data for capacity planning and cost attribution
 
 ## Supported AI Providers
 
-VM-X AI currently supports the following AI providers:
+VM-X AI currently supports seven providers:
 
-- **Amazon Bedrock** - AWS managed AI service
-- **Anthropic** - Claude models
-- **Google Gemini** - Google's AI models
-- **Groq** - High-performance inference
-- **OpenAI** - GPT models
+- **OpenAI** — GPT and o-series models
+- **Anthropic** — Claude models, native SDK with full feature support (`cache_control`, extended `thinking`, server tools, …)
+- **Google Gemini** — via Google's OpenAI-compatible endpoint
+- **Groq** — high-performance Llama / Mixtral / Gemma inference
+- **Perplexity** — search-augmented Sonar models with citations
+- **AWS Bedrock (Converse)** — every Bedrock foundation model (Claude, Llama, Mistral, Nova, …) under the unified Converse API
+- **AWS Bedrock-Invoke** — Claude on AWS via the InvokeModel API with full Anthropic Messages passthrough (cache markers, thinking, server tools survive)
+
+See the [LLM Providers](./integrations/providers/index.md) index for
+the side-by-side capability matrix and per-provider pages.
 
 ## Supported Operations
 
-Currently, VM-X AI supports:
+VM-X exposes three completion endpoints; you can hit each provider
+through any of them, with the gateway converting shapes when the
+client SDK and the upstream don't match natively:
 
-- **Chat Completions API** - The standard chat completion endpoint compatible with OpenAI's API
+- **Chat Completions** — `POST /v1/completion/{ws}/{env}/chat/completions`. The classic OpenAI shape.
+- **Anthropic Messages** — `POST /v1/completion/{ws}/{env}/anthropic/messages`. The full Anthropic Messages API; passes through verbatim to Anthropic + Bedrock-Invoke connections.
+- **Responses** — `POST /v1/completion/{ws}/{env}/responses`. OpenAI's typed-events Responses API.
 
-Future versions will support additional operations like embeddings, fine-tuning, and more.
+See [API Endpoints](./features/api/index.md) for the contract,
+client examples, and the `vmx` envelope (correlation IDs, custom
+metadata, per-request timeouts, provider-native `providerArgs`).
+
+Future versions will add additional operations like embeddings,
+fine-tuning, and more.
 
 ## Key Concepts
 
@@ -180,10 +194,10 @@ VM-X AI consists of:
 
 - **API Server** (NestJS) - Backend service handling all AI requests, routing, and management
 - **UI Application** (Next.js) - Web interface for configuration and monitoring
-- **PostgreSQL** - Primary database for configuration and audit logs
-- **QuestDB / AWS Timestream** - Time-series database for usage metrics
-- **Redis** - Caching and capacity tracking
+- **PostgreSQL** - Single source of truth for configuration, audit logs, and usage analytics (the `request_audit` table is aggregated on demand for dashboards)
+- **Redis** (cluster mode) - Caching and capacity / prioritization counters
 - **AWS KMS / Libsodium** - Encryption for sensitive credentials
+- **OpenTelemetry** (optional) - Application observability via OTel collector → Jaeger / Prometheus / Loki / Grafana, decoupled from usage data
 
 ## Next Steps
 

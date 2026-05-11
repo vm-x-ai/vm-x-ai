@@ -2,6 +2,8 @@
 
 import { WorkspaceEntity } from '@/clients/api';
 import AddIcon from '@mui/icons-material/Add';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
@@ -13,6 +15,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { useResolvedColorScheme } from '@/hooks/use-resolved-color-scheme';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useMemo } from 'react';
@@ -28,16 +31,25 @@ export default function WorkspaceSelectorMenu({
 }: WorkspaceSelectorMenuProps) {
   const theme = useTheme();
   const isSm = useMediaQuery(theme.breakpoints.up('sm'));
+  // `theme.palette.mode` is pinned at the default scheme when MUI is
+  // configured with `cssVariables` + `colorSchemes` — the actual scheme
+  // lives on the `data-mui-color-scheme` attribute. Resolve it through
+  // `useColorScheme` so dark-mode-only overrides actually apply.
+  const isDark = useResolvedColorScheme() === 'dark';
   const pathname = usePathname();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  // Anchor the prefix matches with a trailing `/` so IDs that share a
+  // common prefix (e.g. `prod` vs `production`) don't accidentally
+  // both claim the same path. The trailing slash lets us still match
+  // `/workspaces/<id>/edit`, `/workspaces/<id>/<eid>`, etc.
   const selectedWorkspaceIndex = workspaces.findIndex((workspace) =>
-    pathname?.startsWith(`/workspaces/${workspace.workspaceId}`)
+    pathname?.startsWith(`/workspaces/${workspace.workspaceId}/`)
   );
   const selectedWorkspace = workspaces[selectedWorkspaceIndex];
   const selectedEnvironmentIndex = selectedWorkspace?.environments?.findIndex(
     (environment) =>
       pathname?.startsWith(
-        `/workspaces/${selectedWorkspace?.workspaceId}/${environment.environmentId}`
+        `/workspaces/${selectedWorkspace?.workspaceId}/${environment.environmentId}/`
       )
   );
   const selectedEnvironment =
@@ -63,10 +75,18 @@ export default function WorkspaceSelectorMenu({
   };
 
   const buttonText = useMemo(() => {
-    const value =
-      selectedWorkspace && selectedEnvironment
-        ? `${selectedWorkspace.name} - ${selectedEnvironment.name}`
-        : 'Please select a workspace';
+    let value: string;
+    if (selectedWorkspace && selectedEnvironment) {
+      value = `${selectedWorkspace.name} - ${selectedEnvironment.name}`;
+    } else if (selectedWorkspace) {
+      // URL is inside a workspace but not yet under an environment
+      // (e.g. `/workspaces/:id/edit`). Show the workspace name alone
+      // so the selector reflects the actual context instead of
+      // misleadingly asking the user to pick a workspace.
+      value = selectedWorkspace.name;
+    } else {
+      value = 'Please select a workspace';
+    }
 
     if (isSm) {
       return value;
@@ -80,7 +100,7 @@ export default function WorkspaceSelectorMenu({
       <List
         component="nav"
         aria-label="Workspaces"
-        sx={{ bgcolor: 'var(--mui-palette-AppBar-darkBg)' }}
+        sx={{ bgcolor: 'var(--mui-palette-AppBar-darkBg)', py: 0.5 }}
       >
         <ListItemButton
           id="workspace-button"
@@ -89,8 +109,44 @@ export default function WorkspaceSelectorMenu({
           aria-label="Workspace"
           aria-expanded={open ? 'true' : undefined}
           onClick={handleClickListItem}
+          sx={{
+            // Without affordances the trigger reads as a label.
+            // A hairline border + chevron + hover background make
+            // it look like an interactive picker (matches Vercel /
+            // Linear-style scope switchers).
+            //
+            // Use the raw CSS variables (not `theme.palette.*`) — in an
+            // `sx` callback those resolve to the *default* scheme's
+            // literal hex (light → #eaeaea), which reads as a bright
+            // hairline against the dark sidebar. The CSS-variable form
+            // is rebound by `data-mui-color-scheme`, so the divider
+            // tracks the active scheme correctly.
+            border: '1px solid var(--mui-palette-divider)',
+            borderRadius: 1,
+            '&:hover': {
+              backgroundColor: 'var(--mui-palette-action-hover)',
+              borderColor: 'var(--mui-palette-text-secondary)',
+            },
+            ...(open && {
+              backgroundColor: 'var(--mui-palette-action-selected)',
+              borderColor: 'var(--mui-palette-text-secondary)',
+            }),
+          }}
         >
-          <ListItemText primary={buttonText} />
+          <ListItemText
+            primary={buttonText}
+            slotProps={{
+              primary: {
+                noWrap: true,
+                sx: { fontWeight: 500 },
+              },
+            }}
+          />
+          {open ? (
+            <KeyboardArrowUpIcon fontSize="small" />
+          ) : (
+            <KeyboardArrowDownIcon fontSize="small" />
+          )}
         </ListItemButton>
       </List>
       <Menu
@@ -98,9 +154,36 @@ export default function WorkspaceSelectorMenu({
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          'aria-labelledby': 'workspace-button',
-          role: 'listbox',
+        slotProps={{
+          list: {
+            'aria-labelledby': 'workspace-button',
+            role: 'listbox',
+          },
+          paper: {
+            sx: (theme) => ({
+              // In dark mode the default `background.paper` (#0a0a0a)
+              // sits flush with the sidebar's `AppBar-darkBg` (#000) and
+              // visually merges into the same surface — the dropdown
+              // stops reading as a separate dialog. Lift it onto a
+              // clearly-elevated surface and outline it with a dark
+              // border so the seam between the menu (#171717) and the
+              // sidebar (#000) reads as a deliberate edge instead of a
+              // bright hairline. Paper applies an elevation gradient in
+              // dark mode (`backgroundImage: linear-gradient(...)`) on
+              // top of `bgcolor`, which makes the menu lighter than the
+              // override; force it off so `#171717` actually wins.
+              boxShadow: theme.shadows[8],
+              ...(isDark
+                ? {
+                    border: '1px solid rgba(0, 0, 0, 0.6)',
+                    bgcolor: '#171717',
+                    backgroundImage: 'none',
+                  }
+                : {
+                    border: `1px solid ${theme.palette.divider}`,
+                  }),
+            }),
+          },
         }}
       >
         {workspaces.map((workspace, workspaceIndex) => [

@@ -8,6 +8,7 @@ import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { MRT_VisibilityState } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
@@ -106,6 +107,7 @@ export default function RoleTable() {
     [theme.palette.primary.main]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: data || [],
@@ -117,8 +119,10 @@ export default function RoleTable() {
     enableColumnResizing: true,
     enableSorting: true,
     enableColumnActions: false,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     renderRowActions: ({ row }) => (
       <Box sx={{ display: 'flex', gap: '1rem' }}>

@@ -16,9 +16,12 @@ VM-X AI is a server and UI application that acts as a **routing and management l
 
 ## Key Features
 
-- **Provider Abstraction**: Unified interface for OpenAI, Anthropic, Google Gemini, Groq, and AWS Bedrock
+- **Provider Abstraction**: Unified interface for OpenAI, Anthropic, Google Gemini, Groq, Perplexity, AWS Bedrock (Converse), and AWS Bedrock-Invoke (Anthropic on AWS)
+- **Three Completion Endpoints**: Chat Completions, Anthropic Messages (native passthrough), and Responses — pick the SDK, the gateway converts shapes when the upstream doesn't match
 - **Dynamic Routing**: Route requests based on token count, error rates, tool usage, and content analysis
 - **Automatic Fallback**: Seamless failover to backup providers when primary providers fail
+- **Per-Model Tuning**: Per-model `maxRetries`, `timeoutMs`, and secondary-model multi-answer fan-out
+- **Provider Args Passthrough**: Caller `vmx.providerArgs` escape hatch for provider-only fields without giving up routing/fallback
 - **Capacity Prioritization**: Intelligent capacity allocation using adaptive token scaling
 - **Batch Processing**: Process thousands of requests with capacity-aware scheduling
 - **Workspace & Environment Isolation**: Multi-tenant architecture with fine-grained access control
@@ -58,13 +61,15 @@ The documentation includes:
 
 ## Supported Providers
 
-VM-X AI supports the following AI providers:
+VM-X AI supports seven AI providers:
 
-- **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5
-- **Anthropic**: Claude Haiku, Sonnet, Opus
-- **Google Gemini**: Gemini Flash, Gemini Pro
-- **Groq**: Ultra-fast inference with open-source models
-- **AWS Bedrock**: Access to multiple models through AWS
+- **OpenAI**: GPT and o-series models
+- **Anthropic**: Claude models, native SDK with full feature passthrough (`cache_control`, extended `thinking`, server tools)
+- **Google Gemini**: via Google's OpenAI-compatible endpoint
+- **Groq**: high-performance Llama / Mixtral / Gemma inference
+- **Perplexity**: search-augmented Sonar models with citations
+- **AWS Bedrock (Converse)**: every Bedrock foundation model under the unified Converse API
+- **AWS Bedrock-Invoke**: Claude on AWS via the InvokeModel API with full Anthropic Messages passthrough
 
 See the [Provider Documentation](https://vm-x-ai.github.io/docs/integrations/providers/) for details.
 
@@ -72,8 +77,7 @@ See the [Provider Documentation](https://vm-x-ai.github.io/docs/integrations/pro
 
 - **Backend**: NestJS (Node.js)
 - **Frontend**: Next.js (React)
-- **Database**: PostgreSQL
-- **Time-Series**: QuestDB / AWS Timestream
+- **Database**: PostgreSQL (also stores `request_audit` — usage analytics + cost tracking query directly from there)
 - **Cache/Queue**: Redis
 - **Encryption**: AWS KMS / Libsodium
 - **Observability**: OpenTelemetry

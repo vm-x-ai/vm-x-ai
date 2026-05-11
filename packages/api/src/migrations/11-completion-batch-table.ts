@@ -37,7 +37,9 @@ export const migration: Migration = {
       .addColumn('total_prompt_tokens', 'integer', (col) =>
         col.notNull().defaultTo(0)
       )
-      .addColumn('total_completion_tokens', 'integer', (col) =>
+      // Renamed from `total_completion_tokens` to mirror the
+      // request_audit table's `output_tokens` column.
+      .addColumn('total_output_tokens', 'integer', (col) =>
         col.notNull().defaultTo(0)
       )
       .addColumn('capacity', 'jsonb')

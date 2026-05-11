@@ -51,8 +51,10 @@ export default function ActionMenu({ actionMenuItems }: ActionMenuProps) {
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          'aria-labelledby': 'more-button',
+        slotProps={{
+          list: {
+            'aria-labelledby': 'more-button',
+          },
         }}
       >
         {actionMenuItems.map((item, index) => (

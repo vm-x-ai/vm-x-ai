@@ -1,6 +1,7 @@
 'use client';
 
 import type { MRT_VisibilityState } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MaterialReactTable,
   type MRT_ColumnDef,
@@ -105,14 +106,17 @@ export default function MembersTable({
                   margin="none"
                   size="small"
                   slotProps={{
+                    ...params.slotProps,
+
                     input: {
-                      ...(params.InputProps ?? {}),
+                      ...(params.slotProps.input ?? {}),
                       disableUnderline: true,
                       autoComplete: 'off',
                       sx: {
                         mb: 0,
                       },
                     },
+
                     select: {
                       MenuProps: {
                         disableScrollLock: true,
@@ -158,6 +162,7 @@ export default function MembersTable({
     [availableUsers, usersMap, validationErrors]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: value || [],
@@ -167,8 +172,10 @@ export default function MembersTable({
     enableRowActions: true,
     enableEditing: true,
     enablePagination: false,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     muiTableContainerProps: { sx: { maxHeight: '500px' } },
     createDisplayMode: 'row',
@@ -181,7 +188,12 @@ export default function MembersTable({
     },
     onColumnVisibilityChange: setColumnVisibility,
     renderTopToolbarCustomActions: ({ table }) => (
-      <Box display="flex" gap="1rem">
+      <Box
+        sx={{
+          display: 'flex',
+          gap: '1rem',
+        }}
+      >
         <Button
           variant="contained"
           size="small"

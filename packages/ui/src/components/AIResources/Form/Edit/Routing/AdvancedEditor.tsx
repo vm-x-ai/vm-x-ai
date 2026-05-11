@@ -97,7 +97,12 @@ export default function AdvancedEditor({
           justifyContent: 'space-between',
         }}
       >
-        <Box display="flex" alignItems="center">
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
           <Typography variant="body2" sx={{ fontWeight: 'bold', ml: 1 }}>
             Advanced Rule Editor
           </Typography>
@@ -136,7 +141,6 @@ export default function AdvancedEditor({
           </Tooltip>
         </Box>
       </Box>
-
       {/* Text Field Section */}
       <Box sx={{ mt: 2, px: 2, pb: 2 }}>
         <Box
@@ -146,7 +150,11 @@ export default function AdvancedEditor({
             gap: 1,
           }}
         >
-          <Box width="50%">
+          <Box
+            sx={{
+              width: '50%',
+            }}
+          >
             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
               Rule Expression
             </Typography>
@@ -174,7 +182,11 @@ export default function AdvancedEditor({
               }}
             />
           </Box>
-          <Box width="50%">
+          <Box
+            sx={{
+              width: '50%',
+            }}
+          >
             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
               Input Data
             </Typography>

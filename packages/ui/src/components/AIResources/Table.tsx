@@ -11,12 +11,13 @@ import {
   type MRT_ColumnDef,
   useMaterialReactTable,
 } from 'material-react-table';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import ConfirmDeleteResourceDialog from './ConfirmDeleteDialog';
 import { AiProviderDto, AiResourceEntity } from '@/clients/api';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
+import ProviderLogo from '@/components/Providers/ProviderLogo';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 
@@ -74,11 +75,16 @@ export default function AIResourceTable({
         accessorKey: 'model.model',
         header: 'Primary Model',
         Cell: ({ row: { original: row } }) => (
-          <Box display="flex" alignItems="center" gap={1}>
-            <Image
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            <ProviderLogo
               alt={providersMap[row.model.provider]?.name || 'ai-provider'}
-              loader={({ src }) => src}
-              src={providersMap[row.model.provider]?.config.logo.url}
+              logo={providersMap[row.model.provider]?.config.logo}
               height={20}
               width={20}
             />
@@ -96,11 +102,16 @@ export default function AIResourceTable({
             <ul>
               {row.fallbackModels?.map((model, index) => (
                 <li key={index}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Image
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <ProviderLogo
                       alt={providersMap[model.provider]?.name || 'ai-provider'}
-                      loader={({ src }) => src}
-                      src={providersMap[model.provider].config.logo.url}
+                      logo={providersMap[model.provider]?.config.logo}
                       height={20}
                       width={20}
                     />
@@ -120,11 +131,16 @@ export default function AIResourceTable({
             <ul>
               {row.secondaryModels?.map((model, index) => (
                 <li key={index}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Image
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <ProviderLogo
                       alt={providersMap[model.provider]?.name || 'ai-provider'}
-                      loader={({ src }) => src}
-                      src={providersMap[model.provider].config.logo.url}
+                      logo={providersMap[model.provider]?.config.logo}
                       height={20}
                       width={20}
                     />
@@ -150,6 +166,7 @@ export default function AIResourceTable({
     [providersMap]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: data || [],
@@ -161,8 +178,10 @@ export default function AIResourceTable({
     enableColumnResizing: false,
     enableColumnActions: false,
     enableSorting: false,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     muiTableBodyRowProps: ({ row }) => ({
       onClick: () => {
@@ -173,10 +192,10 @@ export default function AIResourceTable({
       sx: (theme) => ({
         cursor: 'pointer',
         '&:hover': {
-          backgroundColor: `${theme.palette.secondary.light} !important`,
+          backgroundColor: `${theme.palette.action.hover} !important`,
         },
         '&.Mui-selected': {
-          backgroundColor: `${theme.palette.secondary.light} !important`,
+          backgroundColor: `${theme.palette.action.selected} !important`,
         },
       }),
     }),

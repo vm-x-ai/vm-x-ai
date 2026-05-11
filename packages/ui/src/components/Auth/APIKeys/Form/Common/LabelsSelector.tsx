@@ -49,9 +49,9 @@ export default function LabelsSelector({
       }}
       onBlur={onBlur}
       disableCloseOnSelect
-      renderTags={(value, getTagProps) =>
+      renderValue={(value, getItemProps) =>
         value.map((option, index) => {
-          const { key, ...tagProps } = getTagProps({ index });
+          const { key, ...tagProps } = getItemProps({ index });
           return (
             <Chip
               key={key}

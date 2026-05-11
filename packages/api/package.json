@@ -9,6 +9,9 @@
       }
     },
     "targets": {
+      "test": {
+        "defaultConfiguration": "unit"
+      },
       "docker:publish:latest": {
         "executor": "nx:run-commands",
         "options": {
@@ -115,14 +118,14 @@
     }
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "@aws-crypto/client-node": "^4.2.1",
-    "@aws-sdk/client-bedrock-runtime": "^3.931.0",
-    "@aws-sdk/client-timestream-query": "^3.946.0",
-    "@aws-sdk/client-timestream-write": "^3.946.0",
-    "@aws-sdk/credential-providers": "^3.931.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1045.0",
+    "@aws-sdk/credential-providers": "^3.1045.0",
     "@fastify/express": "^4.0.2",
     "@fastify/static": "^8.3.0",
     "@fastify/view": "11.1.1",
+    "@google/genai": "^2.0.1",
     "@keyv/redis": "^5.1.3",
     "@nest-lab/or-guard": "^2.6.0",
     "@nestjs/cache-manager": "^3.0.1",
@@ -147,6 +150,7 @@
     "@opentelemetry/sdk-node": "^0.208.0",
     "@opentelemetry/sdk-trace-base": "^2.2.0",
     "@opentelemetry/semantic-conventions": "^1.38.0",
+    "@scalar/nestjs-api-reference": "^1.1.14",
     "@smithy/types": "^4.9.0",
     "@vm-x-ai/shared-ai-provider": "workspace:*",
     "argon2": "^0.44.0",
@@ -162,7 +166,6 @@
     "joi": "^18.0.1",
     "js-tiktoken": "^1.0.21",
     "json-schema": "^0.4.0",
-    "keyv": "^5.5.3",
     "kysely": "^0.28.8",
     "kysely-codegen": "0.19.0",
     "libsodium-wrappers": "^0.7.15",
@@ -174,7 +177,7 @@
     "nestjs-pino": "^4.4.1",
     "node-jose": "^2.2.0",
     "oidc-provider": "^9.5.2",
-    "openai": "^6.7.0",
+    "openai": "^6.37.0",
     "openid-client": "^6.8.1",
     "passport-http-bearer": "^1.0.1",
     "pg": "^8.16.3",
@@ -204,7 +207,9 @@
     "@types/yargs": "^17.0.34",
     "kysely-codegen": "^0.19.0",
     "tailwindcss": "4.1.17",
+    "unplugin-swc": "^1.5.9",
     "vite": "^7.1.12",
+    "vitest": "4.0.9",
     "yargs": "^18.0.0"
   }
 }

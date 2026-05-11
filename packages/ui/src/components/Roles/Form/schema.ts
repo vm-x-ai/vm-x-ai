@@ -33,6 +33,11 @@ export const schema = z.object({
   removedMembers: z.array(memberSchema).optional(),
 });
 
-export type FormSchema = z.output<typeof schema>;
+// Use z.input here: the regenerated zRolePolicy has $schema with a `.default(...)`,
+// which makes $schema optional in the *input* type (what the user submits) but
+// required in the *output* type (what zod.parse returns). react-hook-form's
+// resolver works on the input shape, so pinning FormSchema to z.input keeps
+// the resolver type compatible without weakening runtime validation.
+export type FormSchema = z.input<typeof schema>;
 
 export type FormAction = FormActionState<FormSchema, RoleEntity>;

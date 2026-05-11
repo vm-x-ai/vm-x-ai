@@ -131,6 +131,15 @@ export const RoleGuard = (
         variables.user = await usersService.getById(params.userId, false);
       }
 
+      // API-key auth doesn't carry an OIDC user — the key already
+      // proved its right to act on the requested resource via the
+      // `entity.resources` allow-list checked in `ApiKeyGuard`. Skip
+      // the per-user role lookup in that case (`user` is undefined,
+      // and `user.user.id` would throw).
+      if (!user) {
+        return true;
+      }
+
       resource = _.template(resource)(variables);
 
       await this.roleService.validate(user.user.id, action, resource);

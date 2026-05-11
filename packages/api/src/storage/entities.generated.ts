@@ -5,11 +5,6 @@
 
 import type { ColumnType } from 'kysely';
 
-export enum PublicCompletionAuditType {
-  COMPLETION = 'COMPLETION',
-  COMPLETION_BATCH = 'COMPLETION_BATCH',
-}
-
 export enum PublicCompletionBatchRequestStatus {
   CANCELLED = 'CANCELLED',
   COMPLETED = 'COMPLETED',
@@ -24,9 +19,20 @@ export enum PublicCompletionBatchRequestType {
   SYNC = 'SYNC',
 }
 
+export enum PublicModelPricingSource {
+  SYSTEM = 'SYSTEM',
+  USER = 'USER',
+}
+
 export enum PublicProviderType {
   LOCAL = 'LOCAL',
   OIDC = 'OIDC',
+}
+
+export enum PublicRequestAuditType {
+  COMPLETION = 'COMPLETION',
+  COMPLETION_BATCH = 'COMPLETION_BATCH',
+  RESPONSES = 'RESPONSES',
 }
 
 export enum PublicUserState {
@@ -79,6 +85,7 @@ export interface AiResource {
   capacity: ColumnType<any[] | null, string | null, string | null>;
   createdAt: Generated<Timestamp>;
   createdBy: string;
+  defaultArgs: Json | null;
   description: string | null;
   enforceCapacity: Generated<boolean>;
   environmentId: string;
@@ -113,32 +120,6 @@ export interface ApiKey {
   workspaceId: string;
 }
 
-export interface CompletionAudit {
-  apiKeyId: string | null;
-  batchId: string | null;
-  connectionId: string | null;
-  correlationId: string | null;
-  duration: number;
-  environmentId: string;
-  errorMessage: string | null;
-  events: ColumnType<any[] | null, string | null, string | null>;
-  failureReason: string | null;
-  id: Generated<string>;
-  model: string | null;
-  provider: string | null;
-  requestId: string;
-  requestPayload: ColumnType<any | null, string | null, string | null>;
-  resourceId: string | null;
-  responseData: ColumnType<any | null, string | null, string | null>;
-  responseHeaders: ColumnType<any | null, string | null, string | null>;
-  sourceIp: string | null;
-  statusCode: number;
-  timestamp: Timestamp;
-  type: PublicCompletionAuditType;
-  userId: string | null;
-  workspaceId: string;
-}
-
 export interface CompletionBatch {
   batchId: Generated<string>;
   callbackOptions: ColumnType<any | null, string | null, string | null>;
@@ -155,9 +136,9 @@ export interface CompletionBatch {
   running: Generated<number>;
   status: PublicCompletionBatchRequestStatus;
   timestamp: Timestamp;
-  totalCompletionTokens: Generated<number>;
   totalEstimatedPromptTokens: Generated<number>;
   totalItems: Generated<number>;
+  totalOutputTokens: Generated<number>;
   totalPromptTokens: Generated<number>;
   type: PublicCompletionBatchRequestType;
   updatedAt: Generated<Timestamp>;
@@ -167,12 +148,12 @@ export interface CompletionBatch {
 export interface CompletionBatchItem {
   batchId: string;
   completedAt: Timestamp | null;
-  completionTokens: Generated<number>;
   createdAt: Generated<Timestamp>;
   environmentId: string;
   errorMessage: string | null;
   estimatedPromptTokens: Generated<number>;
   itemId: Generated<string>;
+  outputTokens: Generated<number>;
   promptTokens: Generated<number>;
   request: ColumnType<any | null, string | null, string | null>;
   resourceId: string;
@@ -202,6 +183,21 @@ export interface GlobalSecret {
   value: string;
 }
 
+export interface ModelPricing {
+  cachedInputCostPerToken: Generated<number | null>;
+  createdAt: Generated<Timestamp>;
+  createdBy: string;
+  inputCostPerToken: number;
+  model: string;
+  outputCostPerToken: number;
+  pricingId: Generated<string>;
+  provider: string;
+  reasoningCostPerToken: Generated<number | null>;
+  source: Generated<PublicModelPricingSource>;
+  updatedAt: Generated<Timestamp>;
+  updatedBy: string;
+}
+
 export interface OidcProvider {
   consumed: Generated<boolean>;
   expiresAt: Timestamp | null;
@@ -222,14 +218,79 @@ export interface PoolDefinition {
   workspaceId: string;
 }
 
-export interface QuestdbKyselyMigration {
-  name: string;
-  timestamp: string;
+export interface RequestAudit {
+  acceptedPredictionTokens: number | null;
+  apiKeyId: string | null;
+  audioTokens: number | null;
+  batchId: string | null;
+  cacheCreationEphemeral1hTokens: number | null;
+  cacheCreationEphemeral5mTokens: number | null;
+  cacheCreationInputTokens: number | null;
+  cachedTokens: number | null;
+  connectionId: string | null;
+  correlationId: string | null;
+  cost: Json | null;
+  duration: number;
+  environmentId: string;
+  errorCount: Generated<number | null>;
+  errorMessage: string | null;
+  events: Json | null;
+  failureReason: string | null;
+  gateDuration: number | null;
+  id: Generated<string>;
+  messageId: string | null;
+  metadata: Json | null;
+  model: string | null;
+  outputTokens: number | null;
+  promptTokens: number | null;
+  provider: string | null;
+  providerDuration: number | null;
+  providerRequestPayload: Json | null;
+  reasoningTokens: number | null;
+  rejectedPredictionTokens: number | null;
+  requestDuration: number | null;
+  requestId: string;
+  requestPayload: Json | null;
+  resourceId: string | null;
+  responseData: Json | null;
+  responseHeaders: Json | null;
+  routingDuration: number | null;
+  serverToolUseCodeExecutionRequests: number | null;
+  serverToolUseWebSearchRequests: number | null;
+  serviceTier: string | null;
+  sourceIp: string | null;
+  statusCode: number;
+  successCount: Generated<number | null>;
+  systemFingerprint: string | null;
+  timestamp: Timestamp;
+  timeToFirstToken: number | null;
+  tokensPerSecond: number | null;
+  totalTokens: number | null;
+  type: PublicRequestAuditType;
+  userId: string | null;
+  workspaceId: string;
 }
 
-export interface QuestdbKyselyMigrationLock {
-  id: string;
-  isLocked: Generated<number>;
+export interface RequestAuditMetadatum {
+  auditId: string;
+  cachedTokens: number | null;
+  connectionId: string | null;
+  environmentId: string;
+  errorCount: Generated<number | null>;
+  key: string;
+  model: string | null;
+  outputTokens: number | null;
+  promptTokens: number | null;
+  provider: string | null;
+  reasoningTokens: number | null;
+  requestDuration: number | null;
+  resourceId: string | null;
+  successCount: Generated<number | null>;
+  timestamp: Timestamp;
+  totalCost: number | null;
+  totalTokens: number | null;
+  value: string;
+  workspaceId: string;
 }
 
 export interface Role {
@@ -292,15 +353,15 @@ export interface DB {
   aiConnections: AiConnection;
   aiResources: AiResource;
   apiKeys: ApiKey;
-  completionAudit: CompletionAudit;
   completionBatch: CompletionBatch;
   completionBatchItems: CompletionBatchItem;
   environments: Environment;
   globalSecrets: GlobalSecret;
+  modelPricing: ModelPricing;
   oidcProvider: OidcProvider;
   poolDefinitions: PoolDefinition;
-  questdbKyselyMigration: QuestdbKyselyMigration;
-  questdbKyselyMigrationLock: QuestdbKyselyMigrationLock;
+  requestAudit: RequestAudit;
+  requestAuditMetadata: RequestAuditMetadatum;
   roles: Role;
   userRoles: UserRole;
   users: User;

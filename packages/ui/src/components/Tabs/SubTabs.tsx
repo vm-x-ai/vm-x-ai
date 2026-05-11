@@ -42,9 +42,9 @@ export default function SubTabs({
       }}
     >
       <Box
-        width={isSm ? '100%' : '17%'}
-        height="100%"
         sx={{
+          width: isSm ? '100%' : '17%',
+          height: '100%',
           marginRight: '1rem',
           marginBottom: isSm ? '1rem' : '0',
         }}

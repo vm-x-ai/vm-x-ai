@@ -1,9 +1,9 @@
 import type { LineSeries, AllowedValue } from '@nivo/line';
 import { groupDataByTime } from '../../core';
 import {
-  CompletionDimensions,
-  CompletionUsageDimensionValueDto,
-  CompletionUsageQueryResultDto,
+  RequestDimensions,
+  RequestUsageDimensionValueDto,
+  RequestUsageQueryResultDto,
 } from '@/clients/api';
 
 type LineDatum = {
@@ -16,8 +16,11 @@ type EditableSerie = Omit<LineSeries, 'data'> & {
 };
 
 export const toNivoLineSerie = (
-  data: CompletionUsageQueryResultDto[],
-  dimensions: CompletionDimensions[] = [],
+  data: RequestUsageQueryResultDto[],
+  // Accepts either standard RequestDimensions enum values or dynamic
+  // metadata dimension strings (`metadata.<key>`) — both are addressed via
+  // the same `value[dim]` lookup on rows so the runtime is uniform.
+  dimensions: (RequestDimensions | string)[] = [],
   metrics: string[] = [],
   timeColumn = 'time'
 ): LineSeries[] => {
@@ -31,10 +34,13 @@ export const toNivoLineSerie = (
           dimensions.length > 0
             ? `${dimensions
                 .map((dim) =>
-                  typeof value[dim] === 'object'
-                    ? (value[dim] as CompletionUsageDimensionValueDto)
-                        ?.displayName
-                    : value[dim]
+                  typeof (value as Record<string, unknown>)[dim] === 'object'
+                    ? (
+                        (value as Record<string, unknown>)[
+                          dim
+                        ] as RequestUsageDimensionValueDto
+                      )?.displayName
+                    : ((value as Record<string, unknown>)[dim] as string)
                 )
                 .join(' - ')} - ${metric}`
             : metric;
@@ -44,9 +50,7 @@ export const toNivoLineSerie = (
             y:
               (groups[groupKey].data[idx]?.y as number) ||
               0 +
-                (value[
-                  metric as keyof CompletionUsageQueryResultDto
-                ] as number) ||
+                (value[metric as keyof RequestUsageQueryResultDto] as number) ||
               0,
           };
         }
@@ -75,9 +79,9 @@ export const toNivoLineSerie = (
 };
 
 function defineGroups(
-  dimensions: CompletionDimensions[],
+  dimensions: (RequestDimensions | string)[],
   metrics: string[],
-  data: CompletionUsageQueryResultDto[]
+  data: RequestUsageQueryResultDto[]
 ): Record<string, EditableSerie> {
   const metricCount: Record<string, number> = {};
 
@@ -86,9 +90,13 @@ function defineGroups(
       ? data.reduce((acc, curr) => {
           const dimensionKey = dimensions
             .map((dim) =>
-              typeof curr[dim] === 'object'
-                ? (curr[dim] as CompletionUsageDimensionValueDto)?.displayName
-                : curr[dim]
+              typeof (curr as Record<string, unknown>)[dim] === 'object'
+                ? (
+                    (curr as Record<string, unknown>)[
+                      dim
+                    ] as RequestUsageDimensionValueDto
+                  )?.displayName
+                : ((curr as Record<string, unknown>)[dim] as string)
             )
             .filter((v) => !!v)
             .join(' - ');

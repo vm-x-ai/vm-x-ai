@@ -1,5 +1,3 @@
-import SubTabs from '@/components/Tabs/SubTabs';
-
 export const metadata = {
   title: 'VM-X AI Console - Insights',
   description: 'VM-X AI Console - Insights',
@@ -7,28 +5,17 @@ export const metadata = {
 
 type LayoutProps = {
   children: React.ReactNode;
-  params: Promise<{
-    workspaceId: string;
-    environmentId: string;
-  }>;
 };
 
-export default async function Layout({ children, params }: LayoutProps) {
-  const { workspaceId, environmentId } = await params;
-  const tabs = [
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/insights/audit`,
-      name: 'Audit',
-    },
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/insights/usage`,
-      name: 'Usage',
-    },
-  ];
-
-  return (
-    <SubTabs pathPattern={'^/workspaces/[^/]+/[^/]+/[^/]+/[^/]+'} tabs={tabs}>
-      {children}
-    </SubTabs>
-  );
+/**
+ * Insights used to wrap its children in a `SubTabs` left rail with
+ * Audit/Usage tabs. Those tabs now live inside the main sidebar (under
+ * the `Insights` workspace item) so the page body keeps its full width
+ * — at viewports below ~1400px the audit table no longer overflows.
+ *
+ * The layout is kept (rather than deleted) so we still surface the
+ * route's metadata title for browser history / tab-name purposes.
+ */
+export default async function Layout({ children }: LayoutProps) {
+  return <>{children}</>;
 }

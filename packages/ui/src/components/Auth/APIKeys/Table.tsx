@@ -13,6 +13,7 @@ import type {
   MRT_ExpandedState,
   MRT_VisibilityState,
 } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import {
   MRT_ExpandButton,
   MaterialReactTable,
@@ -146,6 +147,7 @@ export default function APIKeysTable({
     [data]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: data ?? [],
@@ -154,8 +156,10 @@ export default function APIKeysTable({
     enableRowActions: true,
     enableGrouping: true,
     positionToolbarAlertBanner: 'bottom',
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     getRowId: (row) => row.apiKeyId,
     displayColumnDefOptions: {

@@ -55,6 +55,10 @@ export default {
         'ColumnType<any | null, string | null, string | null>',
       'completion_audit.response_headers':
         'ColumnType<any | null, string | null, string | null>',
+      'completion_audit.metadata':
+        'ColumnType<any | null, string | null, string | null>',
+      'completion_audit.cost':
+        'ColumnType<any | null, string | null, string | null>',
 
       // Completion Batch
       'completion_batch.callback_options':

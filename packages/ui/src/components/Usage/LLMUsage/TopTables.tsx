@@ -9,11 +9,11 @@ import { Top10TokenPerSecondTable } from './Top10TokenPerSecondTable';
 import { Top10TTFTTable } from './Top10TTFTTable';
 import { parseDateRangePickerValueToAPIFilter } from './utils';
 import {
-  CompletionDimensions,
-  CompletionUsageDimensionFilterDto,
-  CompletionUsageDimensionOperator,
-  CompletionUsageQueryDto,
-  getCompletionUsage,
+  RequestDimensions,
+  RequestUsageDimensionFilterDto,
+  RequestUsageDimensionOperator,
+  RequestUsageQueryDto,
+  getRequestUsage,
 } from '@/clients/api';
 
 export type LLMTokenGraphProps = {
@@ -23,18 +23,18 @@ export type LLMTokenGraphProps = {
   filters: Record<string, string[]>;
   autoRefresh: boolean;
   autoRefreshInterval?: number;
+  metadataGroupBy?: string[];
 };
 
 function getTTFTUsageBody(
-  dimensions: CompletionDimensions[],
+  dimensions: RequestDimensions[],
   datePickerValue: DateRangePickerValue,
-  dimensionFilters: Record<
-    CompletionDimensions,
-    CompletionUsageDimensionFilterDto
-  >
-): CompletionUsageQueryDto {
+  dimensionFilters: Record<RequestDimensions, RequestUsageDimensionFilterDto>,
+  metadataGroupBy: string[]
+): RequestUsageQueryDto {
   return {
     dimensions,
+    metadataDimensions: metadataGroupBy.map((k) => `metadata.${k}`),
     agg: {
       timeToFirstToken: 'avg',
     },
@@ -43,7 +43,7 @@ function getTTFTUsageBody(
       fields: {
         ...dimensionFilters,
         timeToFirstToken: {
-          operator: CompletionUsageDimensionOperator.IS_NOT,
+          operator: RequestUsageDimensionOperator.IS_NOT,
           value: null,
         },
       },
@@ -56,15 +56,14 @@ function getTTFTUsageBody(
 }
 
 function getTokenPerSecondUsageBody(
-  dimensions: CompletionDimensions[],
+  dimensions: RequestDimensions[],
   datePickerValue: DateRangePickerValue,
-  dimensionFilters: Record<
-    CompletionDimensions,
-    CompletionUsageDimensionFilterDto
-  >
-): CompletionUsageQueryDto {
+  dimensionFilters: Record<RequestDimensions, RequestUsageDimensionFilterDto>,
+  metadataGroupBy: string[]
+): RequestUsageQueryDto {
   return {
     dimensions,
+    metadataDimensions: metadataGroupBy.map((k) => `metadata.${k}`),
     agg: {
       tokensPerSecond: 'avg',
     },
@@ -73,7 +72,7 @@ function getTokenPerSecondUsageBody(
       fields: {
         ...dimensionFilters,
         tokensPerSecond: {
-          operator: CompletionUsageDimensionOperator.IS_NOT,
+          operator: RequestUsageDimensionOperator.IS_NOT,
           value: null,
         },
       },
@@ -92,32 +91,35 @@ export async function TopTables({
   datePickerValue,
   autoRefresh,
   autoRefreshInterval,
+  metadataGroupBy = [],
 }: LLMTokenGraphProps) {
-  const dimensions = [
-    CompletionDimensions.PROVIDER,
-    CompletionDimensions.MODEL,
-  ];
+  const dimensions = [RequestDimensions.PROVIDER, RequestDimensions.MODEL];
   const dimensionFilters = Object.entries(filters || {}).reduce(
     (acc, [key, value]) => {
       if (value.length > 0) {
-        acc[key as CompletionDimensions] = {
-          operator: CompletionUsageDimensionOperator.IN,
+        acc[key as RequestDimensions] = {
+          operator: RequestUsageDimensionOperator.IN,
           value: value,
         };
       }
       return acc;
     },
-    {} as Record<CompletionDimensions, CompletionUsageDimensionFilterDto>
+    {} as Record<RequestDimensions, RequestUsageDimensionFilterDto>
   );
-  const ttftData = await getCompletionUsage({
+  const ttftData = await getRequestUsage({
     path: {
       workspaceId,
       environmentId,
     },
-    body: getTTFTUsageBody(dimensions, datePickerValue, dimensionFilters),
+    body: getTTFTUsageBody(
+      dimensions,
+      datePickerValue,
+      dimensionFilters,
+      metadataGroupBy
+    ),
   });
 
-  const tokenPerSecondData = await getCompletionUsage({
+  const tokenPerSecondData = await getRequestUsage({
     path: {
       workspaceId,
       environmentId,
@@ -125,7 +127,8 @@ export async function TopTables({
     body: getTokenPerSecondUsageBody(
       dimensions,
       datePickerValue,
-      dimensionFilters
+      dimensionFilters,
+      metadataGroupBy
     ),
   });
 
@@ -152,7 +155,7 @@ export async function TopTables({
               autoRefreshAction={async () => {
                 'use server';
 
-                const result = await getCompletionUsage({
+                const result = await getRequestUsage({
                   path: {
                     workspaceId,
                     environmentId,
@@ -160,7 +163,8 @@ export async function TopTables({
                   body: getTTFTUsageBody(
                     dimensions,
                     datePickerValue,
-                    dimensionFilters
+                    dimensionFilters,
+                    metadataGroupBy
                   ),
                 });
                 if (result.error) {
@@ -196,7 +200,7 @@ export async function TopTables({
               autoRefreshAction={async () => {
                 'use server';
 
-                const result = await getCompletionUsage({
+                const result = await getRequestUsage({
                   path: {
                     workspaceId,
                     environmentId,
@@ -204,7 +208,8 @@ export async function TopTables({
                   body: getTokenPerSecondUsageBody(
                     dimensions,
                     datePickerValue,
-                    dimensionFilters
+                    dimensionFilters,
+                    metadataGroupBy
                   ),
                 });
                 if (result.error) {

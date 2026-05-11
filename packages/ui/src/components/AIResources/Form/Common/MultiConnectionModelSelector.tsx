@@ -2,8 +2,8 @@
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Image from 'next/image';
 import { useMemo, useState } from 'react';
+import ProviderLogo from '@/components/Providers/ProviderLogo';
 import {
   AiConnectionEntity,
   AiProviderDto,
@@ -14,6 +14,7 @@ import {
   MRT_ColumnDef,
   useMaterialReactTable,
 } from 'material-react-table';
+import { useMrtTheme } from '@/hooks/use-mrt-theme';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -72,10 +73,9 @@ export default function MultiConnectionModelSelector({
         Cell: ({ row: { original: row } }) =>
           row.provider && (
             <Tooltip title={providersMap[row.provider]?.name}>
-              <Image
+              <ProviderLogo
                 alt={providersMap[row.provider]?.name || 'ai-provider'}
-                loader={({ src }) => src}
-                src={providersMap[row.provider]?.config.logo.url}
+                logo={providersMap[row.provider]?.config.logo}
                 height={20}
                 width={20}
               />
@@ -86,12 +86,17 @@ export default function MultiConnectionModelSelector({
         accessorKey: 'connectionId',
         header: 'Connection',
         Cell: ({ row: { original: row } }) => (
-          <Box display="flex" alignItems="center" gap={1}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
             {row.provider && (
-              <Image
+              <ProviderLogo
                 alt={providersMap[row.provider]?.name || 'ai-provider'}
-                loader={({ src }) => src}
-                src={providersMap[row.provider]?.config.logo.url}
+                logo={providersMap[row.provider]?.config.logo}
                 height={20}
                 width={20}
               />
@@ -120,10 +125,9 @@ export default function MultiConnectionModelSelector({
                     sx={{ '& > img': { mr: 2, flexShrink: 0 } }}
                     {...optionProps}
                   >
-                    <Image
+                    <ProviderLogo
                       alt={providersMap[option.provider].name}
-                      loader={({ src }) => src}
-                      src={providersMap[option.provider].config.logo.url}
+                      logo={providersMap[option.provider]?.config.logo}
                       height={20}
                       width={25}
                     />
@@ -167,21 +171,29 @@ export default function MultiConnectionModelSelector({
               }}
               renderInput={(params) => (
                 <>
-                  <Box display="flex" gap="1rem">
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      gap: '1rem',
+                    }}
+                  >
                     <TextField
                       {...params}
                       variant="standard"
                       margin="none"
                       size="small"
                       slotProps={{
+                        ...params.slotProps,
+
                         input: {
-                          ...(params.InputProps ?? {}),
+                          ...(params.slotProps.input ?? {}),
                           disableUnderline: true,
                           autoComplete: 'off',
                           sx: {
                             mb: 0,
                           },
                         },
+
                         select: {
                           MenuProps: {
                             disableScrollLock: true,
@@ -202,12 +214,17 @@ export default function MultiConnectionModelSelector({
         accessorKey: 'model',
         header: 'Model ID',
         Cell: ({ row: { original: row } }) => (
-          <Box display="flex" alignItems="center" gap={1}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
             {row.provider && (
-              <Image
+              <ProviderLogo
                 alt={providersMap[row.provider]?.name || 'ai-provider'}
-                loader={({ src }) => src}
-                src={providersMap[row.provider]?.config.logo.url}
+                logo={providersMap[row.provider]?.config.logo}
                 height={20}
                 width={20}
               />
@@ -249,6 +266,70 @@ export default function MultiConnectionModelSelector({
           },
         }),
       },
+      {
+        accessorKey: 'maxRetries',
+        header: 'Max retries (optional)',
+        size: 130,
+        Cell: ({ row: { original: row } }) => (
+          <Typography variant="inherit" component="span">
+            {row.maxRetries ?? '—'}
+          </Typography>
+        ),
+        muiEditTextFieldProps: ({ row: { original: row, index } }) => ({
+          type: 'number',
+          required: false,
+          placeholder: 'optional',
+          slotProps: { htmlInput: { min: 0, max: 10 } },
+          value: row.maxRetries ?? '',
+          onChange: (event) => {
+            const raw = event.currentTarget.value;
+            const parsed = raw === '' ? null : Number(raw);
+            row.maxRetries = parsed as never;
+            if (index !== -1 && props.value && props.value[index]) {
+              onChange?.([
+                ...props.value.slice(0, index),
+                {
+                  ...props.value[index],
+                  maxRetries: parsed,
+                },
+                ...props.value.slice(index + 1),
+              ]);
+            }
+          },
+        }),
+      },
+      {
+        accessorKey: 'timeoutMs',
+        header: 'Timeout ms (optional)',
+        size: 150,
+        Cell: ({ row: { original: row } }) => (
+          <Typography variant="inherit" component="span">
+            {row.timeoutMs ?? '—'}
+          </Typography>
+        ),
+        muiEditTextFieldProps: ({ row: { original: row, index } }) => ({
+          type: 'number',
+          required: false,
+          placeholder: 'optional',
+          slotProps: { htmlInput: { min: 100, max: 600000, step: 100 } },
+          value: row.timeoutMs ?? '',
+          onChange: (event) => {
+            const raw = event.currentTarget.value;
+            const parsed = raw === '' ? null : Number(raw);
+            row.timeoutMs = parsed as never;
+            if (index !== -1 && props.value && props.value[index]) {
+              onChange?.([
+                ...props.value.slice(0, index),
+                {
+                  ...props.value[index],
+                  timeoutMs: parsed,
+                },
+                ...props.value.slice(index + 1),
+              ]);
+            }
+          },
+        }),
+      },
     ],
     [
       connectionMap,
@@ -260,6 +341,7 @@ export default function MultiConnectionModelSelector({
     ]
   );
 
+  const mrtThemeProps = useMrtTheme();
   const table = useMaterialReactTable({
     columns,
     data: props.value || [],
@@ -274,8 +356,10 @@ export default function MultiConnectionModelSelector({
     editDisplayMode: 'table',
     enableEditing: true,
     enableRowActions: true,
+    ...mrtThemeProps,
     muiTablePaperProps: {
       elevation: 0,
+      ...mrtThemeProps.muiTablePaperProps,
     },
     initialState: {
       columnPinning: {
@@ -287,7 +371,12 @@ export default function MultiConnectionModelSelector({
     },
     positionCreatingRow: 'bottom',
     renderTopToolbarCustomActions: ({ table }) => (
-      <Box display="flex" gap="1rem">
+      <Box
+        sx={{
+          display: 'flex',
+          gap: '1rem',
+        }}
+      >
         <Button
           variant="contained"
           size="small"
@@ -357,8 +446,20 @@ export default function MultiConnectionModelSelector({
       const { 'mrt-row-actions': _, ...rest } =
         row as AiResourceModelConfigEntity & { 'mrt-row-actions': unknown };
 
+      // Normalize the optional tuning fields — MRT's row buffer leaves
+      // them as `undefined` when the user never touched the input, but
+      // the generated zod schema is happier with explicit `null` (it
+      // round-trips to the API as a real "unset" rather than a missing
+      // key). Same trick keeps the UI in sync with what comes back
+      // from the server on the next fetch.
+      const normalized: AiResourceModelConfigEntity = {
+        ...rest,
+        maxRetries: rest.maxRetries ?? null,
+        timeoutMs: rest.timeoutMs ?? null,
+      };
+
       setValidationErrors({});
-      onChange?.(props.value ? [...props.value, rest] : [rest]);
+      onChange?.(props.value ? [...props.value, normalized] : [normalized]);
       table.setCreatingRow(null);
     },
   });

@@ -23,6 +23,11 @@ export const migration: Migration = {
         col.notNull().defaultTo(false)
       )
       .addColumn('capacity', 'jsonb')
+      // Free-form bag of default arguments shallow-merged into every
+      // chat-completion / responses request that targets this resource.
+      // Caller-supplied fields win. Common cases: pin reasoning_effort,
+      // force temperature=0, set a stop sequence resource-wide.
+      .addColumn('default_args', 'jsonb')
       .addColumn('created_at', 'timestamp', (col) =>
         col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull()
       )

@@ -22,12 +22,15 @@ export default function WorkspaceSelector() {
     );
   }
 
-  if (isLoading) {
-    return <div>Loading workspaces...</div>;
-  }
-
-  if (data?.length === 0) {
-    return <></>;
+  // Render `null` during the loading slice rather than a divergent
+  // `<div>Loading workspaces...</div>` placeholder. With server-side
+  // prefetching, the server may already have the data while the
+  // first client render still sees `isLoading: true`, and any
+  // differing markup between the two triggers a hydration mismatch.
+  // `null` matches what the wrapping `<Suspense fallback={null}>` in
+  // Sidebar would render.
+  if (isLoading || data?.length === 0) {
+    return null;
   }
 
   return <WorkspaceSelectorMenu workspaces={data ?? []} />;

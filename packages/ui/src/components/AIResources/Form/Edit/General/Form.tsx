@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import type { ActionMenuItem } from '@/components/ActionMenu/ActionMenu';
 import ActionMenu from '@/components/ActionMenu/ActionMenu';
 import ConfirmDeleteResourceDialog from '@/components/AIResources/ConfirmDeleteDialog';
+import Editor from '@/components/Editor';
 import SubmitButton from '@/components/Form/SubmitButton';
 import {
   startTransition,
@@ -21,6 +22,7 @@ import {
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import ConnectionModelSelector from '../../Common/ConnectionModelSelector';
+import ModelTuningFields from '../../Common/ModelTuningFields';
 import { schema } from './schema';
 import type { FormSchema, FormAction } from './schema';
 import {
@@ -83,11 +85,14 @@ export default function AIResourceGeneralEditForm({
     formState: { errors, isDirty },
     watch,
   } = useForm<FormSchema>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as never),
     defaultValues: {
       name: data.name ?? '',
       description: data.description ?? '',
       model: data.model,
+      defaultArgsJson: data.defaultArgs
+        ? JSON.stringify(data.defaultArgs, null, 2)
+        : '',
     },
   });
 
@@ -110,7 +115,7 @@ export default function AIResourceGeneralEditForm({
 
   return (
     <>
-      <Box sx={{ width: '50%' }}>
+      <Box sx={{ width: '100%' }}>
         <Grid container spacing={3}>
           {state && state.success === false && (
             <Grid size={12}>
@@ -119,9 +124,11 @@ export default function AIResourceGeneralEditForm({
           )}
           <Grid size={12}>
             <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
             >
               <Typography variant="h6">Edit AI Resource</Typography>
               <ActionMenu actionMenuItems={actionMenuItems} />
@@ -139,8 +146,14 @@ export default function AIResourceGeneralEditForm({
               }}
               noValidate
             >
-              <Grid container size={12}>
-                <Grid size={12}>
+              {/*
+                Two-column section layout (8 fields + 4 explanation),
+                mirroring the Fallback edit form so the right rail
+                consistently carries the contextual help across the
+                AI Resource subpages.
+              */}
+              <Grid container size={12} spacing={3} sx={{ mt: 0 }}>
+                <Grid size={8}>
                   <Controller
                     name="name"
                     control={control}
@@ -148,18 +161,27 @@ export default function AIResourceGeneralEditForm({
                       <TextField
                         {...field}
                         variant="outlined"
-                        margin="normal"
+                        size="small"
                         fullWidth
                         label="Resource Name"
-                        style={{ marginBottom: '12px' }}
                         error={!!errors.name?.message}
+                        helperText={errors.name?.message}
                       />
                     )}
                   />
                 </Grid>
+                <Grid size={4}>
+                  <Box sx={{ paddingX: '1rem' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Human-readable name for this AI Resource. Used as the
+                      routing slug callers reference from the SDK.
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
-              <Grid container size={12}>
-                <Grid size={12}>
+
+              <Grid container size={12} spacing={3} sx={{ mt: 2 }}>
+                <Grid size={8}>
                   <Controller
                     name="description"
                     control={control}
@@ -167,62 +189,162 @@ export default function AIResourceGeneralEditForm({
                       <TextField
                         {...field}
                         variant="outlined"
-                        margin="normal"
+                        size="small"
                         multiline
                         rows={4}
                         fullWidth
                         label="Description"
-                        style={{ marginBottom: '12px' }}
                         error={!!errors.description?.message}
-                        helperText={
-                          errors.description?.message ||
-                          schema.shape.description.description
-                        }
+                        helperText={errors.description?.message}
                       />
                     )}
                   />
                 </Grid>
+                <Grid size={4}>
+                  <Box sx={{ paddingX: '1rem' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {schema.shape.description.description}
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
-              <Grid size={12}>
+
+              <Grid size={12} sx={{ mt: 3 }}>
                 <Typography variant="subtitle2">Primary Model</Typography>
                 <Divider />
               </Grid>
-              <Grid container size={12} marginTop="1rem">
-                <Grid size={12}>
+              <Grid container size={12} spacing={3} sx={{ mt: 2.5 }}>
+                <Grid size={8}>
                   <Controller
                     name="model"
                     control={control}
                     render={({ field }) => (
-                      <ConnectionModelSelector
-                        {...field}
-                        providersMap={providersMap}
-                        onChange={(_, value) => field.onChange(value)}
-                        workspaceId={workspaceId}
-                        environmentId={environmentId}
-                        connections={connections}
-                        refreshConnectionAction={refreshConnectionAction}
-                        renderConnectionInputTextFieldProps={{
-                          label: 'Primary Model - Connection',
-                          error: !!errors.model?.message,
-                          helperText:
-                            errors.model?.message ||
-                            schema.shape.model.description,
-                        }}
-                        renderModelInputTextFieldProps={{
-                          label: 'Primary Model - Model ID',
-                          error: !!errors.model?.message,
-                          helperText:
-                            errors.model?.message ||
-                            schema.shape.model.description,
-                        }}
-                      />
+                      <>
+                        <ConnectionModelSelector
+                          {...field}
+                          providersMap={providersMap}
+                          onChange={(_, value) =>
+                            field.onChange(
+                              // Preserve `maxRetries` / `timeoutMs`
+                              // when the user only changed connection
+                              // / model — without this merge the
+                              // selector wipes them on every edit.
+                              value
+                                ? {
+                                    ...(field.value ?? {}),
+                                    ...value,
+                                  }
+                                : null
+                            )
+                          }
+                          workspaceId={workspaceId}
+                          environmentId={environmentId}
+                          connections={connections}
+                          refreshConnectionAction={refreshConnectionAction}
+                          renderConnectionInputTextFieldProps={{
+                            label: 'Primary Model - Connection',
+                            error: !!errors.model?.message,
+                            helperText: errors.model?.message,
+                          }}
+                          renderModelInputTextFieldProps={{
+                            label: 'Primary Model - Model ID',
+                            error: !!errors.model?.message,
+                            helperText: errors.model?.message,
+                          }}
+                        />
+                        <ModelTuningFields
+                          value={field.value}
+                          onChange={(next) => field.onChange(next)}
+                        />
+                      </>
                     )}
                   />
                 </Grid>
+                <Grid size={4}>
+                  <Box sx={{ paddingX: '1rem' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {schema.shape.model.description} <br />
+                      <br />
+                      Per-model <code>maxRetries</code> and{' '}
+                      <code>timeoutMs</code> fine-tune the chattier paths
+                      independently from any caller-supplied{' '}
+                      <code>vmx.timeoutMs</code>.
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
 
-              <Grid size={12} marginTop="1rem">
-                <Box display="flex" justifyContent="flex-end">
+              <Grid size={12} sx={{ mt: 3 }}>
+                <Typography variant="subtitle2">
+                  Default Request Arguments
+                </Typography>
+                <Divider />
+              </Grid>
+              <Grid container size={12} spacing={3} sx={{ mt: 2.5 }}>
+                <Grid size={8}>
+                  <Controller
+                    name="defaultArgsJson"
+                    control={control}
+                    render={({ field }) => (
+                      <Box
+                        sx={{
+                          height: 180,
+                          border: '1px solid',
+                          borderColor: errors.defaultArgsJson?.message
+                            ? 'error.main'
+                            : 'divider',
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <Editor
+                          language="json"
+                          value={field.value ?? ''}
+                          onChange={(value) => field.onChange(value)}
+                          options={{
+                            minimap: { enabled: false },
+                            lineNumbers: 'off',
+                            scrollBeyondLastLine: false,
+                            fontSize: 13,
+                          }}
+                        />
+                      </Box>
+                    )}
+                  />
+                  {errors.defaultArgsJson?.message && (
+                    <Typography variant="caption" color="error">
+                      {errors.defaultArgsJson.message}
+                    </Typography>
+                  )}
+                </Grid>
+                <Grid size={4}>
+                  <Box sx={{ paddingX: '1rem' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      JSON object merged into every chat-completions / responses
+                      request that targets this resource. Caller-supplied fields
+                      win — these only fill in keys the caller didn&apos;t set.
+                      Example:{' '}
+                      <code>
+                        {`{"reasoning_effort":"high","temperature":0}`}
+                      </code>
+                      .
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              <Grid
+                size={12}
+                sx={{
+                  marginTop: '1rem',
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                  }}
+                >
                   {' '}
                   <SubmitButton
                     label="Save"

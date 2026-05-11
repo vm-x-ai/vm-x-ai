@@ -18,14 +18,12 @@ This directory contains various Docker Compose configurations for running VM-X-A
 
 - **UI** (Next.js) - Port `3001`
 - **API** (Node.js) - Port `3000`
-- **PostgreSQL** - Port `5440`
+- **PostgreSQL** - Port `5440` (also stores `request_audit` for usage analytics)
 - **Redis** (Single mode) - Port `6379`
-- **QuestDB** (Timeseries) - Ports `9000` (Web Console), `8812` (PostgreSQL wire)
 
 **Features:**
 
 - Single Redis instance
-- QuestDB for timeseries data
 - Libsodium encryption provider
 - OIDC authentication
 
@@ -39,7 +37,6 @@ docker compose -f default.docker-compose.yml up
 
 - UI: http://localhost:3001
 - API: http://localhost:3000
-- QuestDB Console: http://localhost:9000
 
 ---
 
@@ -83,26 +80,23 @@ docker compose -f otel.docker-compose.yml up
 - Jaeger UI: http://localhost:16686
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3010
-- QuestDB Console: http://localhost:9000
 
 ---
 
 ### 3. `aws.docker-compose.yml` - AWS Services Integration
 
-**Use Case:** Production-like setup using AWS managed services for encryption and timeseries storage.
+**Use Case:** Production-like setup using AWS KMS for envelope-encryption of provider credentials.
 
 **Services Included:**
 
 - **UI** (Next.js) - Port `3001`
 - **API** (Node.js) - Port `3000`
-- **PostgreSQL** - Port `5440`
+- **PostgreSQL** - Port `5440` (also stores `request_audit` for usage analytics)
 - **Redis** (Single mode) - Port `6379`
 
 **Features:**
 
 - **AWS KMS** for encryption (`ENCRYPTION_PROVIDER: aws-kms`)
-- **AWS Timestream** for timeseries data (`COMPLETION_USAGE_PROVIDER: aws-timestream`)
-- No local timeseries database (uses AWS Timestream)
 
 **AWS Configuration:**
 
@@ -122,10 +116,6 @@ Before running, you must:
    - Update `AWS_KMS_KEY_ID` in the compose file with your KMS key ARN
    - Example: `arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012`
 
-3. **Configure AWS Timestream Database:**
-   - Update `AWS_TIMESTREAM_DATABASE_NAME` with your Timestream database name
-   - Ensure the database exists in your AWS account
-
 **Usage:**
 
 ```bash
@@ -137,7 +127,7 @@ docker compose -f aws.docker-compose.yml up
 - UI: http://localhost:3001
 - API: http://localhost:3000
 
-**Note:** This configuration requires active AWS credentials and access to the specified KMS key and Timestream database.
+**Note:** This configuration requires active AWS credentials and access to the specified KMS key.
 
 ---
 
@@ -149,16 +139,14 @@ docker compose -f aws.docker-compose.yml up
 
 - **UI** (Next.js) - Port `3001`
 - **API** (Node.js) - Port `3000`
-- **PostgreSQL** - Port `5440`
+- **PostgreSQL** - Port `5440` (also stores `request_audit` for usage analytics)
 - **Redis Cluster** (3 nodes) - Ports `7001-7003` (data), `17001-17003` (cluster bus)
-- **QuestDB** (Timeseries) - Ports `9000`, `8812`
 - **Redis Cluster Init** - Automatically initializes the cluster
 
 **Features:**
 
 - Redis cluster mode with 3 nodes (no replicas)
 - Automatic cluster initialization
-- QuestDB for timeseries data
 - Libsodium encryption provider
 
 **Configuration Files:**
@@ -175,7 +163,6 @@ docker compose -f redis-cluster.docker-compose.yml up
 
 - UI: http://localhost:3001
 - API: http://localhost:3000
-- QuestDB Console: http://localhost:9000
 
 **Note:** The cluster initialization service (`redis-cluster-init`) will automatically create the cluster after all Redis nodes are ready. The API connects to the cluster via port `7001`.
 
@@ -209,24 +196,22 @@ All services use `network_mode: host` for simplified networking in local develop
 
 ### Required for API Service
 
-| Variable                    | Description                   | Example                       |
-| --------------------------- | ----------------------------- | ----------------------------- |
-| `LOCAL`                     | Enable local development mode | `true`                        |
-| `BASE_URL`                  | API base URL                  | `http://localhost:3000`       |
-| `DATABASE_HOST`             | PostgreSQL host               | `localhost`                   |
-| `DATABASE_PORT`             | PostgreSQL port               | `5440`                        |
-| `REDIS_HOST`                | Redis host                    | `localhost`                   |
-| `REDIS_PORT`                | Redis port                    | `6379` or `7001` (cluster)    |
-| `REDIS_MODE`                | Redis mode                    | `single` or `cluster`         |
-| `ENCRYPTION_PROVIDER`       | Encryption provider           | `libsodium` or `aws-kms`      |
-| `COMPLETION_USAGE_PROVIDER` | Timeseries provider           | `questdb` or `aws-timestream` |
+| Variable              | Description                   | Example                    |
+| --------------------- | ----------------------------- | -------------------------- |
+| `LOCAL`               | Enable local development mode | `true`                     |
+| `BASE_URL`            | API base URL                  | `http://localhost:3000`    |
+| `DATABASE_HOST`       | PostgreSQL host               | `localhost`                |
+| `DATABASE_PORT`       | PostgreSQL port               | `5440`                     |
+| `REDIS_HOST`          | Redis host                    | `localhost`                |
+| `REDIS_PORT`          | Redis port                    | `6379` or `7001` (cluster) |
+| `REDIS_MODE`          | Redis mode                    | `single` or `cluster`      |
+| `ENCRYPTION_PROVIDER` | Encryption provider           | `libsodium` or `aws-kms`   |
 
 ### Optional Configuration
 
 - `OTEL_ENABLED` - Enable OpenTelemetry (otel.docker-compose.yml only)
 - `OTEL_EXPORTER_OTLP_ENDPOINT` - OpenTelemetry endpoint
 - `AWS_KMS_KEY_ID` - AWS KMS key ARN (aws.docker-compose.yml)
-- `AWS_TIMESTREAM_DATABASE_NAME` - Timestream database name (aws.docker-compose.yml)
 
 ---
 
@@ -234,7 +219,7 @@ All services use `network_mode: host` for simplified networking in local develop
 
 ⚠️ **Important:** These configurations are for **development and testing only**. For production:
 
-1. **Change all default passwords** (database, Redis, QuestDB)
+1. **Change all default passwords** (database, Redis)
 2. **Generate a new `AUTH_SECRET`** using `npx auth` or `openssl rand -base64 32`
 3. **Use secure encryption keys** (generate new `LIBSODIUM_ENCRYPTION_KEY`)
 4. **Configure proper network isolation** (avoid `network_mode: host`)
@@ -271,7 +256,6 @@ For `aws.docker-compose.yml`:
 1. Verify credentials are set: `echo $AWS_ACCESS_KEY_ID`
 2. Test AWS access: `aws sts get-caller-identity`
 3. Ensure the KMS key exists and you have permissions
-4. Verify Timestream database exists
 
 ### OpenTelemetry Not Collecting Data
 
@@ -290,4 +274,3 @@ For `otel.docker-compose.yml`:
 - [OpenTelemetry Documentation](https://opentelemetry.io/docs/)
 - [Redis Cluster Documentation](https://redis.io/docs/manual/scaling/)
 - [AWS KMS Documentation](https://docs.aws.amazon.com/kms/)
-- [AWS Timestream Documentation](https://docs.aws.amazon.com/timestream/)

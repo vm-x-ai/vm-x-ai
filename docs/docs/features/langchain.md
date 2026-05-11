@@ -4,15 +4,31 @@ sidebar_position: 5
 
 # LangChain Integration
 
-VM-X AI is fully compatible with LangChain through the OpenAI-compatible API. This guide shows you how to use VM-X AI with LangChain.
+VM-X AI works with LangChain out of the box. Point `ChatOpenAI` at the
+`/chat/completions` endpoint, or `ChatAnthropic` at the
+`/anthropic/messages` endpoint — both flow through the same gateway,
+sharing the routing, fallback, capacity, and audit pipeline.
+
+For the underlying URL pattern, auth header forms, and `vmx` envelope
+shape, see the [API overview](./api/index.md) and the
+[`vmx` envelope reference](./api/vmx-envelope.md). This page only
+covers the LangChain-specific bits.
 
 ## Overview
 
-LangChain can connect to VM-X AI using the `ChatOpenAI` class, treating VM-X AI as an OpenAI-compatible endpoint. This allows you to:
+LangChain can connect to VM-X AI two ways:
 
-- Use all LangChain features (agents, chains, tools)
-- Leverage VM-X AI's routing and fallback capabilities
-- Benefit from centralized AI management
+- `ChatOpenAI` (from `langchain-openai`) → `/chat/completions`. Most
+  common — broadest provider compatibility behind a single endpoint.
+- `ChatAnthropic` (from `langchain-anthropic`) → `/anthropic/messages`.
+  Use when you need Anthropic-native features that have no OpenAI
+  equivalent (`cache_control`, extended `thinking`, server tools, etc.).
+
+Either way you get:
+
+- All LangChain features (agents, chains, tools)
+- VM-X AI's routing and fallback
+- Centralized AI management
 
 ## Installation
 
@@ -24,7 +40,11 @@ pip install langchain[openai]>=0.3.27
 
 ## Basic Usage
 
-### Simple Chat
+### Simple Chat (OpenAI-compatible endpoint)
+
+The OpenAI SDK that backs `ChatOpenAI` sends `Authorization: Bearer <key>`,
+which is one of the two header forms VM-X accepts (the other being
+`x-api-key`). No extra config needed.
 
 ```python
 import os
@@ -46,6 +66,47 @@ model = ChatOpenAI(
 response = model.invoke("What is the weather in São Paulo?")
 print(response.content)
 ```
+
+### Anthropic-shape endpoint (`ChatAnthropic`)
+
+If your application is already standardised on `langchain-anthropic`,
+point `ChatAnthropic` at the `/anthropic/messages` endpoint. The
+Anthropic SDK appends `/v1/messages` to the configured `base_url`, so
+strip the trailing `/messages` from the path you'd use with cURL — VM-X
+exposes the prefix at `…/anthropic`.
+
+```bash
+pip install langchain-anthropic>=0.3
+```
+
+```python
+import os
+from langchain_anthropic import ChatAnthropic
+
+workspace_id = "your-workspace-id"
+environment_id = "your-environment-id"
+resource_name = "your-resource-name"
+api_key = os.getenv("VMX_AI_API_KEY")
+
+# Anthropic SDK appends `/v1/messages`; we end the base_url at `/anthropic`.
+base_url = f"http://localhost:3000/v1/completion/{workspace_id}/{environment_id}/anthropic"
+
+model = ChatAnthropic(
+    model=resource_name,  # AI Resource name (NOT a claude-* model id)
+    api_key=api_key,
+    base_url=base_url,
+    max_tokens=1024,
+)
+
+response = model.invoke("What is the weather in São Paulo?")
+print(response.content)
+```
+
+This path keeps Anthropic-only features (`cache_control`, extended
+`thinking`, server tools, `top_k`, `service_tier`, …) intact end-to-end
+when the resolved provider is Anthropic or Bedrock-Invoke. See the
+[Anthropic Messages endpoint reference](./api/index.md#format-passthrough--what-survives-end-to-end)
+for the passthrough matrix.
 
 ## Advanced Usage with Agents
 
@@ -147,7 +208,11 @@ if __name__ == "__main__":
 
 ## Overriding Resource Configuration
 
-You can override the resource's model/routing configuration for specific requests:
+You can override the resource's model/routing configuration for specific
+requests by passing a `vmx` field through `extra_body` (Python). See the
+[`vmx` envelope reference](./api/vmx-envelope.md) for the full field
+list — `correlationId`, `metadata`, `timeoutMs`, `providerArgs`,
+`secondaryModelIndex`, `resourceConfigOverrides`.
 
 ```python
 from langchain_openai import ChatOpenAI
