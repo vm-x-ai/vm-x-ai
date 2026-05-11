@@ -73,10 +73,29 @@
           "buildTarget": "build"
         }
       },
+      "emit-pnpm-workspace-yaml": {
+        "dependsOn": [
+          "prune-lockfile"
+        ],
+        "cache": true,
+        "executor": "nx:run-commands",
+        "outputs": [
+          "{workspaceRoot}/packages/api/dist/pnpm-workspace.yaml"
+        ],
+        "inputs": [
+          "{projectRoot}/package.json",
+          "{projectRoot}/scripts/emit-prune-workspace-yaml.mjs"
+        ],
+        "options": {
+          "command": "node scripts/emit-prune-workspace-yaml.mjs",
+          "cwd": "{projectRoot}"
+        }
+      },
       "prune": {
         "dependsOn": [
           "prune-lockfile",
-          "copy-workspace-modules"
+          "copy-workspace-modules",
+          "emit-pnpm-workspace-yaml"
         ],
         "executor": "nx:noop"
       },
@@ -211,5 +230,18 @@
     "vite": "^7.1.12",
     "vitest": "4.0.9",
     "yargs": "^18.0.0"
-  }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@google/genai",
+      "@nestjs/core",
+      "@parcel/watcher",
+      "@scarf/scarf",
+      "@swc/core",
+      "argon2",
+      "esbuild",
+      "protobufjs"
+    ]
+  },
+  "packageManager": "pnpm@11.0.9+sha512.34ce82e6780233cf9cad8685029a8f81d2e06196c5a9bad98879f7424940c6817c4e4524fb7d38b8553ceed48b9758b8ebaf1abd3600c232c4c8cf7366086f38"
 }
