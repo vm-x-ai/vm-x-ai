@@ -1,3 +1,13 @@
+## 1.2.0 (2026-05-11)
+
+### 🚀 Features
+
+- multi-surface gateway, Postgres-only audit, provider rewrite ([395cd9d](https://github.com/vm-x-ai/vm-x-ai/commit/395cd9d))
+
+### ❤️ Thank You
+
+- Lucas Vieira @lucasvieirasilva
+
 ## 1.1.0 (2025-12-22)
 
 ### 🚀 Features
