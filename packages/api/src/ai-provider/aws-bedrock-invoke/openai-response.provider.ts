@@ -50,7 +50,9 @@ export class AWSBedrockInvokeOpenAIResponseProvider {
     options?: CompletionRequestOptions
   ): Promise<OpenAIResponseResponse> {
     const anthropicBody = {
-      ...requestResponsesToAnthropic(request),
+      ...requestResponsesToAnthropic(request, {
+        rejectExternalImageUrls: true,
+      }),
       model: model.model,
     };
     const wireBody = canonicalAnthropicToBedrockInvoke(

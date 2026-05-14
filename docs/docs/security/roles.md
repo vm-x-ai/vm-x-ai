@@ -12,6 +12,13 @@ optional description, and a `policy` document made up of one or more
 - **Actions**: Which operations the statement applies to (e.g. `ai-connection:create`)
 - **Resources**: Which resource ARNs the statement applies to (e.g. `workspace:*:environment:*:ai-connection:*`)
 
+Roles themselves are **global** to the deployment — they are not nested
+inside a workspace or environment. Scoping is expressed by the resource
+patterns in each statement, so a single role can grant access in one
+workspace while denying it in another. The same role list is reachable
+from both **Settings → Roles** and the per-environment **Security → Auth
+→ Roles** page.
+
 ## Role Policy Structure
 
 A role policy is a JSON document with a `$schema` URL and a list of
@@ -50,12 +57,22 @@ Both `actions` and `resources` support wildcards:
 Examples:
 
 - `workspace:*` matches all workspace actions or all workspace resources
-- `workspace:production` matches only the `production` workspace
+- `workspace:production` matches any workspace whose name contains
+  `production` (see the warning below for caveats)
 - `*:get` matches every `get` action across all modules
 - `ai-connection:*` matches all AI connection actions
 
 Patterns are converted to regular expressions internally
 (`*` → `.*`, `?` → `.`), so they match anywhere in the string.
+
+:::warning
+Patterns are **not anchored**. `workspace:prod` will also match
+`workspace:production` because `prod` is a regex substring of
+`production`. To avoid surprises, always spell out every level of the
+hierarchy you mean to target (e.g. `workspace:prod:environment:*` rather
+than the bare `workspace:prod`), or use a trailing wildcard
+(`workspace:prod*`) when you actually do want a prefix match.
+:::
 
 ## Default Roles
 
@@ -209,7 +226,9 @@ its members; a user can hold any number of roles.
 
 Programmatically this maps to `POST /role/{roleId}/assign` with a
 `{ "userIds": [...] }` payload, gated by the `role:assign` action on the
-target role's resource.
+target role's resource. Removing users uses the matching
+`POST /role/{roleId}/unassign` endpoint (gated by `role:unassign`) — or
+the **Remove** button next to each member in the UI.
 
 ## Best Practices
 

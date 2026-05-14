@@ -407,7 +407,17 @@ export class GatewayOrchestratorService {
         }
       }
 
-      const models = [modelConfig, ...(aiResource.fallbackModels ?? [])];
+      // Gate the cross-model fallback chain by the resource's
+      // `useFallback` toggle. When `false`, only the primary model is
+      // attempted — the primary's own retry primitives (`maxRetries`,
+      // `timeoutMs`) still apply via the per-leg request options
+      // composed below. Per-request overrides land through
+      // `vmx.resourceConfigOverrides.useFallback` because
+      // `getAIResource` merges overrides into the entity before this
+      // point, so the flag we read here already reflects them.
+      const models = aiResource.useFallback
+        ? [modelConfig, ...(aiResource.fallbackModels ?? [])]
+        : [modelConfig];
       for (let i = 0; i < models.length; i++) {
         modelConfig = models[i];
         if (i > 0) {
@@ -444,6 +454,12 @@ export class GatewayOrchestratorService {
           metadata: payload.vmx?.metadata ?? null,
           connectionId,
           userId: user?.id,
+          // Inbound wire format the request landed on — sourced from
+          // the dispatched envelope (set by the per-format service
+          // before calling `completion()`). Threaded into every audit
+          // row via `baseProps` so success + failure paths share the
+          // same discriminator without per-call-site duplication.
+          format: originalGatewayRequest?.format ?? null,
         };
 
         const metricsAttributes = {
@@ -677,82 +693,162 @@ export class GatewayOrchestratorService {
               modelConfig: AIResourceModelConfigEntity
             ) {
               const usageAccumulator = new StreamUsageAccumulator();
-              for await (const chunk of data) {
-                responseData.push(chunk);
-                const chunkId = (chunk as { id?: string }).id;
-                if (chunkId) messageId = chunkId;
+              try {
+                for await (const chunk of data) {
+                  responseData.push(chunk);
+                  const chunkId = (chunk as { id?: string }).id;
+                  if (chunkId) messageId = chunkId;
 
-                if (payload.stream && !timeToFirstToken && providerStartAt) {
-                  timeToFirstToken = Date.now() - providerStartAt;
-                  this.timeToFirstTokenHistogram.record(
-                    timeToFirstToken,
-                    metricsAttributes
-                  );
-                }
+                  if (payload.stream && !timeToFirstToken && providerStartAt) {
+                    timeToFirstToken = Date.now() - providerStartAt;
+                    this.timeToFirstTokenHistogram.record(
+                      timeToFirstToken,
+                      metricsAttributes
+                    );
+                  }
 
-                usageAccumulator.update(chunk);
-                const accumulated = usageAccumulator.snapshot();
-                if (accumulated && !requestUsage) {
-                  requestUsage = accumulated;
-                }
+                  usageAccumulator.update(chunk);
+                  const accumulated = usageAccumulator.snapshot();
+                  if (accumulated && !requestUsage) {
+                    requestUsage = accumulated;
+                  }
 
-                // Per D9: only OpenAI Chat Completion chunks get the
-                // `vmx` per-chunk decoration; native Anthropic /
-                // Responses event schemas are strict and reject
-                // unknown top-level fields. Non-ChatCompletion shapes
-                // forward verbatim — vmx telemetry is surfaced via
-                // response headers + audit row instead.
-                const shape = detectStreamChunkShape(chunk);
-                if (shape === 'openai-chat-completion-chunk') {
-                  yield {
-                    ...(chunk as ChatCompletionChunk),
-                    vmx: {
-                      events: auditEvents,
-                      metrics: {
-                        gateDurationMs: gateDuration ?? null,
-                        routingDurationMs: routingDuration ?? null,
-                        timeToFirstTokenMs: timeToFirstToken ?? null,
+                  // Per D9: only OpenAI Chat Completion chunks get the
+                  // `vmx` per-chunk decoration; native Anthropic /
+                  // Responses event schemas are strict and reject
+                  // unknown top-level fields. Non-ChatCompletion shapes
+                  // forward verbatim — vmx telemetry is surfaced via
+                  // response headers + audit row instead.
+                  const shape = detectStreamChunkShape(chunk);
+                  if (shape === 'openai-chat-completion-chunk') {
+                    yield {
+                      ...(chunk as ChatCompletionChunk),
+                      vmx: {
+                        events: auditEvents,
+                        metrics: {
+                          gateDurationMs: gateDuration ?? null,
+                          routingDurationMs: routingDuration ?? null,
+                          timeToFirstTokenMs: timeToFirstToken ?? null,
+                        },
                       },
-                    },
-                  };
-                } else {
-                  yield chunk;
+                    };
+                  } else {
+                    yield chunk;
+                  }
                 }
-              }
 
-              // Sub-millisecond responses (mocks, tests, cached
-              // streams) would yield `Infinity`/`NaN` here; floor the
-              // elapsed window to 1ms so the histogram never records a
-              // non-finite value.
-              const elapsedMs = Math.max(1, Date.now() - providerStartAt);
-              const computedTps = requestUsage
-                ? requestUsage.total_tokens / (elapsedMs / 1000)
-                : null;
-              const tokensPerSecond =
-                computedTps != null && Number.isFinite(computedTps)
-                  ? computedTps
+                // Sub-millisecond responses (mocks, tests, cached
+                // streams) would yield `Infinity`/`NaN` here; floor the
+                // elapsed window to 1ms so the histogram never records a
+                // non-finite value.
+                const elapsedMs = Math.max(1, Date.now() - providerStartAt);
+                const computedTps = requestUsage
+                  ? requestUsage.total_tokens / (elapsedMs / 1000)
                   : null;
+                const tokensPerSecond =
+                  computedTps != null && Number.isFinite(computedTps)
+                    ? computedTps
+                    : null;
 
-              await this.postCompletion(
-                requestAt,
-                providerStartAt,
-                originalRequestForAudit ?? payload,
-                baseProps,
-                aiConnection,
-                evaluatedCapacities,
-                modelConfig,
-                messageId,
-                gateDuration,
-                routingDuration,
-                timeToFirstToken,
-                tokensPerSecond,
-                requestUsage,
-                auditEvents,
-                responseData,
-                providerResponse.headers,
-                metricsAttributes,
-                providerResponse.providerRequestPayload
-              );
+                await this.postCompletion(
+                  requestAt,
+                  providerStartAt,
+                  originalRequestForAudit ?? payload,
+                  baseProps,
+                  aiConnection,
+                  evaluatedCapacities,
+                  modelConfig,
+                  messageId,
+                  gateDuration,
+                  routingDuration,
+                  timeToFirstToken,
+                  tokensPerSecond,
+                  requestUsage,
+                  auditEvents,
+                  responseData,
+                  providerResponse.headers,
+                  metricsAttributes,
+                  providerResponse.providerRequestPayload
+                );
+              } catch (streamErr) {
+                // Mid-stream upstream failures land here (e.g. OpenAI
+                // 5xx emitted after the SSE stream opened). The
+                // orchestrator's outer try/catch has already returned
+                // this generator and exited its try scope, so it can't
+                // see the throw — that's why no audit row was written
+                // for streaming-path errors before. Replicate the
+                // outer-catch's audit push (status / usage / metrics)
+                // inline with whatever partial `responseData` we
+                // captured, then re-throw so the controller still
+                // surfaces the error to the client.
+                const { failureReason, statusCode, errorMessage, headers } =
+                  this.parseProviderError(streamErr);
+                const errorBaseProps = {
+                  workspaceId,
+                  environmentId,
+                  resourceId: aiResource?.resourceId,
+                  model: modelConfig?.model,
+                  timestamp: requestAt,
+                  requestId,
+                  sourceIp,
+                  apiKeyId: apiKey?.apiKeyId,
+                  correlationId: payload.vmx?.correlationId,
+                  connectionId: modelConfig?.connectionId ?? undefined,
+                  format: originalGatewayRequest?.format ?? null,
+                };
+                const requestDuration = Date.now() - requestAt.getTime();
+
+                this.requestUsageService.push({
+                  ...errorBaseProps,
+                  failureReason,
+                  statusCode,
+                  provider: modelConfig?.provider,
+                  messageId,
+                  gateDuration,
+                  routingDuration,
+                  timeToFirstToken,
+                  requestDuration,
+                  error: true,
+                });
+                if (aiResource && aiResource.resourceId !== 'ephemeral') {
+                  this.completionMetricsService.push({
+                    ...errorBaseProps,
+                    connectionId: modelConfig.connectionId as string,
+                    resourceId: aiResource.resourceId,
+                    model: modelConfig.model,
+                    statusCode,
+                  });
+                }
+                this.requestAuditService.push({
+                  ...errorBaseProps,
+                  resourceId: this.auditResourceId(aiResource),
+                  statusCode,
+                  type: PublicRequestAuditType.COMPLETION,
+                  events: auditEvents,
+                  requestPayload: (originalRequestForAudit ??
+                    payload) as unknown as CompletionRequestDto,
+                  providerRequestPayload:
+                    streamErr instanceof CompletionError
+                      ? streamErr.data.providerRequestPayload
+                      : providerResponse.providerRequestPayload,
+                  responseData: responseData.length > 0 ? responseData : null,
+                  responseHeaders: headers,
+                  duration: requestDuration,
+                  errorMessage,
+                  failureReason,
+                  provider: modelConfig?.provider,
+                  messageId,
+                  timeToFirstToken,
+                  gateDuration,
+                  routingDuration,
+                  requestDuration,
+                  errorCount: 1,
+                  successCount: 0,
+                  metadata: payload.vmx?.metadata ?? null,
+                });
+
+                throw streamErr;
+              }
             }
 
             return {
@@ -898,6 +994,11 @@ export class GatewayOrchestratorService {
         apiKeyId: apiKey?.apiKeyId,
         correlationId: payload.vmx?.correlationId,
         connectionId: modelConfig?.connectionId ?? undefined,
+        // Capture the inbound wire format on pre-loop / pre-dispatch
+        // failures too — a 4xx from `getAIResource` or a routing block
+        // still benefits from a per-endpoint breakdown in the Audit
+        // Drawer.
+        format: originalGatewayRequest?.format ?? null,
       };
       const requestDuration = Date.now() - requestAt.getTime();
 
@@ -1079,6 +1180,7 @@ export class GatewayOrchestratorService {
       metadata?: Record<string, string> | null;
       connectionId: string;
       userId?: string;
+      format?: 'chat-completions' | 'responses' | 'anthropic' | null;
     },
     aiConnection: AIConnectionEntity,
     evaluatedCapacities: EvaluatedCapacity[],

@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import type {
   Response as OpenAIResponse,
   ResponseCreateParams,
+  ResponseFunctionToolCall,
   ResponseInputContent,
   ResponseInputItem,
   ResponseOutputItem,
+  ResponseOutputMessage,
+  ResponseReasoningItem,
   ResponseStreamEvent,
   Tool as ResponsesTool,
 } from 'openai/resources/responses/responses.js';
@@ -14,9 +17,14 @@ import {
   ConverseCommandOutput,
   ConverseStreamOutput,
   Message as ConverseMessage,
+  OutputConfig,
+  OutputFormatType,
   StopReason,
   Tool as ConverseTool,
   ToolChoice as ConverseToolChoice,
+  type ToolResultContentBlock,
+  type DocumentBlock,
+  type ImageBlock,
 } from '@aws-sdk/client-bedrock-runtime';
 import { v4 as uuidv4 } from 'uuid';
 import { AIConnectionEntity } from '../../ai-connection/entities/ai-connection.entity';
@@ -28,8 +36,24 @@ import {
 import {
   AWSBedrockAIConnectionConfig,
   AWSBedrockConverseDispatcher,
+  DEFAULT_CONVERSE_TOOL_INPUT_SCHEMA,
+  inferConverseImageFormat,
 } from './shared';
 import { assertModelSupportsFeatures } from './capability-gate';
+import { CompletionError } from '../../gateway/completion.types';
+import { assertSafeOutboundUrl } from '../url-safety';
+import { modelSupportsOutputConfig } from '../adapters/anthropic-messages.adapter';
+import { reasoningEffortToBudget } from '../adapters/anthropic-reasoning';
+import { DocumentType } from '@smithy/types';
+
+/**
+ * Sentinel name used by the structured-output shim (`text.format =
+ * json_schema` on models without native `outputConfig.textFormat`
+ * support). Mirrors the same value the Chat-Completions sibling and the
+ * Anthropic-direct adapter use so a structured-output round-trip
+ * through any path looks identical from the audit row's perspective.
+ */
+const CONVERSE_STRUCTURED_OUTPUT_TOOL_NAME = '__vmx_structured_output__';
 
 /**
  * Bedrock Converse handler for OpenAI Responses input — direct
@@ -96,13 +120,65 @@ function mapConverseStopToResponseStatus(
   }
 }
 
+/**
+ * Derive the `incomplete_details.reason` value from the Converse stop
+ * reason whenever the mapped status is `'incomplete'`. OpenAI's
+ * Responses spec only defines two reasons here (`max_output_tokens`,
+ * `content_filter`); everything else folds into `null` so consumers
+ * can branch deterministically on the value.
+ */
+function mapConverseStopToIncompleteReason(
+  reason: StopReason | undefined
+): OpenAIResponse['incomplete_details'] {
+  switch (reason) {
+    case StopReason.MAX_TOKENS:
+    case StopReason.MODEL_CONTEXT_WINDOW_EXCEEDED:
+      return { reason: 'max_output_tokens' };
+    case StopReason.CONTENT_FILTERED:
+    case StopReason.GUARDRAIL_INTERVENED:
+      return { reason: 'content_filter' };
+    default:
+      return null;
+  }
+}
+
 // ─── Request side ──────────────────────────────────────────────────
 
-export function requestResponsesToConverse(
+/**
+ * Side-channel describing whether the structured-output shim was
+ * applied during request build. The response side reads this to
+ * collapse `tool_use` → `completed` and unwrap the synthetic-tool
+ * arguments back into an `output_text` content part. Mirrors the
+ * `structuredOutputApplied` flag the Chat-Completions sibling threads
+ * through.
+ */
+export type ResponseConverseBuildResult = {
+  input: ConverseCommandInput;
+  structuredOutputApplied: boolean;
+};
+
+export async function requestResponsesToConverse(
   req: ResponseCreateParams,
   modelId: string
-): ConverseCommandInput {
+): Promise<ConverseCommandInput> {
+  const { input } = await requestResponsesToConverseWithMeta(req, modelId);
+  return input;
+}
+
+export async function requestResponsesToConverseWithMeta(
+  req: ResponseCreateParams,
+  modelId: string
+): Promise<ResponseConverseBuildResult> {
   const messages: ConverseMessage[] = [];
+
+  // `system` is built up *before* the input-item loop so developer /
+  // system role items inside `input[]` can append onto it (Converse's
+  // native channel for them); top-level `instructions` lands first so
+  // it stays the leading system block.
+  const system: NonNullable<ConverseCommandInput['system']> = [];
+  if (typeof req.instructions === 'string' && req.instructions.length > 0) {
+    system.push({ text: req.instructions });
+  }
 
   const inputItems: ResponseInputItem[] = Array.isArray(req.input)
     ? req.input
@@ -115,27 +191,41 @@ export function requestResponsesToConverse(
       ];
 
   for (const item of inputItems) {
-    appendInputItemToConverse(messages, item);
-  }
-
-  const system: ConverseCommandInput['system'] = [];
-  if (typeof req.instructions === 'string' && req.instructions.length > 0) {
-    system.push({ text: req.instructions });
+    await appendInputItemToConverse(messages, system, item);
   }
 
   // T11: `tool_choice: 'none'` has no Converse equivalent — map to
   // "no tools sent" so the model literally can't call any tool.
   const toolChoiceIsNone = req.tool_choice === 'none';
-  const tools = toolChoiceIsNone
+  let tools = toolChoiceIsNone
     ? undefined
-    : mapResponsesToolsToConverse(req.tools ?? null);
-  const toolChoice = toolChoiceIsNone
+    : mapResponsesToolsToConverse(req.tools ?? null, req.tool_choice);
+  let toolChoice = toolChoiceIsNone
     ? undefined
     : mapResponsesToolChoiceToConverse(req.tool_choice);
 
+  // H5: `text.format = json_schema` → prefer Converse's native
+  // `outputConfig.textFormat` (Claude 4.5+); fall back to a synthetic
+  // tool whose `inputSchema.json` is the schema on models that don't
+  // support the native path. The response/stream side unwraps the
+  // synthetic tool back into `output_text`.
+  const structured = applyResponseStructuredOutput(req, modelId, tools);
+  let outputConfig: OutputConfig | undefined;
+  let structuredOutputApplied = false;
+  if (structured.kind === 'tool') {
+    tools = structured.tools;
+    toolChoice = structured.toolChoice;
+    structuredOutputApplied = true;
+  } else if (structured.kind === 'native') {
+    outputConfig = structured.outputConfig;
+  }
+
   const additionalModelRequestFields: Record<string, unknown> = {};
   if (req.reasoning?.effort) {
-    const budget = effortToBudget(req.reasoning.effort);
+    const budget = reasoningEffortToBudget(
+      req.reasoning.effort,
+      req.max_output_tokens ?? undefined
+    );
     if (budget != null) {
       additionalModelRequestFields.thinking = {
         type: 'enabled',
@@ -144,7 +234,7 @@ export function requestResponsesToConverse(
     }
   }
 
-  return {
+  const input: ConverseCommandInput = {
     modelId,
     messages,
     // ResponseCreateParams doesn't expose `stop` sequences directly,
@@ -164,19 +254,96 @@ export function requestResponsesToConverse(
           },
         }
       : {}),
+    ...(outputConfig ? { outputConfig } : {}),
     ...(Object.keys(additionalModelRequestFields).length > 0
       ? {
           additionalModelRequestFields:
-            additionalModelRequestFields as unknown as ConverseCommandInput['additionalModelRequestFields'],
+            additionalModelRequestFields as DocumentType,
         }
       : {}),
   };
+  return { input, structuredOutputApplied };
 }
 
-function appendInputItemToConverse(
+/**
+ * H5: translate `req.text.format` into Converse-native structured
+ * output or the synthetic-tool shim. Mirrors the Chat-Completions
+ * sibling's `applyConverseStructuredOutput` so the audit row sees the
+ * same shape regardless of input format.
+ */
+type ResponseStructuredOutputResult =
+  | { kind: 'none' }
+  | { kind: 'native'; outputConfig: OutputConfig }
+  | {
+      kind: 'tool';
+      tools: ConverseTool[];
+      toolChoice: ConverseToolChoice;
+    };
+
+function applyResponseStructuredOutput(
+  req: ResponseCreateParams,
+  modelId: string,
+  tools: ConverseTool[] | undefined
+): ResponseStructuredOutputResult {
+  const format = (req.text as { format?: unknown } | undefined)?.format as
+    | {
+        type?: string;
+        name?: string;
+        description?: string;
+        schema?: Record<string, unknown>;
+      }
+    | undefined;
+  if (
+    format?.type !== 'json_schema' ||
+    !format.schema ||
+    typeof format.schema !== 'object'
+  ) {
+    return { kind: 'none' };
+  }
+  if (modelSupportsOutputConfig(modelId)) {
+    return {
+      kind: 'native',
+      outputConfig: {
+        textFormat: {
+          type: OutputFormatType.JSON_SCHEMA,
+          structure: {
+            jsonSchema: {
+              name: format.name,
+              description: format.description,
+              schema: JSON.stringify(format.schema),
+            },
+          },
+        },
+      },
+    };
+  }
+  const synthetic: ConverseTool = {
+    toolSpec: {
+      name: CONVERSE_STRUCTURED_OUTPUT_TOOL_NAME,
+      description:
+        format.description ??
+        `Return the response as a JSON object that conforms to the${
+          format.name ? ` "${format.name}"` : ''
+        } schema.`,
+      inputSchema: {
+        json: format.schema as DocumentType,
+      },
+    },
+  };
+  return {
+    kind: 'tool',
+    tools: [...(tools ?? []), synthetic],
+    toolChoice: {
+      tool: { name: CONVERSE_STRUCTURED_OUTPUT_TOOL_NAME },
+    } as ConverseToolChoice,
+  };
+}
+
+async function appendInputItemToConverse(
   messages: ConverseMessage[],
+  system: NonNullable<ConverseCommandInput['system']>,
   item: ResponseInputItem
-): void {
+): Promise<void> {
   const type = (item as { type?: string }).type;
 
   if (type === 'message' || type === undefined) {
@@ -185,26 +352,32 @@ function appendInputItemToConverse(
       { type?: 'message'; role: 'user' | 'system' | 'developer' | 'assistant' }
     >;
     if (msg.role === 'system' || msg.role === 'developer') {
-      // Inline a developer message as a user prompt prefix; only
-      // `instructions` becomes the first system block (handled in
-      // `requestResponsesToConverse`).
+      // System / developer items are Converse-native: append each
+      // `input_text` chunk onto the request's `system[]` channel
+      // rather than synthesising a user turn. Image / file parts in a
+      // developer message are dropped — Converse's `SystemContentBlock`
+      // is text-only.
       const text = stringifyResponsesContent(msg.content);
-      if (text) {
-        messages.push({
-          role: 'user',
-          content: [{ text: `[system] ${text}` }],
-        });
-      }
+      if (text) system.push({ text });
       return;
     }
     if (msg.role === 'user') {
-      const content = mapResponsesInputContentToConverse(msg.content);
-      if (content.length > 0) messages.push({ role: 'user', content });
+      const content = await mapResponsesInputContentToConverse(msg.content);
+      // M6: Bedrock rejects empty content arrays; preserve the turn
+      // with a placeholder so conversation positioning survives a
+      // defensive client emitting an empty user message.
+      messages.push({
+        role: 'user',
+        content: ensureNonEmptyConverseContent(content),
+      });
       return;
     }
     if (msg.role === 'assistant') {
-      const content = mapResponsesInputContentToConverse(msg.content);
-      if (content.length > 0) messages.push({ role: 'assistant', content });
+      const content = await mapResponsesInputContentToConverse(msg.content);
+      messages.push({
+        role: 'assistant',
+        content: ensureNonEmptyConverseContent(content),
+      });
     }
     return;
   }
@@ -223,7 +396,7 @@ function appendInputItemToConverse(
         name: call.name,
         // SDK types `input` as `DocumentType` — cast through unknown to
         // widen from the parsed `Record<string, unknown>`.
-        input: parsed as unknown as never,
+        input: parsed as DocumentType,
       },
     };
     const last = messages[messages.length - 1];
@@ -240,19 +413,10 @@ function appendInputItemToConverse(
       ResponseInputItem,
       { type: 'function_call_output' }
     >;
-    const text =
-      typeof out.output === 'string'
-        ? out.output
-        : Array.isArray(out.output)
-        ? (out.output as Array<{ type?: string; text?: string }>)
-            .filter((p) => p.type === 'input_text' || p.type === 'output_text')
-            .map((p) => p.text ?? '')
-            .join('')
-        : '';
     const block: ContentBlock = {
       toolResult: {
         toolUseId: out.call_id,
-        content: [{ text }],
+        content: await mapFunctionCallOutputToToolResultContent(out.output),
         status: 'success',
       },
     };
@@ -313,9 +477,21 @@ function appendInputItemToConverse(
   // Unknown item types fall through silently.
 }
 
-function mapResponsesInputContentToConverse(
+/**
+ * M6: substitute a placeholder text block when the mapped content
+ * array would otherwise be empty. Bedrock rejects messages with an
+ * empty `content` array; preserving the turn keeps the multi-turn
+ * history aligned across the Chat-Completions and Responses paths
+ * (see the sibling cell's `ensureNonEmptyContent`).
+ */
+function ensureNonEmptyConverseContent(blocks: ContentBlock[]): ContentBlock[] {
+  if (blocks.length === 0) return [{ text: '(no content)' }];
+  return blocks;
+}
+
+async function mapResponsesInputContentToConverse(
   content: string | ResponseInputContent[] | unknown
-): ContentBlock[] {
+): Promise<ContentBlock[]> {
   if (typeof content === 'string') return [{ text: content }];
   if (!Array.isArray(content)) return [];
   const blocks: ContentBlock[] = [];
@@ -323,24 +499,278 @@ function mapResponsesInputContentToConverse(
     const t = (part as { type?: string }).type;
     if (t === 'input_text' || t === 'output_text') {
       blocks.push({ text: (part as { text: string }).text });
-    } else if (t === 'input_image') {
+      continue;
+    }
+    if (t === 'input_image') {
       const img = part as { image_url?: string };
-      if (img.image_url && img.image_url.startsWith('data:')) {
-        const match = img.image_url.match(/^data:([^;]+);base64,(.+)$/);
-        if (match) {
-          const fmt = match[1].split('/').pop()?.toLowerCase();
-          blocks.push({
-            image: {
-              format: (fmt ?? 'jpeg') as never,
-              source: { bytes: Buffer.from(match[2], 'base64') },
-            },
-          });
-        }
+      const image = await parseInputImageToConverse(img.image_url);
+      if (image) blocks.push({ image });
+      continue;
+    }
+    if (t === 'input_file') {
+      const file = part as {
+        file_data?: string;
+        file_url?: string;
+        file_id?: string;
+        filename?: string;
+      };
+      const document = parseInputFileToConverse(file);
+      if (document) blocks.push({ document });
+      // file_id-only files require the Files API beta on the upstream;
+      // Converse can't fetch them server-side, so skip.
+    }
+    // `input_audio` / video are not surfaced on Bedrock Converse for
+    // OpenAI Responses input today — Anthropic Claude on Bedrock
+    // doesn't accept either inside a user turn. Dropped silently.
+  }
+  return blocks;
+}
+
+/**
+ * Parse an OpenAI `input_image` URL into a Converse `ImageBlock`.
+ *
+ * - **Data URLs** (`data:image/<mime>;base64,...`): decode inline.
+ *   The MIME type is also the format signal — H4 fixes the previous
+ *   silent fallback to `'jpeg'` on unknown subtypes.
+ * - **HTTPS URLs**: fetch server-side (SSRF-guarded). Format is
+ *   inferred from the response `Content-Type`, falling back to the
+ *   URL extension. Mirrors the Chat-Completions sibling.
+ *
+ * Raises `CompletionError(400)` on unsupported / unknown format and
+ * on fetch failure so the gateway returns a clear error instead of
+ * silently dropping the part.
+ */
+async function parseInputImageToConverse(
+  url: string | undefined
+): Promise<ImageBlock | null> {
+  if (!url) return null;
+  if (url.startsWith('data:')) {
+    const match = url.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return null;
+    const format = inferConverseImageFormat(match[1]);
+    if (!format) {
+      throw new CompletionError({
+        message: `Unsupported image format "${match[1]}" — AWS Bedrock Converse only accepts jpeg / png / gif / webp.`,
+        rate: false,
+        retryable: false,
+        statusCode: HttpStatus.BAD_REQUEST,
+        failureReason: 'Unsupported image format',
+        openAICompatibleError: {
+          code: 'aws_bedrock_unsupported_image_format',
+          type: 'unsupported_image_format',
+        },
+      });
+    }
+    return {
+      format,
+      source: { bytes: Buffer.from(match[2], 'base64') },
+    };
+  }
+  // SSRF guard before any outbound fetch — the gateway runs
+  // server-side so any URL becomes a fetch from our infra.
+  assertSafeOutboundUrl(url, {});
+  try {
+    const imageResponse = await fetch(url);
+    if (!imageResponse.ok) {
+      throw new Error(`image fetch returned HTTP ${imageResponse.status}`);
+    }
+    const contentType = imageResponse.headers.get('content-type');
+    const urlPath = new URL(url).pathname;
+    const ext = urlPath.split('.').pop()?.toLowerCase();
+    const format =
+      inferConverseImageFormat(contentType ?? undefined) ??
+      inferConverseImageFormat(ext);
+    if (!format) {
+      throw new CompletionError({
+        message: `Could not determine image format for ${url} — AWS Bedrock Converse requires one of jpeg / png / gif / webp.`,
+        rate: false,
+        retryable: false,
+        statusCode: HttpStatus.BAD_REQUEST,
+        failureReason: 'Unknown image format',
+        openAICompatibleError: {
+          code: 'aws_bedrock_unknown_image_format',
+          type: 'unknown_image_format',
+        },
+      });
+    }
+    return {
+      format,
+      source: {
+        bytes: new Uint8Array(await imageResponse.arrayBuffer()),
+      },
+    };
+  } catch (error) {
+    if (error instanceof CompletionError) throw error;
+    throw new CompletionError({
+      message: `Error fetching image from URL ${url}`,
+      rate: false,
+      retryable: false,
+      statusCode: HttpStatus.BAD_REQUEST,
+      failureReason: 'Failed to fetch image',
+      openAICompatibleError: {
+        code: 'aws_bedrock_image_fetch_error',
+        type: 'image_fetch_error',
+      },
+    });
+  }
+}
+
+/**
+ * Parse an OpenAI `input_file` payload into a Converse `DocumentBlock`.
+ * Supports:
+ *   - `file_data` base64 PDF / text data URL → bytes/text source
+ *   - `file_url` pointing at S3 (`s3://bucket/key`) → S3 location source
+ *   - `file_url` HTTPS → bytes source if it can be parsed as a data URL,
+ *     otherwise null (Converse can't fetch arbitrary HTTPS).
+ */
+function parseInputFileToConverse(file: {
+  file_data?: string;
+  file_url?: string;
+  filename?: string;
+}): DocumentBlock | null {
+  const name = file.filename ?? 'document';
+  if (file.file_data) {
+    const match = file.file_data.match(/^data:([^;]+);base64,(.+)$/);
+    if (match) {
+      const mediaType = match[1];
+      if (mediaType === 'text/plain') {
+        return {
+          format: 'txt',
+          name,
+          source: { text: Buffer.from(match[2], 'base64').toString('utf-8') },
+        };
       }
-      // URL-source images dropped silently — Converse's ImageBlock
-      // requires `bytes`.
+      const fmt = inferDocumentFormat(mediaType, file.filename);
+      return {
+        format: fmt as DocumentBlock['format'],
+        name,
+        source: { bytes: Buffer.from(match[2], 'base64') },
+      };
     }
   }
+  if (file.file_url) {
+    if (file.file_url.startsWith('s3://')) {
+      return {
+        format: (inferDocumentFormat(undefined, file.filename) ??
+          'pdf') as DocumentBlock['format'],
+        name,
+        source: { s3Location: { uri: file.file_url } },
+      };
+    }
+    // M3: explicit 400 instead of dropping silently — the
+    // Chat-Completions sibling raises here as well so the two paths
+    // surface the same error envelope. Data-URL `file_url` callers
+    // can still flow through the `file_data` branch above.
+    throw new CompletionError({
+      message:
+        'AWS Bedrock Converse only accepts inline file_data (base64 / data URL) or an `s3://` file_url. HTTPS file URLs cannot be fetched server-side.',
+      rate: false,
+      retryable: false,
+      statusCode: HttpStatus.BAD_REQUEST,
+      failureReason:
+        'Bedrock requires inline file_data or an s3:// URL; HTTPS file_url is not supported',
+      openAICompatibleError: {
+        code: 'aws_bedrock_file_url_unsupported',
+      },
+    });
+  }
+  return null;
+}
+
+/**
+ * Best-effort mapping from MIME type / filename extension onto
+ * Converse's `DocumentFormat` enum. Mirrors the values Bedrock accepts
+ * (`pdf`, `csv`, `doc`, `docx`, `xls`, `xlsx`, `html`, `txt`, `md`).
+ */
+function inferDocumentFormat(
+  mediaType: string | undefined,
+  filename: string | undefined
+): string | undefined {
+  if (mediaType) {
+    if (mediaType === 'application/pdf') return 'pdf';
+    if (mediaType === 'text/csv') return 'csv';
+    if (mediaType === 'text/html') return 'html';
+    if (mediaType === 'text/plain') return 'txt';
+    if (mediaType === 'text/markdown') return 'md';
+    if (mediaType === 'application/msword') return 'doc';
+    if (
+      mediaType ===
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) {
+      return 'docx';
+    }
+    if (mediaType === 'application/vnd.ms-excel') return 'xls';
+    if (
+      mediaType ===
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ) {
+      return 'xlsx';
+    }
+  }
+  if (filename) {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (
+      ext &&
+      [
+        'pdf',
+        'csv',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'html',
+        'txt',
+        'md',
+      ].includes(ext)
+    ) {
+      return ext;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Convert an OpenAI `function_call_output.output` payload into a
+ * Converse `toolResult.content` array. Preserves multimodal parts
+ * (text + image) instead of flattening to a single string — Converse
+ * accepts `text`, `image`, `document`, `json`, `video`, `searchResult`
+ * blocks inside a tool result, and Anthropic Claude 3/4 on Bedrock
+ * specifically supports text + image. Strings and pure text arrays
+ * still produce a single text block so the upstream sees the same
+ * wire shape as before; only mixed-content arrays get the richer mapping.
+ */
+async function mapFunctionCallOutputToToolResultContent(
+  output: ResponseInputItem.FunctionCallOutput['output']
+): Promise<ToolResultContentBlock[]> {
+  if (typeof output === 'string') {
+    return [{ text: output }];
+  }
+  if (!Array.isArray(output)) return [{ text: '' }];
+  const blocks: ToolResultContentBlock[] = [];
+  for (const part of output) {
+    const p = part as {
+      type?: string;
+      text?: string;
+      image_url?: string;
+      file_data?: string;
+      file_url?: string;
+      filename?: string;
+    };
+    if (p.type === 'input_text' || p.type === 'output_text') {
+      if (p.text) blocks.push({ text: p.text });
+      continue;
+    }
+    if (p.type === 'input_image') {
+      const image = await parseInputImageToConverse(p.image_url);
+      if (image) blocks.push({ image });
+      continue;
+    }
+    if (p.type === 'input_file') {
+      const document = parseInputFileToConverse(p);
+      if (document) blocks.push({ document });
+    }
+  }
+  if (blocks.length === 0) blocks.push({ text: '' });
   return blocks;
 }
 
@@ -362,20 +792,45 @@ function stringifyResponsesContent(
 }
 
 function mapResponsesToolsToConverse(
-  tools: ResponsesTool[] | null
+  tools: ResponsesTool[] | null,
+  toolChoice: ResponseCreateParams['tool_choice']
 ): ConverseTool[] | undefined {
   if (!tools || tools.length === 0) return undefined;
+  // H2: `tool_choice: { type: 'allowed_tools', tools: [...] }` is the
+  // Responses-shape way to scope a request to a subset of the
+  // available tools. Converse has no native allowlist knob, so the
+  // gateway implements it by filtering the emitted tool list to the
+  // allowed names. Mirrors the Chat-Completions sibling.
+  const allowedTools =
+    toolChoice &&
+    typeof toolChoice === 'object' &&
+    (toolChoice as { type?: string }).type === 'allowed_tools'
+      ? new Set(
+          ((toolChoice as { tools?: Array<{ name?: string }> }).tools ?? [])
+            .map((t) => t.name)
+            .filter((n): n is string => typeof n === 'string')
+        )
+      : undefined;
+  const isAllowed = (name: string | undefined): boolean =>
+    !allowedTools || (name !== undefined && allowedTools.has(name));
+
   const out: ConverseTool[] = [];
   for (const tool of tools) {
     if (tool.type === 'function') {
       const fn = tool as Extract<ResponsesTool, { type: 'function' }>;
+      if (!isAllowed(fn.name)) continue;
       out.push({
         toolSpec: {
           name: fn.name,
           description: fn.description ?? undefined,
+          // M2: use the canonical empty-object JSON schema instead of
+          // a bare `{}` so stricter Claude variants don't 400 on
+          // zero-arg tools.
           inputSchema: {
-            json: (fn.parameters ?? {}) as never,
+            json: (fn.parameters ??
+              DEFAULT_CONVERSE_TOOL_INPUT_SCHEMA) as DocumentType,
           },
+          strict: fn.strict ?? undefined,
         },
       });
     }
@@ -400,23 +855,17 @@ function mapResponsesToolChoiceToConverse(
     const c = choice as { type: 'function'; name: string };
     return { tool: { name: c.name } };
   }
-  return undefined;
-}
-
-function effortToBudget(
-  effort: 'minimal' | 'low' | 'medium' | 'high' | string | null | undefined
-): number | null {
-  switch (effort) {
-    case 'minimal':
-    case 'low':
-      return 1024;
-    case 'medium':
-      return 4096;
-    case 'high':
-      return 16384;
-    default:
-      return null;
+  // H2: `allowed_tools` is implemented at the tool-list level (see
+  // `mapResponsesToolsToConverse`). Converse has no native allowlist
+  // knob, so fall back to `auto` here — the model can still call any
+  // of the (already filtered) tools the gateway forwarded.
+  if (
+    typeof choice === 'object' &&
+    (choice as { type?: string }).type === 'allowed_tools'
+  ) {
+    return { auto: {} };
   }
+  return undefined;
 }
 
 // ─── Response side (non-streaming) ─────────────────────────────────
@@ -426,15 +875,17 @@ export function responseConverseToResponses(
   responseId: string,
   createdAt: number,
   model: string,
-  originalReq?: ResponseCreateParams
+  originalReq?: ResponseCreateParams,
+  structuredOutputApplied = false
 ): OpenAIResponse {
   const output: ResponseOutputItem[] = [];
   let outputIndex = 0;
   const baseId = resp.$metadata.requestId ?? uuidv4();
+  let structuredOutputText = '';
 
   for (const block of resp.output?.message?.content ?? []) {
     if (block.text) {
-      output.push({
+      const message: ResponseOutputMessage = {
         type: 'message',
         id: `msg_${baseId}_${outputIndex++}`,
         status: 'completed',
@@ -447,22 +898,37 @@ export function responseConverseToResponses(
             logprobs: [],
           },
         ],
-      } as unknown as ResponseOutputItem);
+      };
+      output.push(message);
     } else if (block.toolUse) {
-      output.push({
+      // H5: unwrap the synthetic structured-output tool — the caller
+      // asked for `text.format: json_schema`, they expect the JSON in
+      // an `output_text` content part, not a function_call item.
+      if (
+        structuredOutputApplied &&
+        block.toolUse.name === CONVERSE_STRUCTURED_OUTPUT_TOOL_NAME
+      ) {
+        structuredOutputText +=
+          typeof block.toolUse.input === 'string'
+            ? block.toolUse.input
+            : JSON.stringify(block.toolUse.input ?? {});
+        continue;
+      }
+      const fnCall: ResponseFunctionToolCall = {
         type: 'function_call',
         id: `fc_${block.toolUse.toolUseId}`,
-        call_id: block.toolUse.toolUseId,
+        call_id: block.toolUse.toolUseId ?? '',
         name: block.toolUse.name ?? '',
         arguments:
           typeof block.toolUse.input === 'string'
             ? block.toolUse.input
             : JSON.stringify(block.toolUse.input ?? {}),
         status: 'completed',
-      } as unknown as ResponseOutputItem);
+      };
+      output.push(fnCall);
     } else if (block.reasoningContent?.reasoningText) {
       const sig = block.reasoningContent.reasoningText.signature;
-      output.push({
+      const reasoning: ResponseReasoningItem = {
         type: 'reasoning',
         id: `rs_${baseId}_${outputIndex++}`,
         summary: [
@@ -475,7 +941,8 @@ export function responseConverseToResponses(
         // so a Responses-shape consumer can re-emit it on the next
         // turn without breaking Bedrock's signature validator (T2).
         ...(sig ? { encrypted_content: sig } : {}),
-      } as unknown as ResponseOutputItem);
+      };
+      output.push(reasoning);
     } else if (block.reasoningContent?.redactedContent) {
       // Redacted reasoning lacks a textual summary — preserve the
       // opaque blob so it round-trips back to Bedrock as
@@ -485,16 +952,45 @@ export function responseConverseToResponses(
         : Buffer.from(
             block.reasoningContent.redactedContent as Uint8Array
           ).toString('base64');
-      output.push({
+      const reasoning: ResponseReasoningItem = {
         type: 'reasoning',
         id: `rs_${baseId}_${outputIndex++}`,
         summary: [],
         encrypted_content: `__vmx_redacted__:${data}`,
-      } as unknown as ResponseOutputItem);
+      };
+      output.push(reasoning);
     }
   }
 
-  const status = mapConverseStopToResponseStatus(resp.stopReason);
+  if (structuredOutputApplied && structuredOutputText.length > 0) {
+    const message: ResponseOutputMessage = {
+      type: 'message',
+      id: `msg_${baseId}_${outputIndex++}`,
+      status: 'completed',
+      role: 'assistant',
+      content: [
+        {
+          type: 'output_text',
+          text: structuredOutputText,
+          annotations: [],
+          logprobs: [],
+        },
+      ],
+    };
+    output.push(message);
+  }
+
+  // H5: collapse Bedrock's `tool_use` stop reason to `completed` when
+  // the synthetic structured-output tool fired — from the caller's
+  // perspective the model returned JSON, not a tool call.
+  const status =
+    structuredOutputApplied && resp.stopReason === StopReason.TOOL_USE
+      ? 'completed'
+      : mapConverseStopToResponseStatus(resp.stopReason);
+  const incompleteDetails =
+    status === 'incomplete'
+      ? mapConverseStopToIncompleteReason(resp.stopReason)
+      : null;
 
   const usage = resp.usage
     ? ({
@@ -519,15 +1015,15 @@ export function responseConverseToResponses(
     created_at: createdAt,
     status,
     error: null,
-    incomplete_details: null,
+    incomplete_details: incompleteDetails,
     instructions: originalReq?.instructions ?? null,
     max_output_tokens: originalReq?.max_output_tokens ?? null,
     model,
     output,
+    output_text: joinOutputText(output),
     parallel_tool_calls: originalReq?.parallel_tool_calls ?? true,
     previous_response_id: originalReq?.previous_response_id ?? null,
     reasoning: originalReq?.reasoning ?? null,
-    store: originalReq?.store ?? false,
     temperature: originalReq?.temperature ?? null,
     text: originalReq?.text ?? { format: { type: 'text' } },
     tool_choice: originalReq?.tool_choice ?? 'auto',
@@ -535,9 +1031,28 @@ export function responseConverseToResponses(
     top_p: originalReq?.top_p ?? null,
     truncation: originalReq?.truncation ?? 'disabled',
     usage,
-    user: null,
     metadata: originalReq?.metadata ?? null,
-  } as unknown as OpenAIResponse;
+  } as OpenAIResponse;
+}
+
+/**
+ * Build the SDK-required `Response.output_text` field by concatenating
+ * every `output_text` part across all `message` output items. The
+ * Converse-side caller is the single source of truth for the
+ * generated text; mirroring it onto this convenience field keeps
+ * OpenAI-SDK consumers happy (they read `response.output_text`
+ * directly rather than walking `output[]`).
+ */
+function joinOutputText(items: ResponseOutputItem[]): string {
+  let out = '';
+  for (const item of items) {
+    if (item.type !== 'message') continue;
+    for (const part of item.content ?? []) {
+      const p = part as { type?: string; text?: string };
+      if (p.type === 'output_text' && typeof p.text === 'string') out += p.text;
+    }
+  }
+  return out;
 }
 
 // ─── Stream side ───────────────────────────────────────────────────
@@ -547,7 +1062,8 @@ export async function* streamConverseToResponses(
   responseId: string,
   createdAt: number,
   model: string,
-  originalReq?: ResponseCreateParams
+  originalReq?: ResponseCreateParams,
+  structuredOutputApplied = false
 ): AsyncIterable<ResponseStreamEvent> {
   let sequence = 0;
   let outputIndex = 0;
@@ -555,7 +1071,7 @@ export async function* streamConverseToResponses(
   const blockState = new Map<
     number,
     {
-      kind: 'text' | 'tool_use' | 'thinking';
+      kind: 'text' | 'tool_use' | 'thinking' | 'structured_output';
       itemId: string;
       callId?: string;
       name?: string;
@@ -568,6 +1084,10 @@ export async function* streamConverseToResponses(
       // can carry it as `encrypted_content` (T2).
       signatureAccum?: string;
       outputIndex: number;
+      // H5 streaming parity: per-block flag set when the structured-
+      // output tool fired so input fragments re-emit as `output_text`
+      // deltas instead of `function_call_arguments` deltas.
+      structuredOutputAccum?: string;
     }
   >();
   let inputTokens = 0;
@@ -589,12 +1109,12 @@ export async function* streamConverseToResponses(
     type: 'response.created',
     response: initial,
     sequence_number: sequence++,
-  } as unknown as ResponseStreamEvent;
+  } as ResponseStreamEvent;
   yield {
     type: 'response.in_progress',
     response: initial,
     sequence_number: sequence++,
-  } as unknown as ResponseStreamEvent;
+  } as ResponseStreamEvent;
 
   for await (const item of source) {
     if (item.messageStart) continue;
@@ -602,6 +1122,50 @@ export async function* streamConverseToResponses(
     if (item.contentBlockStart?.start?.toolUse) {
       const idx = item.contentBlockStart.contentBlockIndex ?? 0;
       const tu = item.contentBlockStart.start.toolUse;
+      // H5 streaming parity: synthetic structured-output tool starts
+      // a message-with-output_text item instead of a function_call.
+      // Input fragments stream as `output_text.delta` and the block
+      // closes with the same `message`/`output_text` shape as a
+      // normal text turn — the caller didn't ask for tool calling.
+      if (
+        structuredOutputApplied &&
+        tu.name === CONVERSE_STRUCTURED_OUTPUT_TOOL_NAME
+      ) {
+        const itemId = `msg_${responseId}_${outputIndex}`;
+        blockState.set(idx, {
+          kind: 'structured_output',
+          itemId,
+          structuredOutputAccum: '',
+          outputIndex,
+        });
+        yield {
+          type: 'response.output_item.added',
+          output_index: outputIndex,
+          item: {
+            type: 'message',
+            id: itemId,
+            status: 'in_progress',
+            role: 'assistant',
+            content: [],
+          },
+          sequence_number: sequence++,
+        } as ResponseStreamEvent;
+        yield {
+          type: 'response.content_part.added',
+          item_id: itemId,
+          output_index: outputIndex,
+          content_index: 0,
+          part: {
+            type: 'output_text',
+            text: '',
+            annotations: [],
+            logprobs: [],
+          },
+          sequence_number: sequence++,
+        } as ResponseStreamEvent;
+        outputIndex++;
+        continue;
+      }
       const itemId = `fc_${tu.toolUseId}`;
       blockState.set(idx, {
         kind: 'tool_use',
@@ -623,7 +1187,7 @@ export async function* streamConverseToResponses(
           status: 'in_progress',
         },
         sequence_number: sequence++,
-      } as unknown as ResponseStreamEvent;
+      } as ResponseStreamEvent;
       outputIndex++;
       continue;
     }
@@ -654,7 +1218,7 @@ export async function* streamConverseToResponses(
               content: [],
             },
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          } as ResponseStreamEvent;
           yield {
             type: 'response.content_part.added',
             item_id: itemId,
@@ -667,7 +1231,7 @@ export async function* streamConverseToResponses(
               logprobs: [],
             },
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          } as ResponseStreamEvent;
           outputIndex++;
         }
         state.textAccum = (state.textAccum ?? '') + delta.text;
@@ -678,7 +1242,22 @@ export async function* streamConverseToResponses(
           content_index: 0,
           delta: delta.text,
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
+        } as ResponseStreamEvent;
+      } else if (delta?.toolUse && state?.kind === 'structured_output') {
+        // H5 streaming parity: re-emit synthetic-tool input fragments
+        // as output_text deltas. The schema-shaped JSON is the model's
+        // response, not a tool call.
+        const partial = delta.toolUse.input ?? '';
+        state.structuredOutputAccum =
+          (state.structuredOutputAccum ?? '') + partial;
+        yield {
+          type: 'response.output_text.delta',
+          item_id: state.itemId,
+          output_index: state.outputIndex,
+          content_index: 0,
+          delta: partial,
+          sequence_number: sequence++,
+        } as ResponseStreamEvent;
       } else if (delta?.toolUse && state?.kind === 'tool_use') {
         const partial = delta.toolUse.input ?? '';
         state.argumentsAccum = (state.argumentsAccum ?? '') + partial;
@@ -688,7 +1267,7 @@ export async function* streamConverseToResponses(
           output_index: state.outputIndex,
           delta: partial,
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
+        } as ResponseStreamEvent;
       } else if (delta?.reasoningContent) {
         if (!state) {
           const itemId = `rs_${responseId}_${outputIndex}`;
@@ -708,7 +1287,20 @@ export async function* streamConverseToResponses(
               summary: [],
             },
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          } as ResponseStreamEvent;
+          // M4: bracket the summary-text deltas with the OpenAI-spec
+          // `reasoning_summary_part.added`/`.done` events. SDK
+          // consumers that walk the full event sequence (e.g. the
+          // OpenAI SDK's accumulator) expect these around each
+          // summary part.
+          yield {
+            type: 'response.reasoning_summary_part.added',
+            item_id: itemId,
+            output_index: outputIndex,
+            summary_index: 0,
+            part: { type: 'summary_text', text: '' },
+            sequence_number: sequence++,
+          } as ResponseStreamEvent;
           outputIndex++;
         }
         if (delta.reasoningContent.text) {
@@ -721,7 +1313,7 @@ export async function* streamConverseToResponses(
             summary_index: 0,
             delta: delta.reasoningContent.text,
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          } as ResponseStreamEvent;
         }
         const sigDelta = (delta.reasoningContent as { signature?: string })
           .signature;
@@ -744,7 +1336,7 @@ export async function* streamConverseToResponses(
           content_index: 0,
           text: state.textAccum ?? '',
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
+        } as ResponseStreamEvent;
         yield {
           type: 'response.content_part.done',
           item_id: state.itemId,
@@ -757,8 +1349,8 @@ export async function* streamConverseToResponses(
             logprobs: [],
           },
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
-        const messageItem = {
+        } as ResponseStreamEvent;
+        const messageItem: ResponseOutputMessage = {
           type: 'message',
           id: state.itemId,
           status: 'completed',
@@ -771,14 +1363,14 @@ export async function* streamConverseToResponses(
               logprobs: [],
             },
           ],
-        } as unknown as ResponseOutputItem;
+        };
         accumulatedItems.push(messageItem);
         yield {
           type: 'response.output_item.done',
           output_index: state.outputIndex,
           item: messageItem,
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
+        } as ResponseStreamEvent;
       } else if (state.kind === 'tool_use') {
         yield {
           type: 'response.function_call_arguments.done',
@@ -786,22 +1378,22 @@ export async function* streamConverseToResponses(
           output_index: state.outputIndex,
           arguments: state.argumentsAccum ?? '',
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
-        const fcItem = {
+        } as ResponseStreamEvent;
+        const fcItem: ResponseFunctionToolCall = {
           type: 'function_call',
           id: state.itemId,
           call_id: state.callId ?? '',
           name: state.name ?? '',
           arguments: state.argumentsAccum ?? '',
           status: 'completed',
-        } as unknown as ResponseOutputItem;
+        };
         accumulatedItems.push(fcItem);
         yield {
           type: 'response.output_item.done',
           output_index: state.outputIndex,
           item: fcItem,
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
+        } as ResponseStreamEvent;
       } else if (state.kind === 'thinking') {
         yield {
           type: 'response.reasoning_summary_text.done',
@@ -810,22 +1402,81 @@ export async function* streamConverseToResponses(
           summary_index: 0,
           text: state.thinkingAccum ?? '',
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
-        const reasoningItem = {
+        } as ResponseStreamEvent;
+        // M4: close the `summary_text` part before the surrounding
+        // `output_item.done`, matching the OpenAI wire-format order.
+        yield {
+          type: 'response.reasoning_summary_part.done',
+          item_id: state.itemId,
+          output_index: state.outputIndex,
+          summary_index: 0,
+          part: {
+            type: 'summary_text',
+            text: state.thinkingAccum ?? '',
+          },
+          sequence_number: sequence++,
+        } as ResponseStreamEvent;
+        const reasoningItem: ResponseReasoningItem = {
           type: 'reasoning',
           id: state.itemId,
           summary: [{ type: 'summary_text', text: state.thinkingAccum ?? '' }],
           ...(state.signatureAccum
             ? { encrypted_content: state.signatureAccum }
             : {}),
-        } as unknown as ResponseOutputItem;
+        };
         accumulatedItems.push(reasoningItem);
         yield {
           type: 'response.output_item.done',
           output_index: state.outputIndex,
           item: reasoningItem,
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
+        } as ResponseStreamEvent;
+      } else if (state.kind === 'structured_output') {
+        // H5 streaming parity: close the synthetic-tool block as a
+        // normal message-with-output_text turn.
+        const text = state.structuredOutputAccum ?? '';
+        yield {
+          type: 'response.output_text.done',
+          item_id: state.itemId,
+          output_index: state.outputIndex,
+          content_index: 0,
+          text,
+          sequence_number: sequence++,
+        } as ResponseStreamEvent;
+        yield {
+          type: 'response.content_part.done',
+          item_id: state.itemId,
+          output_index: state.outputIndex,
+          content_index: 0,
+          part: {
+            type: 'output_text',
+            text,
+            annotations: [],
+            logprobs: [],
+          },
+          sequence_number: sequence++,
+        } as ResponseStreamEvent;
+        const messageItem: ResponseOutputMessage = {
+          type: 'message',
+          id: state.itemId,
+          status: 'completed',
+          role: 'assistant',
+          content: [
+            {
+              type: 'output_text',
+              text,
+              annotations: [],
+              logprobs: [],
+            },
+          ],
+        };
+        accumulatedItems.push(messageItem);
+        yield {
+          type: 'response.output_item.done',
+          output_index: state.outputIndex,
+          item: messageItem,
+          sequence_number: sequence++,
+        } as ResponseStreamEvent;
       }
       blockState.delete(idx);
       continue;
@@ -845,11 +1496,23 @@ export async function* streamConverseToResponses(
     }
   }
 
+  // H5 streaming parity: collapse `tool_use` to `completed` when the
+  // synthetic structured-output tool fired so the caller doesn't see
+  // an `incomplete`-ish terminal event for what is really a JSON
+  // response.
+  const finalStatus =
+    structuredOutputApplied && stopReason === StopReason.TOOL_USE
+      ? 'completed'
+      : mapConverseStopToResponseStatus(stopReason);
   const finalResponse = makeFinalResponse({
     responseId,
     createdAt,
     model,
-    status: mapConverseStopToResponseStatus(stopReason),
+    status: finalStatus,
+    incompleteDetails:
+      finalStatus === 'incomplete'
+        ? mapConverseStopToIncompleteReason(stopReason)
+        : null,
     outputItems: accumulatedItems,
     usage: {
       input_tokens: inputTokens,
@@ -859,11 +1522,23 @@ export async function* streamConverseToResponses(
     },
     originalReq,
   });
-  yield {
-    type: 'response.completed',
-    response: finalResponse,
-    sequence_number: sequence++,
-  } as unknown as ResponseStreamEvent;
+  // M1: route the terminal event by status so SDK consumers can
+  // discriminate `incomplete` (max-tokens / content-filter) from a
+  // clean completion via event type alone, per the OpenAI Responses
+  // wire format.
+  if (finalStatus === 'incomplete') {
+    yield {
+      type: 'response.incomplete',
+      response: finalResponse,
+      sequence_number: sequence++,
+    } as ResponseStreamEvent;
+  } else {
+    yield {
+      type: 'response.completed',
+      response: finalResponse,
+      sequence_number: sequence++,
+    } as ResponseStreamEvent;
+  }
 }
 
 function makeStreamingShellResponse(
@@ -883,20 +1558,18 @@ function makeStreamingShellResponse(
     max_output_tokens: originalReq?.max_output_tokens ?? null,
     model,
     output: [],
+    output_text: '',
     parallel_tool_calls: originalReq?.parallel_tool_calls ?? true,
     previous_response_id: originalReq?.previous_response_id ?? null,
     reasoning: originalReq?.reasoning ?? null,
-    store: originalReq?.store ?? false,
     temperature: originalReq?.temperature ?? null,
     text: originalReq?.text ?? { format: { type: 'text' } },
     tool_choice: originalReq?.tool_choice ?? 'auto',
     tools: originalReq?.tools ?? [],
     top_p: originalReq?.top_p ?? null,
     truncation: originalReq?.truncation ?? 'disabled',
-    usage: undefined,
-    user: null,
     metadata: originalReq?.metadata ?? null,
-  } as unknown as OpenAIResponse;
+  } as OpenAIResponse;
 }
 
 function makeFinalResponse(args: {
@@ -904,6 +1577,9 @@ function makeFinalResponse(args: {
   createdAt: number;
   model: string;
   status: OpenAIResponse['status'];
+  /** H1 streaming parity: `incomplete_details.reason` derived from the
+   * Converse stop reason whenever `status === 'incomplete'`. */
+  incompleteDetails?: OpenAIResponse['incomplete_details'];
   /**
    * T14: items the stream emitted via per-block `output_item.done`,
    * accumulated and replayed on the final `response.completed`
@@ -919,21 +1595,22 @@ function makeFinalResponse(args: {
   };
   originalReq?: ResponseCreateParams;
 }): OpenAIResponse {
+  const items = args.outputItems ?? [];
   return {
     id: args.responseId,
     object: 'response',
     created_at: args.createdAt,
     status: args.status,
     error: null,
-    incomplete_details: null,
+    incomplete_details: args.incompleteDetails ?? null,
     instructions: args.originalReq?.instructions ?? null,
     max_output_tokens: args.originalReq?.max_output_tokens ?? null,
     model: args.model,
-    output: args.outputItems ?? [],
+    output: items,
+    output_text: joinOutputText(items),
     parallel_tool_calls: args.originalReq?.parallel_tool_calls ?? true,
     previous_response_id: args.originalReq?.previous_response_id ?? null,
     reasoning: args.originalReq?.reasoning ?? null,
-    store: args.originalReq?.store ?? false,
     temperature: args.originalReq?.temperature ?? null,
     text: args.originalReq?.text ?? { format: { type: 'text' } },
     tool_choice: args.originalReq?.tool_choice ?? 'auto',
@@ -955,9 +1632,8 @@ function makeFinalResponse(args: {
       },
       output_tokens_details: { reasoning_tokens: 0 },
     } as OpenAIResponse['usage'],
-    user: null,
     metadata: args.originalReq?.metadata ?? null,
-  } as unknown as OpenAIResponse;
+  } as OpenAIResponse;
 }
 
 // ─── Provider class ────────────────────────────────────────────────
@@ -976,7 +1652,8 @@ export class AWSBedrockConverseOpenAIResponseProvider {
     if (request.tools?.length && request.tool_choice !== 'none') {
       assertModelSupportsFeatures(model.model, { tools: true });
     }
-    const input = requestResponsesToConverse(request, model.model);
+    const { input, structuredOutputApplied } =
+      await requestResponsesToConverseWithMeta(request, model.model);
     // T22: thread the connection's `performanceConfig.latency` onto
     // the Converse command input — only the OpenAI Chat path was
     // doing this before, so Resp-input requests silently lost the
@@ -1022,7 +1699,8 @@ export class AWSBedrockConverseOpenAIResponseProvider {
           responseId,
           createdAt,
           model.model,
-          request
+          request,
+          structuredOutputApplied
         ),
         headers: native.headers,
         providerRequestPayload: native.providerRequestPayload,
@@ -1034,7 +1712,8 @@ export class AWSBedrockConverseOpenAIResponseProvider {
         responseId,
         createdAt,
         model.model,
-        request
+        request,
+        structuredOutputApplied
       ),
       headers: native.headers,
       providerRequestPayload: native.providerRequestPayload,

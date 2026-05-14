@@ -77,8 +77,14 @@ test.describe('Settings — Users', () => {
     await expect(
       page.getByRole('link', { name: 'Add new User' })
     ).toBeVisible();
-    // Seed admin email comes from migration 1.
-    await expect(page.getByText('admin@example.com')).toBeVisible();
+    // Seed admin email comes from migration 1. Target the Email-column
+    // `<td>` specifically; a plain `getByText` collides with the
+    // "Admin (admin@example.com)" labels other workspace/environment
+    // tables print in their Created By columns once the test DB has
+    // any history.
+    await expect(
+      page.getByRole('cell', { name: 'admin@example.com', exact: true })
+    ).toBeVisible();
   });
 
   test('Add new User navigates to the create form with all required fields', async ({

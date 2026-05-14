@@ -223,6 +223,19 @@ export class RequestAuditEntity {
   type: PublicRequestAuditType;
 
   @ApiProperty({
+    description:
+      'Inbound wire format the request landed on — one of `chat-completions`, `responses`, or `anthropic`. Populated by the gateway from the originating endpoint; null on pre-migration rows.',
+    example: 'responses',
+    nullable: true,
+    required: false,
+    type: 'string',
+    enum: ['chat-completions', 'responses', 'anthropic'],
+  })
+  @IsString()
+  @IsOptional()
+  format?: 'chat-completions' | 'responses' | 'anthropic' | null;
+
+  @ApiProperty({
     description: 'The status code of the completion audit event',
     example: 200,
   })

@@ -72,24 +72,50 @@ There is no separate time-series store. The Usage module reads directly from the
 
 ## System Architecture
 
+The gateway is **multi-surface** — every API pod simultaneously serves three
+completion endpoints under [`packages/api/src/gateway/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/gateway):
+
+- `chat-completions/` — OpenAI Chat Completions (`/v1/completion/.../chat/completions`)
+- `responses/` — OpenAI Responses (`/v1/completion/.../responses`)
+- `anthropic/` — Anthropic Messages (`/v1/completion/.../anthropic/messages`)
+
+Each per-surface service is a thin wrapper that hands its request to the
+shared [`GatewayOrchestratorService`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/gateway/gateway-orchestrator.service.ts),
+which owns resource resolution, routing, gating, capacity, fallback, audit,
+and cost. The orchestrator dispatches into a **per-provider, per-surface
+converter** under [`packages/api/src/ai-provider/<provider>/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider) — one of
+`openai-chat-completion.provider.ts`, `openai-response.provider.ts`, or
+`anthropic-messages.provider.ts`. The wire format the client sends is the
+wire format the upstream SDK sees; surface conversion is the converter's
+job, not a one-size-fits-all "normalization" layer.
+
 ```mermaid
 graph TB
     Internet[Internet]
     LB[Load Balancer / Ingress<br/>Istio Gateway / ALB / NLB]
 
-    UI1[UI Pod<br/>Next.js<br/>Port: 3001]
-    API1[API Pod<br/>NestJS<br/>Port: 3000]
-    API2[API Pod<br/>NestJS<br/>Port: 3000]
+    UI1[UI Pod<br/>Next.js<br/>BFF + dashboards]
+    API1[API Pod<br/>NestJS Gateway]
+    API2[API Pod<br/>NestJS Gateway]
 
-    PG[(PostgreSQL<br/>Config, Audit & Usage)]
-    Redis[(Redis Cluster<br/>Capacity & Cache)]
-    OTel[OTel Collector<br/>Jaeger / Prom / Loki]
-    KMS[AWS KMS<br/>Encryption]
+    PG[(PostgreSQL<br/>Config + request_audit<br/>+ usage aggregations)]
+    Redis[(Redis Cluster<br/>Capacity, cache, prioritization)]
+    OTel[OTel Collector<br/>Jaeger / Prom / Loki / Grafana]
+    KMS[AWS KMS or Libsodium<br/>Credential encryption]
+
+    OpenAI[OpenAI]
+    Anthropic[Anthropic]
+    Gemini[Google Gemini<br/>@google/genai]
+    Bedrock[AWS Bedrock<br/>Converse + Invoke]
+    Groq[Groq]
+    Perplexity[Perplexity]
 
     Internet --> LB
     LB --> UI1
     LB --> API1
     LB --> API2
+
+    UI1 -.->|REST| API1
 
     API1 --> PG
     API2 --> PG
@@ -99,6 +125,13 @@ graph TB
     API2 -.-> OTel
     API1 --> KMS
     API2 --> KMS
+
+    API1 --> OpenAI
+    API1 --> Anthropic
+    API1 --> Gemini
+    API1 --> Bedrock
+    API1 --> Groq
+    API1 --> Perplexity
 
     style Internet fill:#e3f2fd
     style LB fill:#fff3e0
@@ -118,37 +151,44 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant App as Application
-    participant VMX as VM-X AI API
-    participant Auth as Auth Service
+    participant Surface as Per-surface Service<br/>(ChatCompletions / Responses / AnthropicMessages)
+    participant Auth as Auth / API Key
+    participant Orch as GatewayOrchestratorService
     participant Resource as AI Resource
-    participant Gate as Gate Service
     participant Routing as Routing Service
-    participant Connection as AI Connection
-    participant Provider as AI Provider
+    participant Gate as Gate Service
+    participant Conv as Per-provider, per-surface<br/>Converter
+    participant Provider as Upstream Provider SDK
 
-    App->>VMX: SDK Request<br/>baseURL: /v1/completion/{workspaceId}/{environmentId}<br/>(chat/completions, responses, or anthropic/messages)
-    VMX->>Auth: Validate API Key
-    Auth-->>VMX: API Key Valid
-    VMX->>Resource: Load AI Resource
-    Resource-->>VMX: Resource Config
-    VMX->>Gate: Check Capacity
-    Gate-->>VMX: Capacity OK
-    VMX->>Routing: Evaluate Routing
-    Routing-->>VMX: Selected Model
-    VMX->>Connection: Get Connection
-    Connection-->>VMX: Connection Config
-    VMX->>Provider: Make Request
-    Provider-->>VMX: Stream Response
-    VMX-->>App: Stream to Client
+    App->>Surface: SDK Request<br/>baseURL: /v1/completion/{ws}/{env}<br/>(chat/completions | responses | anthropic/messages)
+    Surface->>Auth: Validate API Key
+    Auth-->>Surface: Caller context
+    Surface->>Orch: completion(canonical body, DispatchedFormat)
+    Orch->>Resource: Load AI Resource (Redis-cached)
+    Resource-->>Orch: Resource config + models
+    Orch->>Routing: Evaluate routing conditions
+    Routing-->>Orch: Selected model + connection
+    Orch->>Gate: Capacity + prioritization gate
+    Gate-->>Orch: Allowed
+    Orch->>Conv: Dispatch via openAICompletion / openAIResponse / anthropicMessages
+    Conv->>Provider: Native SDK call (verbatim wire body)
+    Provider-->>Conv: Stream chunks (native shape)
+    Conv-->>Orch: Tagged stream
+    Orch-->>Surface: Stream + final usage
+    Surface-->>App: Stream to client (native surface shape)
 ```
 
 VM-X exposes three completion endpoints; pick whichever matches the SDK
-you already use, and the gateway converts shapes when the client SDK
-and the upstream provider don't match natively:
+you already use. The wire format you send is the wire format the upstream
+sees — when the client surface and the upstream provider's native surface
+differ, the per-provider converter for that surface (e.g.
+[`gemini/openai-response.provider.ts`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/ai-provider/gemini/openai-response.provider.ts))
+translates _just enough_ to cross the boundary; gateway-level audit, routing
+and gating run on a canonical Responses-shape body internally.
 
 - `POST /v1/completion/{ws}/{env}/chat/completions` — OpenAI Chat Completions shape
 - `POST /v1/completion/{ws}/{env}/responses` — OpenAI Responses (typed events) shape
-- `POST /v1/completion/{ws}/{env}/anthropic/messages` — Anthropic Messages shape (passes through verbatim to Anthropic and Bedrock-Invoke connections)
+- `POST /v1/completion/{ws}/{env}/anthropic/messages` — Anthropic Messages shape (forwarded verbatim to Anthropic and AWS Bedrock-Invoke connections; converted for other providers)
 
 Example using the standard OpenAI SDK against `chat/completions`:
 
@@ -321,27 +361,27 @@ flowchart LR
 
 **Key Modules:**
 
-- **Gateway / Completion Module**: Hosts the three completion endpoints (`chat/completions`, `responses`, `anthropic/messages`) plus the routing, gate, and provider-dispatch services
-- **AI Connection Module**: Manages provider connections
-- **AI Resource Module**: Manages logical resources
-- **API Key Module**: Manages API keys and access control
-- **Pool Definition Module**: Capacity pools and prioritization configuration
-- **Request Audit Module**: Writes the `request_audit` row for every completion (single source of truth for audit + usage)
-- **Usage Module**: Reads `request_audit` and runs SQL aggregations to power the usage dashboards
-- **Model Pricing Module**: Per-token pricing catalog used to compute cost for each audit row
+- [**Gateway / Completion Module**](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/gateway/completion.module.ts): Hosts the three completion endpoints (`chat-completions/`, `responses/`, `anthropic/`) plus the shared [`GatewayOrchestratorService`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/gateway/gateway-orchestrator.service.ts), routing, gate, cost, and metrics services
+- [**AI Provider Module**](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider): Per-provider, per-surface converters (`openai-chat-completion.provider.ts`, `openai-response.provider.ts`, `anthropic-messages.provider.ts`) for OpenAI, Anthropic, Gemini (`@google/genai`), AWS Bedrock (split into `aws-bedrock-converse` and `aws-bedrock-invoke`), Groq, and Perplexity
+- **AI Connection Module** / **AI Resource Module**: Provider connections + logical resources with routing and fallback
+- **API Key Module** / **Role Module**: API keys, RBAC, policy-based authorization
+- **Pool Definition Module** / **Prioritization**: Capacity pools and prioritization configuration
+- [**Request Audit Module**](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/audit): Writes the `request_audit` row for every completion (single source of truth for audit + usage)
+- [**Usage Module**](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/usage): Reads `request_audit` via [`PostgresRequestUsageProvider`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/usage/postgres/postgres.provider.ts) and runs SQL aggregations to power the dashboards
+- **Model Pricing Module**: Per-token pricing catalog (seeded by migration `17-create-model-pricing-table.ts`) used to compute cost for each audit row
 - **Vault Module**: Handles credential encryption/decryption (AWS KMS or Libsodium)
-- **Role Module**: Roles and policy-based authorization
+- [**Storage Module**](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/storage): Single Postgres Kysely connection (read/write pools); generated types in `entities.generated.ts`
 
 **Key Services:**
 
-- `CompletionService`: Main request handler for `chat/completions`
-- `ResponsesService`: Handler for the Responses API endpoint
-- `AnthropicMessagesService`: Handler for the Anthropic Messages endpoint
-- `ResourceRoutingService`: Evaluates routing conditions
-- `GateService`: Capacity and prioritization checks
-- `AIConnectionService` / `AIResourceService`: Connection and resource management
+- `GatewayOrchestratorService`: Shared core that runs resource resolution, routing, gating, fallback, audit, cost, and stream-usage extraction — invoked by every per-surface service
+- `ChatCompletionsService` / `ResponsesService` / `AnthropicMessagesService`: Thin per-surface wrappers that hand off to the orchestrator with a `DispatchedFormat` envelope
+- `AIProviderService`: Selects the per-provider, per-surface converter for dispatch
+- `ResourceRoutingService` / `GateService`: Routing-condition evaluation and capacity / prioritization checks
+- `AIConnectionService` / `AIResourceService`: Connection and resource management (Redis-cached)
 - `RequestAuditService`: Writes the audit/usage row to Postgres
 - `RequestUsageService` / `PostgresRequestUsageProvider`: Aggregates `request_audit` for dashboards
+- `CostService`: Resolves per-token pricing and computes cost for the audit row
 
 ### UI Application (Next.js)
 

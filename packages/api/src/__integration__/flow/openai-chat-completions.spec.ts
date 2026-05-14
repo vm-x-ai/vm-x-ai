@@ -149,6 +149,143 @@ describe('Flow: OpenAI Chat Completions endpoint', () => {
     });
   });
 
+  describe('streaming error path', () => {
+    // Helper — builds a provider mock that yields the given chunks
+    // then throws on the next iteration. Mirrors the real shape:
+    // upstream emits some tokens, then the connection drops / 5xxs.
+    const streamThenThrow = (
+      chunks: unknown[],
+      err: unknown
+    ): (() => Promise<unknown>) => {
+      return async () => {
+        async function* gen() {
+          for (const c of chunks) yield c;
+          throw err;
+        }
+        return {
+          data: gen() as never,
+          headers: {},
+          providerRequestPayload: {},
+        };
+      };
+    };
+
+    it('writes a failure audit row when the upstream throws mid-stream', async () => {
+      const { service, spies } = buildCompletionFlowHarness();
+      spies.providerCompletion.mockImplementation(
+        streamThenThrow(
+          [makeChunk(), makeChunk()],
+          new Error('upstream blew up mid-stream')
+        ) as never
+      );
+
+      const result = (await service.completion(
+        'ws-1',
+        'env-1',
+        baseRequest({ stream: true })
+      )) as CompletionStreamingResponse;
+
+      const yielded: unknown[] = [];
+      let caught: unknown;
+      try {
+        for await (const chunk of result.data) yielded.push(chunk);
+      } catch (err) {
+        caught = err;
+      }
+
+      // The wrapper re-threw so the controller can render the error.
+      expect(caught).toBeInstanceOf(Error);
+      expect((caught as Error).message).toMatch(/mid-stream/);
+      // The two upstream chunks reached the consumer before the throw.
+      expect(yielded.length).toBe(2);
+      // Exactly one audit row — the failure one. postCompletion (the
+      // success-path audit) never fires because the for-await threw.
+      expect(spies.auditPush).toHaveBeenCalledTimes(1);
+      const auditRow = spies.auditPush.mock.calls[0]?.[0] as {
+        statusCode?: number;
+        errorMessage?: string;
+        failureReason?: string;
+        errorCount?: number;
+        successCount?: number;
+        responseData?: unknown[] | null;
+      };
+      expect(auditRow.statusCode).toBe(500);
+      expect(auditRow.errorMessage).toMatch(/mid-stream/);
+      expect(auditRow.errorCount).toBe(1);
+      expect(auditRow.successCount).toBe(0);
+      // Partial stream payload is on the audit row for debugging.
+      expect(Array.isArray(auditRow.responseData)).toBe(true);
+      expect((auditRow.responseData as unknown[]).length).toBe(2);
+    });
+
+    it('pushes a usage row with error:true and a metrics row on stream failure', async () => {
+      const { service, spies } = buildCompletionFlowHarness();
+      spies.providerCompletion.mockImplementation(
+        streamThenThrow([makeChunk()], new Error('boom')) as never
+      );
+
+      const result = (await service.completion(
+        'ws-1',
+        'env-1',
+        baseRequest({ stream: true })
+      )) as CompletionStreamingResponse;
+
+      try {
+        for await (const _chunk of result.data) void _chunk;
+      } catch {
+        // Expected.
+      }
+
+      // The orchestrator records a failed-usage row…
+      const failedUsage = spies.usagePush.mock.calls.find(
+        (c) => (c[0] as { error?: boolean }).error === true
+      );
+      expect(failedUsage).toBeDefined();
+      // …and a metrics row (the default resource is non-ephemeral).
+      expect(spies.metricsPush).toHaveBeenCalledTimes(1);
+      const metricsRow = spies.metricsPush.mock.calls[0]?.[0] as {
+        statusCode?: number;
+      };
+      expect(metricsRow.statusCode).toBe(500);
+    });
+
+    it('writes a failure audit with null responseData when the throw happens before any chunk', async () => {
+      const { service, spies } = buildCompletionFlowHarness();
+      spies.providerCompletion.mockImplementation(
+        streamThenThrow(
+          [],
+          new Error('upstream errored before first chunk')
+        ) as never
+      );
+
+      const result = (await service.completion(
+        'ws-1',
+        'env-1',
+        baseRequest({ stream: true })
+      )) as CompletionStreamingResponse;
+
+      let caught: unknown;
+      try {
+        for await (const _chunk of result.data) void _chunk;
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(Error);
+      expect(spies.auditPush).toHaveBeenCalledTimes(1);
+      const auditRow = spies.auditPush.mock.calls[0]?.[0] as {
+        errorCount?: number;
+        successCount?: number;
+        responseData?: unknown[] | null;
+      };
+      expect(auditRow.errorCount).toBe(1);
+      expect(auditRow.successCount).toBe(0);
+      // No chunks accumulated → responseData stays null (not an empty
+      // array), matching the outer-catch shape.
+      expect(auditRow.responseData).toBeNull();
+    });
+  });
+
   describe('routing', () => {
     it('overrides the model when a routing condition matches', async () => {
       const { service, spies } = buildCompletionFlowHarness({
@@ -340,6 +477,87 @@ describe('Flow: OpenAI Chat Completions endpoint', () => {
       const out = await service.complete('ws-1', 'env-1', gw);
       expect(out.format).toBe('chat-completions');
       expect((out.data as { object: string }).object).toBe('chat.completion');
+    });
+  });
+
+  describe('audit row carries the inbound wire format', () => {
+    // The orchestrator threads `originalGatewayRequest.format` onto
+    // `baseProps.format` so every audit-row push (success, mid-stream
+    // error, outer-catch error) picks it up via the spread — without
+    // this, the Audit Drawer's endpoint badge can't render and
+    // cost-by-endpoint dashboards have no discriminator to group on.
+
+    it('stamps `format: "chat-completions"` on the success-path audit row', async () => {
+      const { service, spies } = buildCompletionFlowHarness();
+      const gw: GatewayRequest = {
+        format: 'chat-completions',
+        body: baseRequest() as never,
+      };
+      await service.complete('ws-1', 'env-1', gw);
+
+      expect(spies.auditPush).toHaveBeenCalledTimes(1);
+      const auditRow = spies.auditPush.mock.calls[0]?.[0] as {
+        format?: string | null;
+      };
+      expect(auditRow.format).toBe('chat-completions');
+    });
+
+    it('stamps `format: "responses"` when the gateway entrypoint envelope is Responses-shape', async () => {
+      const { service, spies } = buildCompletionFlowHarness();
+      const gw: GatewayRequest = {
+        format: 'responses',
+        // Responses-shape canonical body — minimal valid input.
+        body: {
+          model: 'default',
+          input: 'pong',
+        } as never,
+      };
+      await service.complete('ws-1', 'env-1', gw);
+      const auditRow = spies.auditPush.mock.calls[0]?.[0] as {
+        format?: string | null;
+      };
+      expect(auditRow.format).toBe('responses');
+    });
+
+    it('stamps `format: "anthropic"` when the gateway entrypoint envelope is Anthropic-shape', async () => {
+      const { service, spies } = buildCompletionFlowHarness();
+      const gw: GatewayRequest = {
+        format: 'anthropic',
+        // Anthropic Messages canonical body — input goes through
+        // `anthropicToResponsesRequest` in the harness `complete()`
+        // shim, but the audit `format` stays anthropic because the
+        // *inbound* envelope carries it.
+        body: {
+          model: 'default',
+          max_tokens: 64,
+          messages: [{ role: 'user', content: 'pong' }],
+        } as never,
+      };
+      await service.complete('ws-1', 'env-1', gw);
+      const auditRow = spies.auditPush.mock.calls[0]?.[0] as {
+        format?: string | null;
+      };
+      expect(auditRow.format).toBe('anthropic');
+    });
+
+    it('also stamps `format` on failure-path audit rows', async () => {
+      // Force the upstream to throw on every leg so the error path's
+      // audit push fires (orchestrator's outer catch at the bottom of
+      // `completion()`). Format must still be set because we copied it
+      // onto `baseProps` before the dispatch loop ran.
+      const { service, spies } = buildCompletionFlowHarness({
+        providerThrows: new Error('upstream dead'),
+      });
+      const gw: GatewayRequest = {
+        format: 'responses',
+        body: { model: 'default', input: 'pong' } as never,
+      };
+      await expect(service.complete('ws-1', 'env-1', gw)).rejects.toBeTruthy();
+      const errorRow = spies.auditPush.mock.calls.find(
+        (c) => (c[0] as { errorCount?: number }).errorCount === 1
+      )?.[0] as { format?: string | null } | undefined;
+      expect(errorRow).toBeDefined();
+      expect(errorRow?.format).toBe('responses');
     });
   });
 });

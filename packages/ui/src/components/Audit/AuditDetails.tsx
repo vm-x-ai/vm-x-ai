@@ -6,6 +6,7 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -15,7 +16,9 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import PrettyMessages from './PrettyMessages';
+import { EndpointBadge } from './EndpointBadge';
 import { useResolvedColorScheme } from '@/hooks/use-resolved-color-scheme';
+import { formatLatency } from '@/utils/time';
 
 // react-json-view ships ~30 themes. The default `rjv-default` is a
 // light theme — readable on white but unusable on the dark sidebar
@@ -405,24 +408,6 @@ function CostSection({
 
 // ─── Performance ─────────────────────────────────────────────────────────
 
-/**
- * Compact latency formatter used by the audit drawer's Performance
- * section. Returns `—` for null/undefined, sub-millisecond values
- * with two decimals, sub-second values rounded to ms, and seconds
- * with two decimals. Distinct from `utils/time.formatDuration` which
- * emits a multi-segment `"01h 02m 03s 4ms"` clock format that's too
- * heavy for a per-request latency cell.
- */
-function formatLatency(ms: number | undefined | null): string {
-  // Guard against `undefined`, `null`, `NaN`, and `±Infinity` so the
-  // cell never reads as "NaNms" / "Infinityms" if a misbehaving
-  // provider populates a non-finite duration.
-  if (ms == null || !Number.isFinite(ms)) return '—';
-  if (ms < 1) return `${ms.toFixed(2)}ms`;
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-}
-
 function PerformanceSection({
   data,
   mode,
@@ -523,6 +508,22 @@ function RequestIdentitySection({
           })
         : '—',
     },
+    // Endpoint badge — colour-coded by inbound wire format so the
+    // operator immediately knows which BFF surface the request came
+    // through. Pre-migration rows render '—'.
+    ...(data.format
+      ? [{ label: 'Endpoint', value: <EndpointBadge format={data.format} /> }]
+      : []),
+    {
+      label: 'Stream',
+      value:
+        (data.requestPayload as { stream?: boolean } | null | undefined)
+          ?.stream === true ? (
+          <Chip label="Stream" size="small" color="info" variant="outlined" />
+        ) : (
+          'No'
+        ),
+    },
     { label: 'Audit ID', value: data.id },
     { label: 'Request ID', value: data.requestId || '—' },
     ...(data.correlationId
@@ -546,6 +547,10 @@ function RequestIdentitySection({
             timestamp: data.timestamp,
             id: data.id,
             requestId: data.requestId,
+            format: data.format ?? null,
+            stream:
+              (data.requestPayload as { stream?: boolean } | null | undefined)
+                ?.stream === true,
             correlationId: data.correlationId ?? null,
             messageId: data.messageId ?? null,
             batchId: data.batchId ?? null,

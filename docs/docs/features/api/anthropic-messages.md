@@ -28,6 +28,18 @@ Reach for `/anthropic/messages` when:
 POST /v1/completion/{workspaceId}/{environmentId}/anthropic/messages
 ```
 
+The Anthropic SDK auto-appends `/v1/messages` to its configured
+`base_url`. To support that pattern unchanged, the gateway also exposes
+an alias at the same prefix:
+
+```
+POST /v1/completion/{workspaceId}/{environmentId}/anthropic/v1/messages
+```
+
+Both paths route through the same handler — point the SDK at `…/anthropic`
+(without a trailing `/messages`) and let it append `/v1/messages` itself,
+or POST to `…/anthropic/messages` directly with cURL / a raw HTTP client.
+
 Headers:
 
 ```
@@ -54,7 +66,7 @@ import anthropic
 
 client = anthropic.Anthropic(
     api_key="<vmx-api-key>",
-    base_url="http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic",
+    base_url="http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic",
 )
 
 message = client.messages.create(
@@ -77,7 +89,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
   apiKey: '<vmx-api-key>',
-  baseURL: 'http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic',
+  baseURL: 'http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic',
 });
 
 const message = await client.messages.create({
@@ -97,7 +109,7 @@ console.log(text);
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -146,7 +158,7 @@ const message = await client.messages.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -207,7 +219,7 @@ const message = await client.messages.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -370,7 +382,7 @@ const final = await client.messages.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -473,7 +485,7 @@ console.log('Read:', second.usage.cache_read_input_tokens);
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -544,7 +556,7 @@ for (const block of message.content) {
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -612,7 +624,7 @@ const message = await client.messages.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -669,7 +681,7 @@ for await (const event of stream) {
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -N -d '{
@@ -707,7 +719,10 @@ data: {"type":"message_stop"}
 
 Mid-stream errors are emitted as a typed `event: error` frame followed
 by stream termination — clients consuming with the Anthropic SDK pick
-this up automatically.
+this up automatically. The controller also interleaves an `event: ping`
+heartbeat after every ~10s of stream silence so idle proxies don't
+close the connection during slow tool calls; the Anthropic SDK's
+`MessageStream` ignores `ping` events by design.
 
 ### `betas` array (beta-feature opt-in)
 
@@ -750,7 +765,7 @@ const message = await client.messages.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -764,6 +779,69 @@ curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/mes
 
   </TabItem>
 </Tabs>
+
+### Claude Agent SDK
+
+The [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python)
+spawns the `claude` CLI, which talks to `/v1/messages` on whatever
+`ANTHROPIC_BASE_URL` points at. Point it at the gateway's
+`…/anthropic` prefix and supply the VM-X API key as
+`ANTHROPIC_API_KEY` — the CLI will append `/v1/messages` itself (hence
+the alias above). Runnable examples live at
+[`examples/claude-agent-sdk-python`](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/claude-agent-sdk-python)
+and
+[`examples/claude-agent-sdk-ts`](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/claude-agent-sdk-ts).
+
+<Tabs>
+  <TabItem value="python" label="Python">
+
+```python
+from claude_agent_sdk import ClaudeAgentOptions, query
+
+base = f"{vmx_base_url}/v1/completion/{workspace_id}/{environment_id}/anthropic"
+
+options = ClaudeAgentOptions(
+    env={
+        "ANTHROPIC_BASE_URL": base,
+        "ANTHROPIC_API_KEY": vmx_api_key,
+    },
+    model="my-claude-resource",
+)
+
+async for message in query(prompt="Say hi in three words.", options=options):
+    ...
+```
+
+  </TabItem>
+  <TabItem value="ts" label="TypeScript">
+
+```ts
+import { query } from '@anthropic-ai/claude-agent-sdk';
+
+const base = `${vmxBaseUrl}/v1/completion/${workspaceId}/${environmentId}/anthropic`;
+
+for await (const message of query({
+  prompt: 'Say hi in three words.',
+  options: {
+    env: {
+      ...process.env,
+      ANTHROPIC_BASE_URL: base,
+      ANTHROPIC_API_KEY: vmxApiKey,
+    },
+    model: 'my-claude-resource',
+  },
+})) {
+  // …
+}
+```
+
+  </TabItem>
+</Tabs>
+
+> **Pick an agent-tier resource for the Claude Agent SDK.** The CLI
+> emits `output_config.effort` on every request, which Claude Haiku
+> models reject. Route the SDK at a Sonnet- or Opus-class resource
+> (the seed script creates `*-agent` resources for exactly this case).
 
 ### Attaching `vmx` metadata
 
@@ -806,7 +884,7 @@ const message = await client.messages.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -826,19 +904,28 @@ curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/mes
 
 ## Provider compatibility
 
-| Provider             | Native passthrough? | Notes                                                                                                                                                                                            |
-| -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Anthropic            | ✅ Yes (native)     | True end-to-end passthrough — `cache_control`, `thinking`, server tools, `service_tier`, refusal stop details all round-trip.                                                                    |
-| AWS Bedrock-Invoke   | ✅ Yes (native)     | Claude on AWS — same wire shape, plus the Bedrock `anthropic_version` discriminator. External image URLs are rejected up-front (`aws_bedrock_invoke_image_url_unsupported`); use base64 sources. |
-| AWS Bedrock-Converse | Convert             | Direct Anthropic↔Converse adapter — `cache_control` → `cachePoint`, server tools mapped to Converse equivalents where supported.                                                                 |
-| OpenAI               | Convert (D5)        | Direct Anthropic↔Responses adapter (no internal pivot through Chat Completions). `thinking` → `reasoning.effort`, `tool_use` → `function_call`.                                                  |
-| Gemini               | Convert             | Via Chat Completions on Google's OpenAI-compat endpoint.                                                                                                                                         |
-| Groq                 | Convert             | Via Chat Completions.                                                                                                                                                                            |
-| Perplexity           | Convert             | Via Chat Completions.                                                                                                                                                                            |
+| Provider             | Path                               | Notes                                                                                                                                                                                                                                                              |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Anthropic            | Native passthrough                 | True end-to-end passthrough — `cache_control`, `thinking`, server tools (`web_search_*`, `code_execution_*`, `bash_*`, `text_editor_*`, `computer_*`, `mcp_*`), `service_tier`, refusal stop details, and beta features (via `betas` body field) all round-trip.   |
+| AWS Bedrock-Invoke   | Native passthrough                 | Claude on AWS — same Anthropic wire shape with the Bedrock `anthropic_version` discriminator. `betas` is renamed to `anthropic_beta` on the wire. External image URLs are rejected up-front (`aws_bedrock_invoke_image_url_unsupported`); use base64 sources.      |
+| AWS Bedrock-Converse | Direct Anthropic↔Converse adapter  | `cache_control` → `cachePoint`, server tools mapped to Converse equivalents where supported (web search). `tool_choice: { type: 'none' }` strips `tools[]` on the wire (Converse has no equivalent — T11). Unsupported image MIME types raise a `400`.             |
+| OpenAI               | Direct Anthropic↔Responses adapter | No internal pivot through Chat Completions. `thinking` → `reasoning.effort`, `tool_use` → `function_call`, `metadata.user_id` → `safety_identifier`, `tool_choice.disable_parallel_tool_use` → `parallel_tool_calls: false`. `stop_sequences` and `top_k` dropped. |
+| Gemini               | Via Chat Completions               | Google's OpenAI-compat endpoint. Anthropic `web_search_*` → `googleSearch`, `code_execution_*` → `codeExecution`, `computer_use_*` → `computerUse`; `bash_*` / `text_editor_*` / `memory_*` / `web_fetch_*` / `mcp_*` are dropped (no Gemini equivalent).          |
+| Groq                 | Via Chat Completions               | `thinking.budget_tokens` → `reasoning_effort` tier mapping. Anthropic top-level `citations` / `search_results` have no Groq analogue and are not surfaced.                                                                                                         |
+| Perplexity           | Via Chat Completions               | Sonar models inject web-search by default; Perplexity's top-level `citations[]` / `search_results[]` are **dropped** on the Anthropic envelope (no native slot). Use [Chat Completions](./chat-completions.md) or [Responses](./responses.md) to receive them.     |
 
 For the per-pair conversion details (which Anthropic fields survive
 each conversion path), see the
-[conversion matrix](https://github.com/vm-x-ai/vm-x-ai/blob/main/contributing-docs/conversion-matrix.md).
+[conversion matrix](https://github.com/vm-x-ai/vm-x-ai/blob/main/contributing-docs/conversion-matrix.md)
+and read the per-provider converter at
+[`packages/api/src/ai-provider/<provider>/anthropic-messages.provider.ts`](https://github.com/vm-x-ai/vm-x-ai/tree/main/packages/api/src/ai-provider).
+
+> **OpenAI Chat-Completions-only search models are not routable here.** > `gpt-5-search-api`, `gpt-4o-search-preview`, and `gpt-4o-mini-search-preview`
+> have web search baked into the model and are only callable via OpenAI's
+> Chat Completions API. Because this endpoint dispatches OpenAI traffic
+> through the Responses API, those three models return a 400
+> `model_endpoint_mismatch` at the playground's BFF route — switch to
+> [Chat Completions](./chat-completions.md) for those models.
 
 ## Errors
 
@@ -859,4 +946,10 @@ doesn't need to know which provider it just talked to.
 - [Web search](./web-search.md) — Anthropic's `web_search_20250305` server tool + the cross-provider matrix
 - [VM-X envelope](./vmx-envelope.md) — `correlationId`, `metadata`, `providerArgs`, …
 - [Chat Completions](./chat-completions.md) — when you don't need Anthropic-specific features
+- [Responses](./responses.md) — OpenAI's typed events with Anthropic-style server tools
 - [Anthropic provider config](../../integrations/providers/anthropic.md) — connection-level settings
+- Runnable examples:
+  [`examples/api-completion/.../anthropic_messages.py`](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/api-completion/api_completion_examples/anthropic_messages.py),
+  [`examples/vercel-ai/src/anthropic.ts`](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/vercel-ai/src/anthropic.ts),
+  [`examples/claude-agent-sdk-python`](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/claude-agent-sdk-python),
+  [`examples/claude-agent-sdk-ts`](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/claude-agent-sdk-ts)

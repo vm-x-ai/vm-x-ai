@@ -20,6 +20,7 @@ import { migration as migration15 } from './15-secrets-table';
 import { migration as migration16 } from './16-request-audit-metadata-table';
 import { migration as migration17 } from './17-create-model-pricing-table';
 import { migration as migration18 } from './18-add-provider-request-payload';
+import { migration as migration19 } from './19-add-request-audit-format';
 import { PasswordService } from '../auth/password.service';
 import { BaseMigrationsService, ListMigrationProvider } from './base';
 
@@ -55,6 +56,7 @@ export class MigrationsService extends BaseMigrationsService {
         '16': migration16,
         '17': migration17,
         '18': migration18,
+        '19': migration19,
       }),
     });
   }

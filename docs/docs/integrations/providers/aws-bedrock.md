@@ -124,9 +124,19 @@ unified Converse shape can't express. Send these via `providerArgs`:
 ## Models
 
 Any model id Bedrock exposes in your region — pass the full Bedrock
-model id (`anthropic.claude-haiku-4-5-v1:0`,
-`amazon.nova-pro-v1:0`, `meta.llama3-1-405b-instruct-v1:0`, …) or a
-cross-region inference profile id.
+model id or a cross-region inference profile id. Examples that are
+exercised by the integration suite:
+
+- `us.anthropic.claude-haiku-4-5-20251001-v1:0` (default for new
+  connections; cross-region inference profile)
+- `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
+- `amazon.nova-pro-v1:0`
+- `meta.llama3-1-405b-instruct-v1:0`
+- `mistral.mistral-large-2407-v1:0`
+
+For Claude-specific features the Converse shape can't express
+(`cache_control`, extended `thinking`, server tools), use
+[`aws-bedrock-invoke`](./aws-bedrock-invoke.md) instead.
 
 ## Audit row fields specific to Bedrock Converse
 

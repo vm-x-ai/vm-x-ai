@@ -1587,6 +1587,13 @@ export const zRequestAuditEntity = z.object({
   }),
   connectionId: z.uuid().nullish(),
   type: zRequestAuditType,
+  format: z
+    .enum(['chat-completions', 'responses', 'anthropic'])
+    .register(z.globalRegistry, {
+      description:
+        'Inbound wire format the request landed on — one of `chat-completions`, `responses`, or `anthropic`. Populated by the gateway from the originating endpoint; null on pre-migration rows.',
+    })
+    .optional(),
   statusCode: z.number().register(z.globalRegistry, {
     description: 'The status code of the completion audit event',
   }),

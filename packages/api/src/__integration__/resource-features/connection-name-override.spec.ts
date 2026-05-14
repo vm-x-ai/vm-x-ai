@@ -172,6 +172,10 @@ describe('vmx.resourceConfigOverrides — connectionName resolution', () => {
     const { service, spies, aiConnectionService } = buildCompletionFlowHarness({
       resource: {
         ...baseResource,
+        // `useFallback` gates the fallback loop in the orchestrator — flip
+        // it on so the fallback leg is exercised and its connectionName
+        // override gets resolved.
+        useFallback: true,
         fallbackModels: [
           {
             provider: 'openai',

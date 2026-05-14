@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   anthropicRequestToOpenAI,
   openAIResponseToAnthropic,
-  type AnthropicPassthrough,
-  type PassthroughEnvelope,
-} from '../../gateway/anthropic/anthropic-converter';
+} from '../../ai-provider/anthropic/openai-chat-completion.provider';
+import type {
+  AnthropicPassthrough,
+  PassthroughEnvelope,
+} from '../../ai-provider/passthrough.helpers';
 import type { AnthropicMessagesRequest } from '../../gateway/anthropic/anthropic.types';
 
 /**

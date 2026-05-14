@@ -8,7 +8,7 @@ This guide shows you how to deploy VM-X AI to Amazon ECS (Elastic Container Serv
 
 ## What gets deployed
 
-VM-X AI itself only requires four runtime components: the **API**, the **UI**, **PostgreSQL**, and **Redis**. Usage analytics and cost tracking are served directly from the `request_audit` table in Postgres, so there is no separate time-series database.
+VM-X AI itself only requires four runtime components: the **API**, the **UI**, **PostgreSQL**, and **Redis**. The API serves the multi-surface gateway endpoints — `/v1/chat/completions`, `/v1/responses`, and `/v1/messages` — plus the management/admin surface used by the UI. Usage analytics and cost tracking are served directly from the `request_audit` table in Postgres, so there is no separate time-series database.
 
 The ECS example wraps those four with a production-grade AWS footprint:
 
@@ -242,8 +242,8 @@ const redisCluster = new CfnServerlessCache(this, 'ServerlessCache', {
 
 **Key Points:**
 
-- **Engine**: Valkey (Redis-compatible)
-- **Mode**: Serverless cluster — the API connects with `REDIS_MODE=cluster` and `REDIS_TLS=true`
+- **Engine**: Valkey 7 (Redis-compatible)
+- **Mode**: Serverless cluster — the API connects with `REDIS_MODE=cluster` and `REDIS_TLS=true`. The local docker-compose runs a 3-node cluster; ElastiCache Serverless presents a single configuration endpoint, but the API client treats it the same way once `REDIS_MODE=cluster` is set
 - **Network**: Public subnets (use private subnets in production)
 
 ### ECS Fargate Cluster

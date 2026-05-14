@@ -37,7 +37,7 @@ docker compose down
 docker compose down -v   # also wipes volumes (Postgres data resets)
 ```
 
-Ports: Postgres `5440`, Redis `7001`/`7002`/`7003`, api `3000`, ui `3001`, Jaeger UI `16686`, Grafana `3010`.
+Ports: Postgres `5440`, Redis `7001`/`7002`/`7003`, api `3030` locally (overridden via `packages/api/.env.local:PORT=3030`; the in-container default is `3000`), ui `3001`, Jaeger UI `16686`, Grafana `3010`.
 
 ## Database migrations + cost seed
 
@@ -59,7 +59,7 @@ Make sure Postgres is up first (`docker compose up -d postgres`).
 ## Running api + ui in dev
 
 ```bash
-# api — NestJS in watch mode (port 3000):
+# api — NestJS in watch mode (port 3030 locally; 3000 in-container):
 pnpm exec nx run api:serve
 
 # ui — Next.js dev server (port 3001):
@@ -69,7 +69,7 @@ pnpm exec nx run ui:dev
 pnpm exec nx run-many -t serve dev --projects=api,ui --parallel
 ```
 
-The api needs Postgres + Redis cluster up and migrations applied. The ui depends on the api being up at `http://localhost:3000`.
+The api needs Postgres + Redis cluster up and migrations applied. The ui depends on the api being up at `http://localhost:3030` locally (the compose / in-container default is `http://localhost:3000`).
 
 ## Tests
 

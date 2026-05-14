@@ -10,10 +10,12 @@ This guide shows you how to deploy VM-X AI to a local Minikube cluster using Hel
 
 VM-X AI requires only four runtime components:
 
-- **API** (`vmxai/api`) — the NestJS gateway, exposed on port `3000`
-- **UI** (`vmxai/ui`) — the Next.js frontend, exposed on port `3001`
-- **PostgreSQL** — primary store for everything, including the `request_audit` table that powers usage analytics
-- **Redis** — used for queues and caching; runs as a single node on Minikube and as a cluster (3 nodes) in production
+- **API** (`vmxai/api`) — the multi-surface NestJS gateway (chat completions, responses, embeddings, batch, etc.). The container listens on port `3000`; the chart exposes it via a ClusterIP service on port `3000` (see [`values.yaml`](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/values.yaml) `api.service`).
+- **UI** (`vmxai/ui`) — the Next.js frontend, exposed on port `3001`.
+- **PostgreSQL** — the only persistent store. It holds the `request_audit` table that powers usage analytics, the model pricing seed (`17-create-model-pricing-table.ts`), and everything else. There is no separate time-series database.
+- **Redis** — used for queues, caching, and rate limiting. The chart supports two modes via `redis.mode`: `single` (default for Minikube) and `cluster` (a StatefulSet of 3 nodes plus a bootstrap Job — see [`templates/redis.yaml`](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/templates/redis.yaml)). Production uses cluster mode.
+
+Secrets at rest (provider API keys stored in the `secrets` table) are encrypted with **libsodium** by default — there is no HashiCorp Vault dependency. For production, switch `api.encryption.provider` to `aws-kms` and set `api.encryption.awsKms.keyId` + `api.aws.region`. See [`SECRETS.md`](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/SECRETS.md) for the full secret-management contract.
 
 Everything else — the OpenTelemetry collector, Jaeger, Prometheus, Loki, and Grafana — is **optional application observability**. The chart wires it up for you when you flip the `otel.*.enabled` flags, but the gateway runs fine without it. Usage analytics are read straight from Postgres (`request_audit`), not from a time-series database.
 
@@ -176,6 +178,13 @@ ui:
 
 redis:
   mode: single
+  # To match the production cluster topology locally, swap to:
+  # mode: cluster
+  # cluster:
+  #   nodes: 3
+  #   replicas: 1
+  #   persistence:
+  #     enabled: true
 
 otel:
   enabled: true
@@ -225,6 +234,22 @@ kubectl wait --for=condition=ready pod \
   --timeout=300s
 ```
 
+### 6. Run Database Migrations
+
+The API container does **not** run migrations on startup, and the chart does not ship a migration `Job`. After Postgres is up, exec into the API pod and run the migrations manually — this also seeds the model-pricing table:
+
+```bash
+API_POD=$(kubectl get pod -n vm-x-ai -l app.kubernetes.io/component=api -o jsonpath='{.items[0].metadata.name}')
+
+kubectl exec -n vm-x-ai "$API_POD" -- node dist/main migrate
+```
+
+Migrations are idempotent — re-running is safe. See [`packages/api/src/migrations/`](https://github.com/vm-x-ai/vm-x-ai/tree/main/packages/api/src/migrations) for the migration list.
+
+:::note
+The exact in-container CLI invocation depends on how the image is built. If `node dist/main migrate` does not work, check the image's `CMD`/`ENTRYPOINT` (`packages/api/Dockerfile`) and adjust. This step has **not been verified against a live cluster** in this guide.
+:::
+
 ## Access the Application
 
 ### Configure Host File
@@ -268,6 +293,27 @@ Then access:
 
 - **UI**: http://localhost:3001
 - **API**: http://localhost:3000
+
+## Secrets Setup
+
+For Minikube, the chart defaults (`secrets.*.method: create` in [`values.yaml`](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/values.yaml)) auto-generate every secret on `helm install`:
+
+- `database` — Postgres password
+- `libsodium` — 32-byte base64 encryption key used to encrypt provider API keys at rest (only created when `api.encryption.provider: libsodium`)
+- `ui` — NextAuth `AUTH_SECRET`
+- `oidcFederated` — OIDC federated client secret (only created when `api.oidcFederated.clientSecret` is set)
+
+Verify they were created:
+
+```bash
+kubectl get secrets -n vm-x-ai
+```
+
+For production, switch each entry to `method: external` (reference an existing Kubernetes secret) or `method: eso` (External Secrets Operator). The full matrix — including key names the chart expects — is documented in [`SECRETS.md`](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/SECRETS.md).
+
+:::caution Libsodium key rotation
+If you ever lose or rotate the `libsodium` secret without first decrypting and re-encrypting the rows in the `secrets` table, every stored provider credential becomes unrecoverable. For local Minikube use, that is usually fine — for anything resembling shared/staging environments, manage this secret externally from day one.
+:::
 
 ## Configuration
 
@@ -332,7 +378,7 @@ The default Minikube values enable the optional observability stack (collector +
 
 - **Grafana**: http://vm-x-ai.local/grafana (if ingress enabled)
 - **Jaeger**: http://vm-x-ai.local/jaeger (if ingress enabled)
-- **Prometheus**: Access via port-forward: `kubectl port-forward -n vm-x-ai svc/prometheus 9090:9090`
+- **Prometheus**: Access via port-forward: `kubectl port-forward -n vm-x-ai svc/vm-x-ai-prometheus 9090:9090` (the chart prefixes every service with the Helm release name)
 
 ## Troubleshooting
 

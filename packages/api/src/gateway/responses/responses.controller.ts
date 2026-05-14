@@ -82,6 +82,12 @@ export class ResponsesController {
   ) {
     let sseStarted = false;
     let streamComplete = false;
+    // Local sequence counter — incremented on every event forwarded to
+    // the wire. Used to stamp `sequence_number` on a synthesised
+    // post-sseStarted error event so the frame matches OpenAI's native
+    // Responses SSE shape (the AI SDK's Responses chunk schema rejects
+    // an `error` event without a numeric `sequence_number`).
+    let sequenceNumber = 0;
     // Bridge a client disconnect into an AbortController so the
     // upstream provider call gets cancelled (instead of churning out
     // tokens nobody's listening to). Fastify's `res.raw` (Node
@@ -125,6 +131,7 @@ export class ResponsesController {
           const eventType = rawType.replace(/[\r\n]/g, '');
           res.raw.write(`event: ${eventType}\n`);
           res.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+          sequenceNumber++;
         }
         streamComplete = true;
         res.raw.end();
@@ -133,13 +140,18 @@ export class ResponsesController {
         res.status(200).headers(result.headers).send(result.data);
       }
     } catch (err) {
-      return this.handleError(err, sseStarted, res);
+      return this.handleError(err, sseStarted, sequenceNumber, res);
     } finally {
       res.raw.off('close', onClientClose);
     }
   }
 
-  private handleError(err: unknown, sseStarted: boolean, res: FastifyReply) {
+  private handleError(
+    err: unknown,
+    sseStarted: boolean,
+    sequenceNumber: number,
+    res: FastifyReply
+  ) {
     let errorResponse: Record<string, unknown> = {};
     let statusCode: HttpStatus = 500;
     let headers: CompletionHeaders = {};
@@ -190,8 +202,30 @@ export class ResponsesController {
     }
 
     if (sseStarted) {
+      // Once the SSE stream has opened, the wire shape has to match
+      // OpenAI's native Responses `error` event — the AI SDK's
+      // Responses chunk schema requires `type:'error'`, a numeric
+      // `sequence_number`, and a string `error.type`, and rejects the
+      // bare `{error:{...}}` envelope we use for pre-stream errors.
+      // Emitting the canonical shape lets `useChat` (and any other
+      // SDK consumer) surface the error on its `error` state instead
+      // of dumping a union-validation error to the UI.
+      const inner = (errorResponse.error ?? {}) as {
+        message?: string;
+        code?: string;
+        type?: string;
+      };
+      const wireEvent = {
+        type: 'error' as const,
+        sequence_number: sequenceNumber,
+        error: {
+          type: inner.code ?? inner.type ?? 'server_error',
+          message: inner.message ?? 'Unknown error',
+          ...(inner.code ? { code: inner.code } : {}),
+        },
+      };
       res.raw.write(`event: error\n`);
-      res.raw.write(`data: ${JSON.stringify(errorResponse)}\n\n`);
+      res.raw.write(`data: ${JSON.stringify(wireEvent)}\n\n`);
       res.raw.end();
     } else {
       res.status(statusCode).headers(headers).send(errorResponse);

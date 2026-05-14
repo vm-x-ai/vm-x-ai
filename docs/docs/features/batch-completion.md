@@ -23,6 +23,12 @@ Batch Completion is designed for scenarios where you need to process many LLM re
 - **Scalable**: Handles thousands of requests efficiently with Redis-based distributed queuing
 - **Progress Tracking**: Real-time progress updates via SSE or callback events
 
+:::info Chat Completions wire shape only
+
+Each batch item's `request` is the **Chat Completions** request body (the same shape the gateway accepts at `/v1/completion/{workspaceId}/{environmentId}/chat/completions`). Anthropic Messages and OpenAI Responses request shapes are **not** accepted as batch items today — the batch consumer dispatches every item through the Chat Completions path. Upstream providers still see their native wire format (the gateway preserves that verbatim per the orchestrator), but the public batch surface is single-shape.
+
+:::
+
 ### When to Use Batch Completion
 
 Batch Completion is ideal for:
@@ -220,9 +226,9 @@ If capacity is exhausted:
 
 Progress is tracked and delivered via:
 
-- **SSE** (SYNC type): Real-time events as items complete
-- **Callback URLs** (CALLBACK type): HTTP POST to your endpoint
-- **Polling** (ASYNC type): Query batch status via API
+- **SSE** (`SYNC` type): Real-time events as items complete, streamed back on the same `POST /v1/completion-batch/{workspaceId}/{environmentId}` response (`text/event-stream`)
+- **Callback URLs** (`CALLBACK` type): HTTP POST to the URL on `callbackOptions.url`
+- **Polling** (`ASYNC` type): `GET /v1/completion-batch/{workspaceId}/{environmentId}/{batchId}` and read `status` + `completedPercentage`
 
 ## API Usage
 
@@ -248,7 +254,7 @@ environment_id = "6c1957ca-77ca-49b3-8fa1-0590281b8b44"
 
 # Create batch with SYNC type
 response = requests.post(
-    f"http://localhost:3000/v1/completion-batch/{workspace_id}/{environment_id}",
+    f"http://localhost:3030/api/v1/completion-batch/{workspace_id}/{environment_id}",
     headers={
         "Authorization": "Bearer your-vmx-api-key",
         "Content-Type": "application/json",
@@ -301,7 +307,7 @@ const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
 
 // Create batch with SYNC type
 const response = await axios.post(
-  `http://localhost:3000/v1/completion-batch/${workspaceId}/${environmentId}`,
+  `http://localhost:3030/api/v1/completion-batch/${workspaceId}/${environmentId}`,
   {
     type: 'SYNC',
     items: [
@@ -349,7 +355,7 @@ response.data.on('data', (chunk) => {
 
 ```bash
 curl -N -X POST \
-  "http://localhost:3000/v1/completion-batch/{workspaceId}/{environmentId}" \
+  "http://localhost:3030/api/v1/completion-batch/{workspaceId}/{environmentId}" \
   -H "Authorization: Bearer your-vmx-api-key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -384,7 +390,7 @@ environment_id = "6c1957ca-77ca-49b3-8fa1-0590281b8b44"
 
 # Create batch
 response = requests.post(
-    f"http://localhost:3000/v1/completion-batch/{workspace_id}/{environment_id}",
+    f"http://localhost:3030/api/v1/completion-batch/{workspace_id}/{environment_id}",
     headers={
         "Authorization": "Bearer your-vmx-api-key",
         "Content-Type": "application/json",
@@ -410,7 +416,7 @@ batch_id = batch["batchId"]
 # Poll for status
 while True:
     status_response = requests.get(
-        f"http://localhost:3000/v1/completion-batch/{workspace_id}/{environment_id}/{batch_id}",
+        f"http://localhost:3030/api/v1/completion-batch/{workspace_id}/{environment_id}/{batch_id}",
         headers={"Authorization": "Bearer your-vmx-api-key"}
     )
     batch_status = status_response.json()
@@ -434,7 +440,7 @@ const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
 
 // Create batch
 const { data: batch } = await axios.post(
-  `http://localhost:3000/v1/completion-batch/${workspaceId}/${environmentId}`,
+  `http://localhost:3030/api/v1/completion-batch/${workspaceId}/${environmentId}`,
   {
     type: 'ASYNC',
     items: [
@@ -459,7 +465,7 @@ const batchId = batch.batchId;
 // Poll for status
 const pollStatus = async () => {
   while (true) {
-    const { data: batchStatus } = await axios.get(`http://localhost:3000/v1/completion-batch/${workspaceId}/${environmentId}/${batchId}`, {
+    const { data: batchStatus } = await axios.get(`http://localhost:3030/api/v1/completion-batch/${workspaceId}/${environmentId}/${batchId}`, {
       headers: {
         Authorization: 'Bearer your-vmx-api-key',
       },
@@ -494,7 +500,7 @@ environment_id = "6c1957ca-77ca-49b3-8fa1-0590281b8b44"
 
 # Create batch with callback
 response = requests.post(
-    f"http://localhost:3000/v1/completion-batch/{workspace_id}/{environment_id}",
+    f"http://localhost:3030/api/v1/completion-batch/{workspace_id}/{environment_id}",
     headers={
         "Authorization": "Bearer your-vmx-api-key",
         "Content-Type": "application/json",
@@ -536,7 +542,7 @@ const environmentId = '6c1957ca-77ca-49b3-8fa1-0590281b8b44';
 
 // Create batch with callback
 const { data: batch } = await axios.post(
-  `http://localhost:3000/v1/completion-batch/${workspaceId}/${environmentId}`,
+  `http://localhost:3030/api/v1/completion-batch/${workspaceId}/${environmentId}`,
   {
     type: 'CALLBACK',
     callbackOptions: {
@@ -603,7 +609,7 @@ All endpoints are scoped under `/v1/completion-batch` and require either an auth
 | `POST` | `/v1/completion-batch/{workspaceId}/{environmentId}`                    | Create a batch. Body is `CreateCompletionBatchDto` (`type: SYNC \| ASYNC`) or `CreateCompletionCallbackBatchDto` (`type: CALLBACK` + `callbackOptions`). For `SYNC`, the response is an SSE stream; for `ASYNC` / `CALLBACK`, the response is the created `CompletionBatchDto`. |
 | `GET`  | `/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}`          | Poll for batch status. Returns `CompletionBatchDto` with `completedPercentage`. Query params: `includesUsers` (default `true`), `includesItems` (default `true`).                                                                                                               |
 | `GET`  | `/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/{itemId}` | Fetch a single item (`CompletionBatchItemEntity`), including its `response` once `COMPLETED`.                                                                                                                                                                                   |
-| `POST` | `/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/cancel`   | Cancel the batch and mark any still-`PENDING` items as `CANCELLED`.                                                                                                                                                                                                             |
+| `POST` | `/v1/completion-batch/{workspaceId}/{environmentId}/{batchId}/cancel`   | Cancel the batch. The batch is marked `CANCELLED` and any still-`PENDING` items are also marked `CANCELLED` in the same transaction. Returns `200` with an empty body — fetch the batch via `GET` afterwards to read the new status.                                            |
 
 ## SSE Event Types
 
@@ -705,5 +711,5 @@ The HTTP POST body uses the `event` field with the uppercase names — `ITEM_UPD
 - [Capacity Management](./ai-resources/capacity.md) — resource-level capacity overrides that the batch scheduler honors
 - [Prioritization](./prioritization.md) — pool definitions interact with batch consumers when the same resource is shared with online traffic
 - [Chat Completions API](./api/chat-completions.md) — the request shape used inside each item's `request` field
-- [Anthropic Messages API](./api/anthropic-messages.md), [Responses API](./api/responses.md) — alternate request shapes that each batch item's `request` may use
+- [Anthropic Messages API](./api/anthropic-messages.md), [Responses API](./api/responses.md) — alternate gateway surfaces for **online** traffic (not currently usable as a batch item shape — items go through Chat Completions only)
 - [Usage Monitoring](./usage.md) — batch token totals are reported through the same usage pipeline

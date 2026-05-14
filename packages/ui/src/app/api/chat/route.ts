@@ -1,10 +1,20 @@
-import { streamText, convertToModelMessages, smoothStream } from 'ai';
+import {
+  streamText,
+  generateText,
+  convertToModelMessages,
+  smoothStream,
+} from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { AiResourceEntity } from '@/clients/api';
 import { auth } from '@/auth';
-import { ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers';
 import { headers } from 'next/headers';
 import { ChatMessage } from '@/components/Chat/types';
+import {
+  createGatewayFetch,
+  uiMessageMetadataFromGateway,
+  type GatewayResponseMetadata,
+} from '../_lib/gateway-fetch';
+import { nonStreamingResultToUIMessageStreamResponse } from '../_lib/non-streaming-response';
 
 export type ChatRequest = {
   workspaceId: string;
@@ -19,6 +29,25 @@ export type ChatRequest = {
    */
   webSearch?: boolean;
   /**
+   * Streaming toggle from the playground header. Defaults to `true`
+   * (current behaviour). When `false`, the BFF switches to
+   * `generateText` so the upstream provider call is non-streaming,
+   * and re-encodes the single result as a one-burst UI message stream
+   * — `useChat` still consumes the same protocol, but the reply lands
+   * on the wire in one shot instead of token-by-token.
+   */
+  stream?: boolean;
+  /**
+   * Reasoning effort tier. Forwarded as
+   * `providerOptions.openai.reasoningEffort` on `streamText` so the
+   * AI SDK's OpenAI provider attaches `reasoning_effort` to the
+   * outbound Chat Completions body. The gateway translates that to
+   * the right field per upstream provider (Anthropic
+   * `thinking.budget_tokens`, Gemini reasoning, etc.). Models without
+   * reasoning support ignore it.
+   */
+  reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
+  /**
    * Pass-through gateway envelope. The playground UI doesn't surface
    * inputs for these today, but the BFF accepts them so the e2e suite
    * (and ad-hoc callers) can drive metadata-tagged traffic, share a
@@ -30,7 +59,7 @@ export type ChatRequest = {
   timeoutMs?: number;
 };
 
-// Allow streaming responses up to 120 seconds
+// Allow streaming responses up to 120 seconds.
 export const maxDuration = 120;
 
 export async function POST(req: Request) {
@@ -40,35 +69,79 @@ export async function POST(req: Request) {
     resourceConfigOverrides,
     messages,
     webSearch,
+    stream = true,
+    reasoningEffort,
     correlationId,
     metadata,
     timeoutMs,
   }: ChatRequest = await req.json();
 
-  // API_BASE_URL points at the API host (no `/api` suffix — that lives in
-  // BASE_PATH on the API). The OpenAPI codegen client gets the prefix from
-  // its spec; this hand-built URL has to include it explicitly.
+  const session = await auth();
+  if (!session) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  // API_BASE_URL points at the API host (no `/api` suffix — that
+  // lives in BASE_PATH on the API). The OpenAPI codegen client gets
+  // the prefix from its spec; this hand-built URL has to include it
+  // explicitly. The `@ai-sdk/openai` provider POSTs to
+  // `${baseURL}/chat/completions` for `.chat()` calls.
   const baseURL = `${process.env.API_BASE_URL}/api/v1/completion/${workspaceId}/${environmentId}`;
   const actionHeaders = await headers();
-  const responseMetadata: ResponseMetadata = {};
+  const responseMetadata: GatewayResponseMetadata = {};
 
-  // Cancel cascade: when the browser closes its SSE consumer (page nav,
-  // fetch AbortController), Next.js fires `req.signal.abort()`. Forwarding
-  // it to `streamText` aborts the SDK's outbound fetch to the gateway, the
-  // gateway's controller sees `res.raw` close before its `streamComplete`
-  // flag flips, and the provider SDK call is aborted in turn. Token spend
-  // stops at the source.
-  const result = streamText({
-    abortSignal: req.signal,
-    model: await getLanguageModel(
-      baseURL,
+  const provider = createOpenAI({
+    apiKey: session.accessToken,
+    baseURL,
+    fetch: createGatewayFetch({
       actionHeaders,
       resourceConfigOverrides,
+      envelope: { correlationId, metadata, timeoutMs },
       responseMetadata,
-      webSearch,
-      { correlationId, metadata, timeoutMs }
-    ),
-    messages: convertToModelMessages(messages),
+      mutateBody: (body) =>
+        webSearch ? { ...body, web_search_options: {} } : null,
+      transformResponse: maybeNestAnnotations,
+    }),
+  });
+
+  const modelMessages = await convertToModelMessages(messages);
+  const providerOptions = reasoningEffort
+    ? { providerOptions: { openai: { reasoningEffort } } }
+    : {};
+
+  // Non-streaming branch: drive the upstream call via `generateText`
+  // so the gateway makes a single non-SSE request, then re-encode the
+  // complete result as a one-burst UI message stream that `useChat`
+  // consumes identically to the streaming path.
+  if (!stream) {
+    const result = await generateText({
+      abortSignal: req.signal,
+      model: provider.chat(resourceConfigOverrides.name ?? ''),
+      messages: modelMessages,
+      ...providerOptions,
+    });
+    return nonStreamingResultToUIMessageStreamResponse(result, {
+      originalMessages: messages,
+      messageMetadata: uiMessageMetadataFromGateway(responseMetadata),
+    });
+  }
+
+  // Cancel cascade: when the browser closes its SSE consumer, Next.js
+  // fires `req.signal.abort()`. Forwarding it to `streamText` aborts
+  // the SDK's outbound fetch to the gateway, the gateway's controller
+  // sees `res.raw` close before its `streamComplete` flag flips, and
+  // the provider SDK call is aborted in turn. Token spend stops at
+  // the source.
+  const result = streamText({
+    abortSignal: req.signal,
+    model: provider.chat(resourceConfigOverrides.name ?? ''),
+    messages: modelMessages,
+    // Forwarded as `reasoning_effort` on the outbound Chat Completions
+    // request. The `@ai-sdk/openai` v3 provider also unpacks any
+    // upstream `reasoning_content` deltas into `reasoning-delta`
+    // chunks, which `useChat` accumulates into `ReasoningUIPart`
+    // entries on the assistant message.
+    ...providerOptions,
     experimental_transform: smoothStream({
       delayInMs: 20,
     }),
@@ -76,169 +149,11 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
-    messageMetadata: () => {
-      return {
-        model: responseMetadata.model ?? '',
-        provider: responseMetadata.provider ?? '',
-        connectionId: responseMetadata.connectionId ?? '',
-        requestId: responseMetadata.requestId ?? '',
-      };
-    },
+    messageMetadata: () => uiMessageMetadataFromGateway(responseMetadata),
   });
 }
 
-type FallbackEvent = {
-  type: 'fallback';
-  timestamp: string;
-  failedModel: string;
-  failureReason: string;
-};
-
-type RoutingEvent = {
-  type: 'routing';
-  timestamp: string;
-  originalProvider: string;
-  originalModel: string;
-  routedProvider: string;
-  routedModel: string;
-};
-
-type ResponseMetadata = {
-  model?: string | null;
-  provider?: string | null;
-  connectionId?: string | null;
-  requestId?: string | null;
-  events?: Array<FallbackEvent | RoutingEvent>;
-};
-
-type GatewayEnvelopeExtras = {
-  correlationId?: string;
-  metadata?: Record<string, string>;
-  timeoutMs?: number;
-};
-
-async function getLanguageModel(
-  baseURL: string,
-  actionHeaders: ReadonlyHeaders,
-  resourceConfigOverrides: Partial<AiResourceEntity>,
-  responseMetadata: ResponseMetadata,
-  webSearch?: boolean,
-  envelope?: GatewayEnvelopeExtras
-) {
-  const session = await auth();
-  if (!session) {
-    throw new Error('Unauthorized');
-  }
-
-  return createOpenAI({
-    apiKey: session.accessToken,
-    baseURL,
-    fetch: async (...args) => {
-      const sourceIp = actionHeaders.get('x-forwarded-for');
-      if (args[1] && sourceIp) {
-        args[1].headers = {
-          ...(args[1]?.headers ?? {}),
-          'x-forwarded-for': sourceIp,
-        };
-      }
-
-      if (args[1]?.body) {
-        const body = JSON.parse(args[1].body as string);
-        const vmxEnvelope: Record<string, unknown> = {};
-        if (resourceConfigOverrides) {
-          vmxEnvelope.resourceConfigOverrides = resourceConfigOverrides;
-        }
-        if (envelope?.correlationId) {
-          vmxEnvelope.correlationId = envelope.correlationId;
-        }
-        if (envelope?.metadata) {
-          vmxEnvelope.metadata = envelope.metadata;
-        }
-        if (envelope?.timeoutMs != null) {
-          vmxEnvelope.timeoutMs = envelope.timeoutMs;
-        }
-        args[1].body = JSON.stringify({
-          ...body,
-          ...(Object.keys(vmxEnvelope).length > 0 ? { vmx: vmxEnvelope } : {}),
-          // OpenAI's `web_search_options` field is the canonical opt-in
-          // for search-class models. We pass an empty object — the model
-          // picks defaults. Perplexity ignores it (sonar always searches).
-          ...(webSearch ? { web_search_options: {} } : {}),
-        });
-      }
-
-      const upstream = await fetch(...args);
-
-      // OpenAI's web-search Chat Completions stream emits annotations
-      // as `{type:'url_citation', url_citation:{start_index, end_index,
-      // url, title}}`, but `@ai-sdk/openai`'s chunk schema (≤2.0.79)
-      // still expects the legacy flat shape `{type:'url_citation',
-      // start_index, …}` and rejects the response. Until the SDK
-      // catches up, splice the nested fields back to the top level on
-      // the way through. No-op for chunks that don't carry the nested
-      // payload, so other providers are unaffected.
-      const resp =
-        upstream.body &&
-        (upstream.headers.get('content-type') ?? '').includes(
-          'text/event-stream'
-        )
-          ? new Response(
-              upstream.body.pipeThrough(makeAnnotationFlattenerStream()),
-              {
-                status: upstream.status,
-                statusText: upstream.statusText,
-                headers: upstream.headers,
-              }
-            )
-          : upstream;
-
-      responseMetadata.model = resp.headers.get('x-vmx-model');
-      responseMetadata.provider = resp.headers.get('x-vmx-provider');
-      responseMetadata.connectionId = resp.headers.get('x-vmx-connection-id');
-      responseMetadata.requestId = resp.headers.get('x-vmx-request-id');
-
-      const eventCount = parseInt(
-        resp.headers.get('x-vmx-event-count') ?? '0',
-        10
-      );
-
-      if (eventCount > 0) {
-        for (let i = 0; i < eventCount; i++) {
-          const eventPath = `x-vmx-event-${i}`;
-          const eventType = resp.headers.get(`${eventPath}-type`) ?? '';
-          const eventTimestamp =
-            resp.headers.get(`${eventPath}-timestamp`) ?? '';
-
-          if (eventType === 'fallback') {
-            responseMetadata.events?.push({
-              type: eventType,
-              timestamp: eventTimestamp,
-              failedModel:
-                resp.headers.get(`${eventPath}-fallback-failed-model`) ?? '',
-              failureReason:
-                resp.headers.get(`${eventPath}-fallback-failure-reason`) ?? '',
-            });
-          } else if (eventType === 'routing') {
-            responseMetadata.events?.push({
-              type: eventType,
-              timestamp: eventTimestamp,
-              originalProvider:
-                resp.headers.get(`${eventPath}-routing-original-provider`) ??
-                '',
-              originalModel:
-                resp.headers.get(`${eventPath}-routing-original-model`) ?? '',
-              routedProvider:
-                resp.headers.get(`${eventPath}-routing-routed-provider`) ?? '',
-              routedModel:
-                resp.headers.get(`${eventPath}-routing-routed-model`) ?? '',
-            });
-          }
-        }
-      }
-      return resp;
-    },
-  }).chat(resourceConfigOverrides.name ?? '');
-}
+// ─── url_citation annotation flattener (chat-completions only) ───────────
 
 type StreamingAnnotation = {
   type?: string;
@@ -246,23 +161,60 @@ type StreamingAnnotation = {
 } & Record<string, unknown>;
 
 /**
- * If a citation is nested under `url_citation`, splice its fields back
- * to the top level so the AI SDK's chunk schema validates. Idempotent:
- * an already-flat annotation is returned unchanged.
+ * OpenAI's web-search Chat Completions stream emits annotations as a
+ * flat shape: `{type:'url_citation', start_index, end_index, url,
+ * title}`. `@ai-sdk/openai` v3's chunk schema expects the nested
+ * shape `{type:'url_citation', url_citation:{start_index, end_index,
+ * url, title}}` and rejects the flat form. Splice the citation
+ * fields under a `url_citation` sub-object on the way through.
+ * Idempotent: an already-nested annotation passes unchanged. Only
+ * fires on `text/event-stream` bodies.
  */
-function flattenAnnotation(
-  annotation: StreamingAnnotation
-): StreamingAnnotation {
+function maybeNestAnnotations(upstream: Response): Response {
+  if (!upstream.body) return upstream;
   if (
-    annotation &&
-    typeof annotation === 'object' &&
-    annotation.url_citation &&
-    typeof annotation.url_citation === 'object'
+    !(upstream.headers.get('content-type') ?? '').includes('text/event-stream')
   ) {
-    const { url_citation, ...rest } = annotation;
-    return { ...rest, ...url_citation };
+    return upstream;
   }
-  return annotation;
+  return new Response(upstream.body.pipeThrough(makeAnnotationNesterStream()), {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: upstream.headers,
+  });
+}
+
+const URL_CITATION_FIELDS = [
+  'start_index',
+  'end_index',
+  'url',
+  'title',
+] as const;
+
+function nestAnnotation(annotation: StreamingAnnotation): StreamingAnnotation {
+  if (
+    !annotation ||
+    typeof annotation !== 'object' ||
+    annotation.type !== 'url_citation'
+  ) {
+    return annotation;
+  }
+  // Already nested (v3 wire shape) — pass through.
+  if (annotation.url_citation && typeof annotation.url_citation === 'object') {
+    return annotation;
+  }
+  const nested: Record<string, unknown> = {};
+  const rest: Record<string, unknown> = { type: 'url_citation' };
+  for (const [k, v] of Object.entries(annotation)) {
+    if (k === 'type') continue;
+    if ((URL_CITATION_FIELDS as readonly string[]).includes(k)) {
+      nested[k] = v;
+    } else {
+      rest[k] = v;
+    }
+  }
+  rest.url_citation = nested;
+  return rest as StreamingAnnotation;
 }
 
 function rewriteChunk(json: Record<string, unknown>): Record<string, unknown> {
@@ -272,15 +224,13 @@ function rewriteChunk(json: Record<string, unknown>): Record<string, unknown> {
     const delta = (choice as { delta?: { annotations?: unknown } })?.delta;
     if (!delta || !Array.isArray(delta.annotations)) continue;
     delta.annotations = (delta.annotations as StreamingAnnotation[]).map(
-      flattenAnnotation
+      nestAnnotation
     );
   }
   return json;
 }
 
 function rewriteSseEvent(event: string): string {
-  // Cheap pre-check — most chunks are plain content deltas with no
-  // annotations payload, so skip the JSON round-trip on those.
   if (!event.includes('annotations')) return event;
   return event
     .split('\n')
@@ -298,16 +248,7 @@ function rewriteSseEvent(event: string): string {
     .join('\n');
 }
 
-/**
- * Buffers the upstream SSE byte stream into complete events
- * (delimited by `\n\n`), rewrites each event's annotation payloads
- * if needed, and re-emits. Runs entirely in-stream — never holds the
- * whole response in memory.
- */
-function makeAnnotationFlattenerStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+function makeAnnotationNesterStream(): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let buffer = '';

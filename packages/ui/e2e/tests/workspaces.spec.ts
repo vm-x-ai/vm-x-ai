@@ -34,18 +34,19 @@ test.describe('Workspaces & environments', () => {
     const { workspaceId } = await ensureWorkspaceAndEnvironment(page);
     await page.goto('/workspaces');
 
-    // The MRT table groups environments under their parent workspace.
-    // The fixture creates rows named "my workspace" — repeated runs
-    // accumulate them, so we just check at least one is present.
+    // The fixture returns whichever workspace the seed admin already
+    // has (or one it just created on the empty-DB path), so we can't
+    // assert on a hard-coded row name. What we *can* assert is that
+    // the resolved workspace's Edit link is in the table — every data
+    // row exposes one with href `/workspaces/<id>/edit`.
     await expect(
-      page.getByRole('cell', { name: 'my workspace' }).first()
+      page.locator(`a[href="/workspaces/${workspaceId}/edit"]`)
     ).toBeVisible();
     // The toolbar exposes the "Add new Workspace" CTA (links to
     // /getting-started).
     await expect(
       page.getByRole('link', { name: 'Add new Workspace' })
     ).toBeVisible();
-    expect(workspaceId).toBeTruthy();
   });
 
   test('workspace edit page renders the form', async ({

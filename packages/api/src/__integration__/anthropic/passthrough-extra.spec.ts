@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { anthropicRequestToOpenAI } from '../../gateway/anthropic/anthropic-converter';
-import { openAIRequestToAnthropic } from '../../ai-provider/adapters/anthropic-messages.adapter';
+import { anthropicRequestToOpenAI } from '../../ai-provider/anthropic/openai-chat-completion.provider';
+import { openAIRequestToAnthropic } from '../../ai-provider/anthropic/openai-chat-completion.provider';
 import type { AnthropicMessagesRequest } from '../../gateway/anthropic/anthropic.types';
 
 /**

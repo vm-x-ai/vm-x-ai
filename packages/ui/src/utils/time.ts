@@ -1,3 +1,18 @@
+/**
+ * Compact latency formatter for per-request cells. Returns `—` for
+ * null/undefined/non-finite, sub-millisecond values with two decimals,
+ * sub-second values rounded to ms, and seconds with two decimals.
+ * Distinct from `formatDuration` below, which emits a multi-segment
+ * `"01h 02m 03s 4ms"` clock format that's too heavy for a per-request
+ * latency cell.
+ */
+export function formatLatency(ms: number | undefined | null): string {
+  if (ms == null || !Number.isFinite(ms)) return '—';
+  if (ms < 1) return `${ms.toFixed(2)}ms`;
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+}
+
 export function formatDuration(duration: number): string {
   const milliseconds = Math.floor((duration % 1000) / 100);
   const seconds = Math.floor((duration / 1000) % 60);

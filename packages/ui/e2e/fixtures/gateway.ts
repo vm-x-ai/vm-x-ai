@@ -74,14 +74,15 @@ export async function chatCompletion(
 
 /**
  * Drive a non-streaming Anthropic Messages completion through the
- * playground's BFF (`/api/anthropic`) using the authenticated session.
- * The BFF wraps the gateway's `/anthropic/messages` endpoint, which is
- * the Phase 11 format-aware path — same auth/audit/routing pipeline as
- * `/chat/completions`, just with Anthropic Messages shape on the wire.
+ * test-only BFF (`/api/test/anthropic-messages`) using the
+ * authenticated session.
  *
- * Returns the raw text body so callers can `JSON.parse` and inspect
- * the Anthropic-shape fields (`content[0].text`, `usage.input_tokens`,
- * etc.) without binding to a specific schema upfront.
+ * Why not `/api/anthropic` directly: that route uses the Vercel AI
+ * SDK's `streamText` against `@ai-sdk/anthropic`, which returns a UI
+ * Message Stream (SSE) body. Playwright's `APIRequestContext.post()`
+ * buffers the entire response before resolving, and a streamed body
+ * can't be `JSON.parse`d. The test BFF forwards `stream: false` and
+ * returns the gateway's Anthropic-shape JSON verbatim.
  */
 export type AnthropicMessageInput = {
   /**
@@ -101,32 +102,24 @@ export async function anthropicMessage(
   request: APIRequestContext,
   input: AnthropicMessageInput
 ): Promise<ChatCompletionResult> {
-  const response = await request.post(`${UI_BASE}/api/anthropic`, {
-    timeout: 120_000,
-    data: {
-      workspaceId: input.workspaceId,
-      environmentId: input.environmentId,
-      // The BFF reads the Anthropic `model` value off
-      // `resourceConfigOverrides.name`, matching how the playground
-      // synthesises ephemeral resources (`<conn>/<model>` slug). For
-      // the e2e suite, passing the auto-resource name directly is the
-      // shortest path — the gateway looks it up as a real Resource.
-      resourceConfigOverrides: { name: input.resourceName },
-      messages: (
-        input.messages ?? [
+  const response = await request.post(
+    `${UI_BASE}/api/test/anthropic-messages`,
+    {
+      timeout: 120_000,
+      data: {
+        workspaceId: input.workspaceId,
+        environmentId: input.environmentId,
+        resource: input.resourceName,
+        messages: input.messages ?? [
           {
             role: 'user' as const,
             content: 'Reply with just the word "ok" and nothing else.',
           },
-        ]
-      ).map((m) => ({
-        id: `msg-${Math.random().toString(36).slice(2)}`,
-        role: m.role,
-        parts: [{ type: 'text', text: m.content }],
-      })),
-      maxTokens: input.maxTokens ?? 64,
-    },
-  });
+        ],
+        maxTokens: input.maxTokens ?? 64,
+      },
+    }
+  );
 
   const body = await response.text();
   return { status: response.status(), body };

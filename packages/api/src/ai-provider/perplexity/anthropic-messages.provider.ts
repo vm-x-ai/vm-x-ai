@@ -6,15 +6,13 @@ import {
   CompletionRequestOptions,
 } from '../ai-provider.types';
 import type { AnthropicMessagesRequest } from '../../gateway/anthropic/anthropic.types';
-import { dispatchAnthropicMessagesViaOpenAICompat } from '../gemini/anthropic-messages.provider';
-import { PerplexityChatCompletionProvider } from './openai-chat-completion.provider';
+import { dispatchAnthropicMessagesViaOpenAIResponses } from '../openai/anthropic-via-responses';
+import { PerplexityResponseProvider } from './openai-response.provider';
 import type { OpenAIConnectionConfig } from '../openai/shared';
 
 @Injectable()
 export class PerplexityAnthropicMessagesProvider {
-  constructor(
-    private readonly chatCompletionProvider: PerplexityChatCompletionProvider
-  ) {}
+  constructor(private readonly responseProvider: PerplexityResponseProvider) {}
 
   handle(
     request: AnthropicMessagesRequest,
@@ -22,8 +20,8 @@ export class PerplexityAnthropicMessagesProvider {
     model: AIResourceModelConfigEntity,
     options?: CompletionRequestOptions
   ): Promise<AnthropicMessagesResponse> {
-    return dispatchAnthropicMessagesViaOpenAICompat(
-      this.chatCompletionProvider,
+    return dispatchAnthropicMessagesViaOpenAIResponses(
+      this.responseProvider,
       request,
       connection,
       model,

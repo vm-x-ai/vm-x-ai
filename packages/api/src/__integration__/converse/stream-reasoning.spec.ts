@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import { AWSBedrockConverseDispatcher } from '../../ai-provider/aws-bedrock-converse/shared';
-import type {
-  ConverseStreamCommandOutput,
-  ConverseStreamOutput,
-} from '@aws-sdk/client-bedrock-runtime';
+import type { ConverseStreamOutput } from '@aws-sdk/client-bedrock-runtime';
 import type { ChatCompletionChunk } from 'openai/resources/index.js';
 import type { AIResourceModelConfigEntity } from '../../ai-resource/common/model.entity';
 
@@ -13,9 +10,15 @@ import type { AIResourceModelConfigEntity } from '../../ai-resource/common/model
  * T13: stream `reasoningContent` deltas were silently dropped on the
  * Chat→Converse path even though the non-streaming response preserved
  * them. The fix adds a `delta.reasoningContent` branch in
- * `convertStream` that surfaces text + signature on
- * `delta.reasoning`.
+ * `streamConverseToChatCompletionChunks` that surfaces text + signature
+ * on `delta.reasoning`.
+ *
+ * The converter is module-private to `openai-chat-completion.provider`;
+ * we reach in via a module-internal import that the test runner
+ * resolves the same way the production code does.
  */
+
+import { __TEST_ONLY__streamConverseToChatCompletionChunks } from '../../ai-provider/aws-bedrock-converse/openai-chat-completion.provider';
 
 async function* iter(
   events: ConverseStreamOutput[]
@@ -44,22 +47,15 @@ describe('Chat→Converse stream reasoning deltas (T13)', () => {
   function callConvertStream(
     events: ConverseStreamOutput[]
   ): AsyncIterable<ChatCompletionChunk> {
-    const stream = {
-      stream: iter(events),
-      $metadata: { extendedRequestId: 'req-1' },
-    } as unknown as ConverseStreamCommandOutput;
     const model = {
       model: 'us.anthropic.claude-haiku-4-5',
     } as AIResourceModelConfigEntity;
-    return (
-      dispatcher as unknown as {
-        convertStream: (
-          s: ConverseStreamCommandOutput,
-          m: AIResourceModelConfigEntity,
-          rb: unknown
-        ) => AsyncIterable<ChatCompletionChunk>;
-      }
-    ).convertStream(stream, model, {});
+    return __TEST_ONLY__streamConverseToChatCompletionChunks(
+      iter(events),
+      model,
+      'req-1',
+      dispatcher
+    );
   }
 
   it('emits delta.reasoning.thinking on reasoningContent.text deltas', async () => {

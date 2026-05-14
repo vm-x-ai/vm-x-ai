@@ -5,7 +5,7 @@ import {
   type ConverseSystemBlock,
 } from '../../ai-provider/aws-bedrock-converse/shared';
 import { requestAnthropicToConverse } from '../../ai-provider/aws-bedrock-converse/anthropic-messages.provider';
-import type { AnthropicPassthrough } from '../../gateway/anthropic/anthropic-converter';
+import type { AnthropicPassthrough } from '../../ai-provider/passthrough.helpers';
 import type { AnthropicMessagesRequest } from '../../gateway/anthropic/anthropic.types';
 
 /**
@@ -111,8 +111,8 @@ describe('OpenAI → Converse cachePoint injection (T1)', () => {
 });
 
 describe('Anthropic → Converse direct adapter cachePoint emission (T1)', () => {
-  it('emits cachePoint after a system text block carrying cache_control', () => {
-    const out = requestAnthropicToConverse(
+  it('emits cachePoint after a system text block carrying cache_control', async () => {
+    const out = await requestAnthropicToConverse(
       {
         model: 'claude',
         max_tokens: 64,
@@ -133,8 +133,8 @@ describe('Anthropic → Converse direct adapter cachePoint emission (T1)', () =>
     ]);
   });
 
-  it('emits cachePoint after a content block carrying cache_control', () => {
-    const out = requestAnthropicToConverse(
+  it('emits cachePoint after a content block carrying cache_control', async () => {
+    const out = await requestAnthropicToConverse(
       {
         model: 'claude',
         max_tokens: 64,
@@ -163,8 +163,8 @@ describe('Anthropic → Converse direct adapter cachePoint emission (T1)', () =>
     ]);
   });
 
-  it('emits cachePoint after a tool definition carrying cache_control', () => {
-    const out = requestAnthropicToConverse(
+  it('emits cachePoint after a tool definition carrying cache_control', async () => {
+    const out = await requestAnthropicToConverse(
       {
         model: 'claude',
         max_tokens: 64,

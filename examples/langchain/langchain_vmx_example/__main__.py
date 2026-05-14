@@ -1,4 +1,25 @@
-"""LangChain example."""
+"""LangChain example.
+
+Points `ChatOpenAI` (from `langchain-openai`) at the VM-X gateway's
+OpenAI Chat Completions surface and walks through an agent + tool
+call. The gateway preserves the OpenAI wire format verbatim, so
+LangChain talks to it exactly the way it talks to OpenAI itself —
+the only difference is `base_url` and using the VM-X **resource
+name** in `model` (the gateway resolves the resource to an upstream
+provider / model id).
+
+Required environment variables:
+
+- ``VMX_AI_API_KEY``    — VM-X API key
+- ``VMX_WORKSPACE_ID``  — target workspace UUID
+- ``VMX_ENVIRONMENT_ID`` — target environment UUID
+- ``VMX_RESOURCE_NAME`` — name of the AI Resource to route through
+                          (defaults to ``openai``)
+- ``VMX_BASE_URL``      — defaults to ``http://localhost:3030/api``
+                          (the local dev API: port 3030 with the
+                          ``/api`` base path). For a deployed gateway,
+                          set this to your gateway origin.
+"""
 
 import json
 import os
@@ -25,28 +46,43 @@ def get_weather(city: str) -> str:
 
 
 def main():
-    workspace_id = "8eab8372-a0ae-4856-9d6e-ad8589499c80"
-    environment_id = "c24ff5a5-40f1-417c-919d-b627f06060b0"
-    resource_id = "openai"
-    api_key = os.getenv("VMX_AI_API_KEY")
-    base_url = f"http://localhost:3000/v1/completion/{workspace_id}/{environment_id}/{resource_id}"
+    api_key = os.environ.get("VMX_AI_API_KEY")
+    workspace_id = os.environ.get("VMX_WORKSPACE_ID")
+    environment_id = os.environ.get("VMX_ENVIRONMENT_ID")
+    resource_name = os.environ.get("VMX_RESOURCE_NAME", "openai")
+    gateway_base = os.environ.get("VMX_BASE_URL", "http://localhost:3030/api")
+
+    missing = [
+        name
+        for name, val in (
+            ("VMX_AI_API_KEY", api_key),
+            ("VMX_WORKSPACE_ID", workspace_id),
+            ("VMX_ENVIRONMENT_ID", environment_id),
+        )
+        if not val
+    ]
+    if missing:
+        raise SystemExit(
+            "Missing required env vars: "
+            + ", ".join(missing)
+            + "\nSet them in your shell or in `examples/langchain/.env.local` "
+            "before running the example."
+        )
+
+    # The OpenAI SDK appends `/chat/completions` to `base_url`, so the
+    # base_url stops one segment short of the full gateway path:
+    # `…/v1/completion/{workspace}/{environment}`.
+    base_url = (
+        f"{gateway_base}/v1/completion/{workspace_id}/{environment_id}"
+    )
 
     model = ChatOpenAI(
-        model="router",  # It will use the resource model/routing configuration
+        # The resource name — NOT an upstream model id. The gateway
+        # resolves the resource to the configured provider/model and
+        # applies any routing/fallback rules attached to it.
+        model=resource_name,
         api_key=api_key,
         base_url=base_url,
-        extra_body={
-            "vmx": {
-                # We can override the resource model/routing configuration
-                "resourceConfigOverrides": {
-                    "model": {
-                        "provider": "aws-bedrock",
-                        "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-                        "connectionId": "f0fb0a42-6b31-424e-ae85-2ee6ffdeff65",
-                    }
-                }
-            }
-        },
         streaming=True,
     )
     agent = create_agent(

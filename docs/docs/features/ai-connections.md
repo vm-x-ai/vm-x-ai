@@ -4,18 +4,32 @@ sidebar_position: 1
 
 # AI Connections
 
-AI Connections represent connections to specific AI providers with their credentials and capacity configuration. This guide covers everything you need to know about creating and managing AI Connections.
+AI Connections represent stored credentials and configuration for a single
+upstream provider account. AI Resources bind to a connection at request
+time, so connections are the unit of credential management, capacity
+accounting, and (for AWS Bedrock) cross-account role assumption.
 
 ## What is an AI Connection?
 
-An AI Connection encapsulates:
+An AI Connection is scoped to a `(workspace, environment)` pair and
+encapsulates:
 
-- **Provider**: One of the seven supported providers — OpenAI,
-  Anthropic, Google Gemini, Groq, Perplexity, AWS Bedrock (Converse),
-  AWS Bedrock-Invoke (Anthropic on AWS).
-- **Credentials**: Encrypted API key or AWS IAM role.
+- **Provider**: One of the seven supported providers — `openai`,
+  `anthropic`, `gemini`, `groq`, `perplexity`, `aws-bedrock` (Converse),
+  `aws-bedrock-invoke` (Anthropic Messages via Bedrock `InvokeModel`).
+- **Credentials**: Provider API key or, for the two Bedrock providers,
+  an IAM role ARN assumed via STS with the connection's
+  `workspaceId:environmentId` as the `ExternalId`.
+- **Allowed models**: Optional allowlist of model ids the connection
+  may serve.
 - **Capacity**: Custom capacity limits (e.g., 100 RPM, 100,000 TPM).
-- **Discovered Capacity**: Automatically discovered rate limits from the provider.
+- **Discovered Capacity**: Automatically discovered rate limits from
+  the provider.
+
+The connection-config shape is per-provider and validated at create/update
+time against the provider's JSON Schema (see each provider section
+below). Fields marked `format: 'secret'` in that schema are encrypted
+at rest (see [Credential Security](#credential-security)).
 
 See the [LLM Providers](../integrations/providers/index.md) index for a
 side-by-side capability matrix and per-provider deep dives.
@@ -123,17 +137,19 @@ Both `performanceConfig` and `guardrailConfig` are optional.
 `performanceConfig.latency` is `'standard' | 'optimized'` and applies
 to every Converse call on the connection. `guardrailConfig` attaches
 a Bedrock Guardrail (by ID or full ARN) to every inference call;
-`trace` defaults to `'enabled'` so the audit row sees the guardrail
-assessments.
+`trace` is `'enabled' | 'disabled' | 'enabled_full'` and defaults to
+`'enabled'` so the audit row sees the guardrail assessments. Today
+the admin UI form only exposes `region`, `iamRoleArn`, and
+`performanceConfig`; `guardrailConfig` is accepted by the runtime and
+the create/update API but must be set via the JSON config payload.
 
 ### AWS Bedrock-Invoke (Anthropic on AWS)
 
-Same IAM-role auth as `aws-bedrock` — including the optional
-`performanceConfig` and `guardrailConfig` blocks shown above — but
-the wire shape is the full Anthropic Messages API via Bedrock's
-`InvokeModel`. Use this when running Claude on AWS **and** you need
-Anthropic-only features (`cache_control`, extended `thinking`, server
-tools) preserved end-to-end. See the
+Same IAM-role auth as `aws-bedrock`, but the wire shape is the full
+Anthropic Messages API via Bedrock's `InvokeModel`. Use this when
+running Claude on AWS **and** you need Anthropic-only features
+(`cache_control`, extended `thinking`, server tools) preserved
+end-to-end. See the
 [AWS Bedrock-Invoke provider page](../integrations/providers/aws-bedrock-invoke.md)
 for the full feature matrix.
 
@@ -146,6 +162,13 @@ for the full feature matrix.
   }
 }
 ```
+
+`guardrailConfig` (same shape as the Converse example above) is also
+honoured by the Invoke runtime — `guardrailIdentifier` /
+`guardrailVersion` ride on the `InvokeModel` command and `trace` maps
+onto the Bedrock `trace` header (`ENABLED` / `DISABLED` /
+`ENABLED_FULL`). `performanceConfig` is **Converse-only** and is
+ignored on Invoke.
 
 ### IAM Role Setup (Bedrock providers)
 
@@ -225,27 +248,47 @@ Discovered capacity is stored in the connection and can be viewed in the UI. Thi
 
 ### Encryption
 
-Credentials are encrypted at rest using:
+Every connection-config field marked `format: 'secret'` in the
+provider's JSON Schema (API keys today; IAM role ARNs are stored in
+plaintext) is encrypted before it lands in Postgres. The encryption
+backend is selected by the `ENCRYPTION_PROVIDER` environment variable
+on the api:
 
-- **AWS KMS**: For production environments (recommended)
-- **Libsodium**: For local development and small deployments
+- `ENCRYPTION_PROVIDER=libsodium` — XChaCha20-Poly1305 AEAD using a
+  base64 key from `LIBSODIUM_ENCRYPTION_KEY`. The default for local
+  development and self-hosted deployments. Replaced the previous
+  HashiCorp Vault transit backend.
+- `ENCRYPTION_PROVIDER=aws-kms` — AWS Encryption SDK with a KMS
+  keyring built from `AWS_KMS_KEY_ID` (region `AWS_REGION`). Recommended
+  for production AWS deployments.
+
+Both backends bind the ciphertext to the connection via an
+encryption-context map that includes `connectionId`, so a ciphertext
+copied between connections fails to decrypt.
 
 ### Credential Storage
 
-- Credentials are stored encrypted in PostgreSQL
-- Decryption happens in-memory only
-- Credentials are never exposed in:
-  - API responses
-  - Logs
-  - Error messages
+- Encrypted secrets are stored in the `ai_connections.config` JSONB
+  column in Postgres.
+- The api preloads and decrypts connections on boot and keeps them in
+  process memory; a Redis revalidation marker invalidates the cache
+  when a connection is updated or deleted.
+- Secret fields are masked as `********` on every read path that
+  surfaces them to the UI / API (`GET /ai-connections`, list, update
+  echo) — they only ever leave the process unencrypted on outbound
+  upstream calls.
 
 ### Credential Rotation
 
 To rotate credentials:
 
-1. Update the connection configuration with new credentials
-2. The old credentials are immediately replaced
-3. No downtime required - existing requests continue with old credentials until new ones are used
+1. `PATCH` the connection with the new value for the secret field.
+   The api re-encrypts the new value and updates the row in place
+   (omitted secret fields keep their previous ciphertext).
+2. A cache-invalidation marker is written to Redis; in-flight requests
+   continue with the previously-decrypted credential until the api
+   refetches.
+3. No downtime is required.
 
 ## Best Practices
 
@@ -275,12 +318,16 @@ Regularly review:
 - Discovered capacity changes
 - Error rates
 
-### 5. Secure Credentials
+### 4. Secure Credentials
 
-- Use AWS KMS for production
-- Rotate credentials regularly
-- Never commit credentials to version control
-- Use least-privilege access for AWS KMS keys
+- Use `ENCRYPTION_PROVIDER=aws-kms` for production AWS deployments;
+  `libsodium` is fine for self-hosted / on-prem.
+- Rotate provider API keys regularly via the connection update flow.
+- Never commit credentials to version control.
+- For the Bedrock providers, use least-privilege on the assumed role
+  (the bundled CloudFormation template only grants `bedrock:InvokeModel`
+  / `bedrock:InvokeModelWithResponseStream` plus the marketplace
+  subscribe actions).
 
 ## Updating an AI Connection
 

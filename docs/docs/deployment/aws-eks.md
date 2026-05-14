@@ -8,17 +8,17 @@ This guide shows you how to deploy VM-X AI to Amazon EKS (Elastic Kubernetes Ser
 
 ## What gets deployed
 
-VM-X AI itself only requires four runtime components: the **API**, the **UI**, **PostgreSQL**, and **Redis**. Usage analytics and cost tracking are served directly from the `request_audit` table in Postgres, so there is no separate time-series database.
+VM-X AI itself only requires four runtime components: the **API**, the **UI**, **PostgreSQL**, and **Redis**. The API exposes three OpenAI/Anthropic-compatible gateway surfaces (Chat Completions, Responses, and Anthropic Messages) on a single port. Usage analytics and cost tracking are served directly from the `request_audit` table in Postgres, so there is no separate time-series database.
 
 The EKS example wraps those four with a production-grade AWS footprint:
 
 **Required for VM-X AI to run**
 
-- **EKS Cluster** with managed node groups (Auto Mode)
+- **EKS Cluster** with managed node pools (Auto Mode, `system` + `general-purpose`)
 - **VPC** with multi-AZ networking
 - **Aurora PostgreSQL** as the primary database (also stores `request_audit`)
 - **Redis cluster** (3-node, deployed by the Helm chart)
-- **AWS KMS** key (used by the API for envelope-encrypting AI provider credentials)
+- **Encryption provider** for AI provider credentials. The Helm chart defaults to **libsodium** (symmetric key auto-generated as a Kubernetes secret, see [helm/charts/vm-x-ai/SECRETS.md](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/SECRETS.md)). The EKS example overrides this to **AWS KMS** envelope encryption.
 
 **Optional, deployed by default**
 
@@ -599,7 +599,39 @@ const database = new DatabaseCluster(this, 'Database', {
 
 ### Encryption
 
-The stack creates a KMS key for encryption. The key ARN is automatically configured in the Helm chart values.
+The API envelope-encrypts every AI provider credential before persisting it. Two providers are supported (configured via `api.encryption.provider` in [helm/charts/vm-x-ai/values.yaml](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/values.yaml)):
+
+- **`libsodium`** (chart default): a 32-byte symmetric key stored in a Kubernetes secret. The key is auto-generated on first install when `secrets.libsodium.method=create`, or sourced from External Secrets / an existing secret. Suitable for local clusters and small self-hosted deployments.
+- **`aws-kms`** (what this example uses): the data key is wrapped by an AWS KMS CMK. The stack creates `alias/vm-x-ai-encryption-key`, grants `kms:Encrypt` / `kms:Decrypt` to the API service account (via IRSA), and passes the key ARN through to the Helm values:
+
+  ```typescript
+  api: {
+    encryption: { provider: 'aws-kms', awsKms: { keyId: encryptionKeyArn } },
+    aws: { region: this.region },
+  }
+  ```
+
+  When `provider` is `aws-kms`, the libsodium secret is not created.
+
+See [helm/charts/vm-x-ai/SECRETS.md](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/SECRETS.md) for the full secret-method matrix (`create` / `external` / `eso`) and rotation guidance.
+
+### Autoscaling
+
+The chart ships HPAs for both the API and UI deployments (`api.autoscaling` / `ui.autoscaling` in [values.yaml](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/values.yaml)). Defaults: `minReplicas: 1`, `maxReplicas: 10`, target CPU 70%. Memory-based scaling and custom `behavior` (stabilization windows, scale-up/down policies) are off by default but exposed as values. The Metrics Server add-on installed by the stack is what makes those HPAs work — without it the HPAs report `<unknown>` and never scale.
+
+To tighten scaling for a load test, override per-component:
+
+```typescript
+api: {
+  autoscaling: {
+    enabled: true,
+    minReplicas: 3,
+    maxReplicas: 30,
+    targetCPUUtilizationPercentage: 60,
+    targetMemoryUtilizationPercentage: 75,
+  },
+}
+```
 
 ## Accessing Services
 
@@ -607,28 +639,54 @@ The stack creates a KMS key for encryption. The key ARN is automatically configu
 
 Access the main application at the URL provided in stack outputs.
 
-### Grafana
+### Grafana and Jaeger
 
-Grafana is accessible via Istio ingress. Check the ingress configuration:
+The Jaeger and Grafana UIs are attached to the same Istio gateway as the app, served from path prefixes that the chart configures end-to-end (Jaeger's `QUERY_BASE_PATH`, Grafana's `GF_SERVER_ROOT_URL`, and matching `VirtualService` routes). Defaults from [helm/charts/vm-x-ai/values.yaml](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/values.yaml):
+
+```yaml
+otel:
+  jaeger:
+    ingress: { enabled: true, path: /jaeger }
+  grafana:
+    ingress: { enabled: true, path: /grafana }
+```
+
+The example enables both. Reach them at `http://<app-url>/jaeger` and `http://<app-url>/grafana`. Inspect or debug routing with:
 
 ```bash
 kubectl get virtualservice -n vm-x-ai
 kubectl get gateway -n istio-system
 ```
 
-### Jaeger
+### HTTPS / TLS
 
-Jaeger UI is also accessible via Istio ingress.
+The CDK example terminates HTTP at port 80 on the NLB — no TLS is configured. To add TLS, attach a certificate to a `443` server entry on the Istio gateway and add the credential to `istio-system`. The chart already exposes the matching values shape:
+
+```yaml
+ingress:
+  istio:
+    host: vm-x-ai.example.com
+    gateway:
+      servers:
+        - port: { number: 80, name: http, protocol: HTTP }
+        - port: { number: 443, name: https, protocol: HTTPS }
+          tls:
+            mode: SIMPLE
+            credentialName: vm-x-ai-tls # kubernetes.io/tls secret in istio-system
+```
 
 ## Secrets Management
 
-The stack uses **External Secrets Operator** to manage secrets:
+The chart exposes a per-secret `method` (`create` / `external` / `eso`) for each of `database`, `ui`, `libsodium`, and `oidcFederated`. See [helm/charts/vm-x-ai/SECRETS.md](https://github.com/vm-x-ai/vm-x-ai/blob/main/helm/charts/vm-x-ai/SECRETS.md) for the full matrix.
 
-- **Database Credentials**: Retrieved from AWS Secrets Manager (`vm-x-ai-database-secret`)
-- **UI Auth Secret**: Auto-generated by the Helm chart
-- **KMS Key**: Referenced by ARN (no secret needed)
+What this example does:
 
-The database secret is automatically created by CDK when the Aurora cluster is provisioned.
+- **Database credentials** (`secrets.database.method=eso`): the `ExternalSecret` resource installed by the chart pulls `password`, `host`, `port`, `dbname`, and `username` from the AWS Secrets Manager entry `vm-x-ai-database-secret`. That entry is created automatically by CDK when the Aurora cluster is provisioned.
+- **UI auth secret** (`secrets.ui.method=create`): auto-generated by the chart on install, persisted as a Kubernetes secret.
+- **libsodium key**: not created — the API is configured for `aws-kms` so this secret is skipped.
+- **KMS key**: referenced by ARN. The API service account is granted `kms:Encrypt`/`kms:Decrypt` on the key via IRSA, so no AWS access keys are mounted into pods.
+
+The `ClusterSecretStore` named `default` is created by the stack and uses IRSA on the External Secrets Operator service account (`external-secrets-sa`) to talk to AWS Secrets Manager.
 
 ## Monitoring and Observability
 

@@ -1,108 +1,96 @@
-# Provider Integration Tests
+# Integration & Live Tests
 
-Live tests that hit real provider APIs through the VM-X provider classes,
-plus offline converter tests for the Responses API.
+This folder hosts two of the three vitest projects that make up the API
+test suite. The split is defined in
+[`packages/api/vite.config.ts`](../../vite.config.ts) and surfaced as Nx
+configurations in [`nx.json`](../../../../nx.json).
 
-## What runs without keys
+| Project       | Scope                                                                                 | Network |
+| ------------- | ------------------------------------------------------------------------------------- | ------- |
+| `unit`        | Pure-function and single-service tests under `src/**/*.spec.ts` (NOT in this folder). | No      |
+| `integration` | Multi-service mocked-DI specs under `__integration__/` excluding `providers/`.        | No      |
+| `live`        | Per-provider specs under `__integration__/providers/<provider>.spec.ts`.              | Yes     |
 
-- `responses/converter.spec.ts` — runs unconditionally, tests the
-  Chat-Completions ↔ Responses-API converter with synthetic streams.
-
-## What runs with keys
-
-Per-provider specs under `providers/` are gated by:
-
-- `RUN_LIVE_PROVIDER_TESTS=1` — master switch. Without this, every
-  provider spec is skipped.
-- The provider's specific env var(s):
-
-| Provider               | Required env vars                    |
-| ---------------------- | ------------------------------------ |
-| OpenAI                 | `OPENAI_API_KEY`                     |
-| Anthropic              | `ANTHROPIC_API_KEY`                  |
-| Groq                   | `GROQ_API_KEY`                       |
-| Gemini                 | `GEMINI_API_KEY`                     |
-| Perplexity             | `PERPLEXITY_API_KEY`                 |
-| AWS Bedrock (Converse) | `AWS_BEDROCK_ROLE_ARN`, `AWS_REGION` |
-| AWS Bedrock (Invoke)   | `AWS_BEDROCK_ROLE_ARN`, `AWS_REGION` |
-
-Optional model overrides:
-
-- `OPENAI_TEST_MODEL` (default `gpt-4o-mini`)
-- `OPENAI_SEARCH_TEST_MODEL` (default `gpt-4o-mini-search-preview`)
-- `ANTHROPIC_TEST_MODEL` (default `claude-haiku-4-5`)
-- `GROQ_TEST_MODEL` (default `llama-3.3-70b-versatile`)
-- `GEMINI_TEST_MODEL` (default `gemini-2.5-flash`)
-- `PERPLEXITY_TEST_MODEL` (default `sonar`)
-- `PERPLEXITY_SEARCH_TEST_MODEL` (default `sonar-pro`)
-- `BEDROCK_TEST_MODEL` (default `us.anthropic.claude-haiku-4-5-20251001-v1:0`)
-- `BEDROCK_INVOKE_TEST_MODEL` (default `us.anthropic.claude-haiku-4-5-20251001-v1:0`)
+`api:test` with no configuration suffix runs the `unit` project (the
+default in `packages/api/package.json`).
 
 ## Running
 
 ```bash
-# Default test run — only the converter test fires; provider specs are skipped.
-pnpm exec nx run api:test
+# Unit only (CI default for `nx affected -t test`):
+pnpm exec nx run api:test:unit
 
-# Live provider suite — opt in.
-RUN_LIVE_PROVIDER_TESTS=1 pnpm exec nx run api:test
+# Mocked integration:
+pnpm exec nx run api:test:integration
 
-# Single provider:
-RUN_LIVE_PROVIDER_TESTS=1 pnpm exec nx run api:test -- providers/openai
+# Live (real upstream APIs; skips per-cell when keys are absent):
+pnpm exec nx run api:test:live
 
-# Bedrock requires AWS credentials in your shell (e.g. via aws-vault).
+# All three in a single vitest invocation:
+pnpm exec nx run api:test:all
+
+# Combined coverage:
+pnpm exec nx run api:test:coverage
 ```
 
-Keys can be placed in a workspace-root `.env.local`; the suite reads it
-automatically before consulting `process.env`.
+Filter inside a project with `-t` (test name) or a file path:
 
-## Coverage matrix
+```bash
+pnpm exec nx run api:test:live -- providers/openai
+pnpm exec nx run api:test:live -- -t "tool call"
+```
 
-|                  | simple | tool-call | follow-up | structured      | web-search                         | reasoning     |
-| ---------------- | ------ | --------- | --------- | --------------- | ---------------------------------- | ------------- |
-| OpenAI           | ✅     | ✅        | ✅        | ✅              | ✅ (annotations HA)                | ✅ (o-series) |
-| Anthropic        | ✅     | ✅        | ✅        | ✅              | —                                  |               |
-| Groq             | ✅     | ✅ (NS)   |           |                 | —                                  |               |
-| Gemini           | ✅     | ✅        |           |                 | ✅ (grounding HA)                  |               |
-| Perplexity       | ✅     | —         |           | ✅              | ✅ (citations + search_results HA) |               |
-| Bedrock Converse | ✅     | ✅        |           |                 | —                                  |               |
-| Bedrock Invoke   | ✅     | ✅        | ✅        | ⚠ skipped (gap) | —                                  |               |
+## Live test gating
 
-NS = non-streaming only. HA = hard assertion (test fails if the field is missing).
-Each cell that supports streaming runs both streaming and non-streaming variants.
+Live specs use vitest's `describe.skipIf(!hasKeys(...))` (see
+`__integration__/providers/_keys.ts`) so each cell skips gracefully when
+its provider's env var isn't set. There is no master env switch —
+unsetting keys is the way to skip live cells.
 
-## Responses API end-to-end (`responses/end-to-end.spec.ts`)
+Live tests use vitest's `retry: 2` to absorb transient network blips.
 
-Drives a real provider's chat completion through the Responses-API
-converter (request-side and response-side) and asserts the events that
-downstream agent loops rely on:
+### Required env vars
 
-- OpenAI: non-streaming with usage details, streaming text+usage,
-  streaming tool-call argument deltas → done → completed
-- Bedrock Invoke (Claude on Anthropic Messages wire): streaming text +
-  `response.completed` with input/output_tokens
+| Provider               | Required env vars                                          |
+| ---------------------- | ---------------------------------------------------------- |
+| OpenAI                 | `OPENAI_API_KEY`                                           |
+| Anthropic              | `ANTHROPIC_API_KEY`                                        |
+| Groq                   | `GROQ_API_KEY`                                             |
+| Gemini                 | `GEMINI_API_KEY`                                           |
+| Perplexity             | `PERPLEXITY_API_KEY`                                       |
+| AWS Bedrock (Converse) | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
+| AWS Bedrock (Invoke)   | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
 
-Skipped without `RUN_LIVE_PROVIDER_TESTS=1` and the relevant keys.
+Put keys in a workspace-root or `packages/api/`-local `.env.local`. Nx
+auto-loads both. Setting them in your shell also works.
 
-## Known gaps (tracked, not yet covered)
+### Optional model overrides
 
-- `aws-bedrock-invoke.spec.ts` "structured output" test is `it.skip` —
-  AWSBedrockInvokeProvider does not currently translate
-  `response_format: json_schema` into Anthropic's structured-output
-  mechanism. Callers hit this via the Responses API
-  (`text.format: json_schema` → response_format → silently dropped).
-  Unskip when the provider learns to forward this.
-- Image input round-trip (`input_image` content parts) — none of the
-  providers are tested with images yet.
-- `phase: 'final_answer'` passthrough on Anthropic via Responses API — not tested.
-- Param-passthrough sanity (frequency_penalty, presence_penalty, stop) — not asserted.
+| Variable                       | Default                                       |
+| ------------------------------ | --------------------------------------------- |
+| `OPENAI_TEST_MODEL`            | `gpt-4o-mini`                                 |
+| `OPENAI_SEARCH_TEST_MODEL`     | `gpt-4o-mini-search-preview`                  |
+| `ANTHROPIC_TEST_MODEL`         | `claude-haiku-4-5`                            |
+| `GROQ_TEST_MODEL`              | `llama-3.3-70b-versatile`                     |
+| `GEMINI_TEST_MODEL`            | `gemini-2.5-flash-lite`                       |
+| `PERPLEXITY_TEST_MODEL`        | `sonar`                                       |
+| `PERPLEXITY_SEARCH_TEST_MODEL` | `sonar-pro`                                   |
+| `BEDROCK_TEST_MODEL`           | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
+| `BEDROCK_INVOKE_TEST_MODEL`    | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
+
+## Where to put new tests
+
+| Path                                           | Project       |
+| ---------------------------------------------- | ------------- |
+| `src/**/*.spec.ts` (next to source)            | `unit`        |
+| `__integration__/resource-features/*.spec.ts`  | `integration` |
+| `__integration__/providers/<provider>.spec.ts` | `live`        |
+| `__integration__/responses/*.spec.ts`          | `integration` |
 
 ## Why test providers directly (not the HTTP endpoint)
 
-The integration suite calls each provider class _directly_ rather than
-booting the full Nest app. That avoids the Postgres / Redis / OIDC stack
-and keeps the suite fast, but it does mean we don't exercise routing,
-fallback, audit writes, gating, or cost calculation. Those are covered
-by separate unit/integration specs (todo) — this suite specifically
-verifies the provider classes' request shaping and response parsing
-against real APIs.
+The live suite calls each provider class directly rather than booting
+the full Nest app. That avoids needing Postgres, Redis, and OIDC up,
+which keeps the suite fast — but it also means routing, fallback,
+audit, gating, and cost calculation are NOT exercised here. Those are
+covered by the mocked-DI specs in `resource-features/`.

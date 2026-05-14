@@ -90,11 +90,15 @@ limit globally across the whole resource.
 When `enforceCapacity` is `true`:
 
 - Resource-level capacity is added to the gate's check set
-  alongside the connection's own capacity (and any per-API-key
-  capacity from the calling key).
+  alongside the connection's own capacity (always enforced when
+  the connection has `enabled` entries) and any per-API-key
+  capacity from the calling key (added when the key itself has
+  `enforceCapacity` set).
 - Requests exceeding any enforced limit are rejected with
   `429 Too Many Requests` and an `openai_compatible_error.code`
-  of `resource_exhausted`.
+  of `resource_exhausted`. The error message names the
+  violating layer (`AI Connection`, `AI Resource`, or `API Key`),
+  the period, and whether requests or tokens tripped the cap.
 - Useful for:
   - Limiting usage per resource independently
   - Controlling costs by resource
@@ -109,23 +113,54 @@ When `enforceCapacity` is `false` (the default):
 
 ## How Resource Capacity Works
 
-The capacity gate checks all enabled limits in a single pass:
+The capacity gate runs **before** the provider call on every
+attempt (primary and each fallback leg) and checks all enabled
+limits in a single pass:
 
 1. **Capacity check** — connection capacity is always evaluated;
    resource capacity is added when `enforceCapacity` is `true`;
    API-key capacity is added when the calling key has
-   `enforceCapacity` set. Any limit exceeded rejects the request
-   with `429 Too Many Requests`.
+   `enforceCapacity` set. Any limit exceeded rejects the attempt
+   with `429 Too Many Requests` and
+   `openai_compatible_error.code = resource_exhausted`.
 2. **Prioritization gate** (if a pool definition includes the
-   resource and the connection has a minute capacity configured) —
-   the adaptive-token-scaling prioritization algorithm decides
-   whether the request proceeds given pool weights and current
-   usage. See [Prioritization](../prioritization.md).
+   resource and the connection has a `minute` capacity entry) —
+   the adaptive-token-scaling algorithm decides whether the
+   request proceeds given pool weights and current usage. A
+   denial here uses
+   `openai_compatible_error.code = prioritization_gate_denied`.
+   See [Prioritization](../prioritization.md).
 
 If the gate denies on a given leg, the gateway treats the denial
-like any other failure and tries the next fallback model — so
-configure your fallback chain across different connections to get
-real failover when one connection is exhausted.
+like any other failure and tries the next entry in the fallback
+chain — so configure fallbacks across different connections (or
+resources with different limits) to get real failover when one
+connection is exhausted. See [Fallback](./fallback.md).
+
+### State storage (Redis cluster)
+
+Counters are kept in Redis under hash-tagged keys of the form
+`capacity:{workspaceId:environmentId:resourceId:connectionId}:resource-usage:<period>:requests`
+and `…:tokens`. The hash tag (`{…}`) co-locates every counter for
+a given resource×connection pair on a single Redis cluster slot,
+so the multi-key `MULTI`/`EXPIRE` pipeline used during the gate
+stays inside one node. TTLs are set to the seconds remaining in
+the current period, so counters auto-expire at the period
+boundary (no scheduled reset).
+
+`source-ip`-dimensioned entries get an additional
+`:source-ip:<ip>:` segment in the key, keeping per-IP counters
+separate from the global ones.
+
+### Token accounting
+
+The gate increments the `tokens` counter with the **estimated
+request tokens** before dispatch (so a denied attempt still
+consumes the would-be tokens for the duration of the period). On
+a successful provider response, `completion_tokens` from the
+upstream usage payload is added on top via a post-completion
+increment, so TPM caps reflect the full input+output cost. The
+`requests` counter is incremented once per attempt.
 
 ### Example Scenario
 
@@ -219,17 +254,32 @@ Combine resource capacity with prioritization:
 
 - **Scope**: Per connection (shared across all resources)
 - **Enforcement**: Always enforced when capacity entries are
-  configured + `enabled` on the connection
+  configured + `enabled` on the connection. See
+  [AI Connections](../ai-connections.md).
 - **Use Case**: Control total usage across all resources
-- **Example**: Limit OpenAI connection to 100,000 TPM total
+- **Example**: Limit a connection to 100,000 TPM total
+
+### API Key Capacity
+
+- **Scope**: Per API key (shared across resources the key can
+  reach)
+- **Enforcement**: Optional — only when the API key itself has
+  `enforceCapacity: true`
+- **Use Case**: Per-tenant or per-integration limits
+- **Example**: Limit a partner key to 1,000 RPM regardless of
+  which resource it hits
 
 ### Combined Usage
 
-Both capacity types work together:
+All three layers work together:
 
 1. Resource capacity limits usage per resource
-2. Connection capacity limits total usage across all resources
-3. Requests must pass both checks to proceed
+2. Connection capacity limits total usage across all resources on
+   that connection
+3. API-key capacity limits the calling key's footprint across the
+   resources it can reach
+4. Requests must pass every enabled check to proceed; the first
+   violation wins and the attempt is rejected with `429`
 
 ## Troubleshooting
 

@@ -8,12 +8,11 @@ This CDK stack provisions a complete AWS infrastructure for running VM-X AI in p
 
 - **ECS Cluster**: Fargate-based container orchestration
 - **VPC**: Multi-AZ VPC with public subnets
-- **Aurora PostgreSQL**: Managed database cluster for application data
-- **AWS Timestream**: Time-series database for metrics and telemetry
-- **ElastiCache Serverless (Valkey)**: Redis-compatible cache
+- **Aurora PostgreSQL**: Managed database cluster for application data (also stores the `request_audit` table used for usage analytics and cost tracking — no separate time-series DB is needed)
+- **ElastiCache Serverless (Valkey)**: Redis-compatible cache, configured in cluster mode with TLS
 - **Application Load Balancers**: Separate ALBs for API and UI services
-- **OpenTelemetry Collector**: AWS-managed collector for observability
-- **KMS Encryption**: AWS KMS key for encryption at rest
+- **OpenTelemetry Collector** (optional sidecar): AWS-managed collector for gateway observability
+- **KMS Encryption**: AWS KMS key used by the API for envelope-encrypting provider credentials
 - **CloudWatch Logs**: Centralized logging for all services
 
 ## Architecture
@@ -53,10 +52,13 @@ This CDK stack provisions a complete AWS infrastructure for running VM-X AI in p
          ┌───────────────┼───────────────┐
          │               │               │
          ▼               ▼               ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│   Aurora     │ │  ElastiCache  │ │  Timestream  │
-│  PostgreSQL  │ │  (Valkey)     │ │   Database   │
-└──────────────┘ └──────────────┘ └──────────────┘
+         ┌───────────────┴───────────────┐
+         │                               │
+         ▼                               ▼
+┌──────────────┐                ┌──────────────┐
+│   Aurora     │                │  ElastiCache │
+│  PostgreSQL  │                │   (Valkey)   │
+└──────────────┘                └──────────────┘
 ```
 
 ## Prerequisites
@@ -70,7 +72,6 @@ Before deploying this stack, ensure you have:
    - ECS clusters and services
    - VPCs, subnets, and networking resources
    - RDS Aurora clusters
-   - Timestream databases
    - ElastiCache serverless caches
    - KMS keys
    - IAM roles and policies
@@ -97,11 +98,11 @@ You can customize this configuration by editing `ecs-otel-config.yaml`.
 
 The stack is configured with minimal resources for cost optimization. You can adjust:
 
-- **API Task**: 1024 MiB memory, 512 CPU units
-- **UI Task**: 1024 MiB memory, 512 CPU units
-- **OTEL Collector**: 512 MiB memory, 256 CPU units
-- **Database**: Aurora PostgreSQL with `db.t3.medium` instance
-- **Redis**: ElastiCache Serverless (Valkey) with auto-scaling
+- **API Task**: 1024 MiB memory, 512 CPU units (container port `3000`)
+- **UI Task**: 1024 MiB memory, 512 CPU units (container port `3001`)
+- **OTEL Collector** (optional sidecar): 512 MiB memory, 256 CPU units
+- **Database**: Aurora PostgreSQL 17.6 with `db.t3.medium` instance
+- **Redis**: ElastiCache Serverless (Valkey 7) in cluster mode with TLS
 
 ## Deployment
 
@@ -130,11 +131,10 @@ This will:
 
 - Create the VPC and networking infrastructure
 - Provision the ECS Fargate cluster
-- Create the Aurora PostgreSQL database
-- Create the Timestream database
+- Create the Aurora PostgreSQL database (also stores the `request_audit` table)
 - Create the ElastiCache serverless cache
 - Create the KMS encryption key
-- Deploy the API and UI services
+- Deploy the API and UI services (each with an OTEL collector sidecar)
 - Configure all IAM roles and policies
 - Set up Application Load Balancers
 
@@ -168,9 +168,9 @@ The default Application's username and password are `admin` and `admin`.
   - Cluster identifier: `vm-x-ai-rds-cluster`
   - Database name: `vmxai`
   - Credentials stored in Secrets Manager: `vm-x-ai-database-secret`
-- **Timestream Database**: `vm-x-ai` database for time-series data
-- **ElastiCache Serverless**: `vm-x-ai-valkey-serverless-cache` (Valkey/Redis-compatible)
-- **KMS Key**: `alias/vm-x-ai-encryption-key` for encryption
+  - Writer endpoint injected as `DATABASE_HOST`/`DATABASE_PORT`/etc; reader endpoint injected as `DATABASE_RO_HOST`
+- **ElastiCache Serverless**: `vm-x-ai-valkey-serverless-cache` (Valkey/Redis-compatible, cluster mode, TLS on)
+- **KMS Key**: `alias/vm-x-ai-encryption-key` (passed to the API via `AWS_KMS_KEY_ID` with `ENCRYPTION_PROVIDER=aws-kms` and `AWS_REGION`)
 
 ### Application Components
 
@@ -272,11 +272,10 @@ This stack creates several AWS resources that incur costs:
 - **Application Load Balancers**: ~$0.0225/hour each (~$32/month for 2 ALBs)
 - **Aurora PostgreSQL**: ~$100-200/month (db.t3.medium)
 - **ElastiCache Serverless**: Pay-per-use (typically $10-30/month for small workloads)
-- **Timestream**: Pay-per-use (typically $10-50/month for small workloads)
 - **Data Transfer**: ~$0.09/GB for outbound data transfer
 - **CloudWatch Logs**: ~$0.50/GB ingested, $0.03/GB stored
 
-**Estimated total**: $200-400/month for a minimal production setup.
+**Estimated total**: $170-310/month for a minimal production setup.
 
 To reduce costs:
 
@@ -296,10 +295,7 @@ pnpm cdk destroy
 
 **Warning**: This will delete all resources including databases and caches. Make sure you have backups if needed.
 
-**Note**: Some resources may need to be deleted manually:
-
-- ElastiCache serverless cache (may take time to delete)
-- Timestream database (must be empty before deletion)
+**Note**: The ElastiCache serverless cache may take several minutes to delete after the stack tears down.
 
 ## Customization
 

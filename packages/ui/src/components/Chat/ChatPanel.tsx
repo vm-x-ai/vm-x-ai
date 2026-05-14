@@ -19,6 +19,7 @@ import {
 } from '@/clients/api';
 import UserMessage from './UserMessage';
 import BotMessage from './BotMessage';
+import type { ReasoningUIPart } from 'ai';
 import { ChatMessage } from './types';
 import SpinnerMessage from './SpinnerMessage';
 
@@ -202,6 +203,19 @@ function Message({ message, providersMap, onOpenAudit }: MessageProps) {
         .join(''),
     [message.parts]
   );
+  const reasoning = useMemo(() => {
+    const parts = message.parts.filter(
+      (p): p is ReasoningUIPart => p.type === 'reasoning'
+    );
+    if (parts.length === 0) return null;
+    return {
+      text: parts.map((p) => p.text).join('\n'),
+      // If any part is still streaming, the accordion header gets a
+      // spinner-style "thinking…" affordance instead of the static
+      // "Reasoning" label.
+      streaming: parts.some((p) => p.state === 'streaming'),
+    };
+  }, [message.parts]);
 
   if (message.role === 'user') {
     return <UserMessage content={content} />;
@@ -211,6 +225,7 @@ function Message({ message, providersMap, onOpenAudit }: MessageProps) {
   return (
     <BotMessage
       content={content}
+      reasoning={reasoning}
       model={message.metadata?.model}
       modelLogo={providersMap[message.metadata?.provider ?? '']?.config?.logo}
       onOpenAudit={

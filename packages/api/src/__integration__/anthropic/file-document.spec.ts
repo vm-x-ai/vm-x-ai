@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { openAIRequestToAnthropic } from '../../ai-provider/adapters/anthropic-messages.adapter';
+import { openAIRequestToAnthropic } from '../../ai-provider/anthropic/openai-chat-completion.provider';
 import type { ChatCompletionCreateParams } from 'openai/resources/index.js';
 
 /**

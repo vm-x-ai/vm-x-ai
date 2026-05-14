@@ -10,6 +10,7 @@ import { GeminiProvider } from '../../ai-provider/gemini';
 import { GeminiChatCompletionProvider } from '../../ai-provider/gemini/openai-chat-completion.provider';
 import { GeminiResponseProvider } from '../../ai-provider/gemini/openai-response.provider';
 import { GeminiAnthropicMessagesProvider } from '../../ai-provider/gemini/anthropic-messages.provider';
+import { GeminiDispatcher } from '../../ai-provider/gemini/shared';
 import { GroqProvider } from '../../ai-provider/groq';
 import { GroqChatCompletionProvider } from '../../ai-provider/groq/openai-chat-completion.provider';
 import { GroqResponseProvider } from '../../ai-provider/groq/openai-response.provider';
@@ -135,31 +136,36 @@ export const buildOpenAIProvider = () => {
 
 export const buildGeminiProvider = () => {
   const logger = makeStubLogger();
-  const chat = new GeminiChatCompletionProvider(logger);
+  // Single dispatcher reused by all three input-shape providers since
+  // Gemini now talks @google/genai natively from each input format
+  // (no internal pivot through Chat Completions).
+  const dispatcher = new GeminiDispatcher(logger);
   return new GeminiProvider(
-    chat,
-    new GeminiResponseProvider(chat),
-    new GeminiAnthropicMessagesProvider(chat)
+    new GeminiChatCompletionProvider(dispatcher),
+    new GeminiResponseProvider(dispatcher),
+    new GeminiAnthropicMessagesProvider(dispatcher)
   );
 };
 
 export const buildGroqProvider = () => {
   const logger = makeStubLogger();
   const chat = new GroqChatCompletionProvider(logger);
+  const responses = new GroqResponseProvider(logger);
   return new GroqProvider(
     chat,
-    new GroqResponseProvider(chat),
-    new GroqAnthropicMessagesProvider(chat)
+    responses,
+    new GroqAnthropicMessagesProvider(responses)
   );
 };
 
 export const buildPerplexityProvider = () => {
   const logger = makeStubLogger();
   const chat = new PerplexityChatCompletionProvider(logger);
+  const responses = new PerplexityResponseProvider(logger);
   return new PerplexityProvider(
     chat,
-    new PerplexityResponseProvider(chat),
-    new PerplexityAnthropicMessagesProvider(chat)
+    responses,
+    new PerplexityAnthropicMessagesProvider(responses)
   );
 };
 
@@ -180,7 +186,7 @@ export const buildBedrockProvider = () => {
   const dispatcher = new AWSBedrockConverseDispatcher(logger, config);
   return new AWSBedrockProvider(
     config,
-    new AWSBedrockConverseOpenAICompletionProvider(dispatcher),
+    new AWSBedrockConverseOpenAICompletionProvider(dispatcher, logger),
     new AWSBedrockConverseOpenAIResponseProvider(dispatcher),
     new AWSBedrockConverseAnthropicMessagesProvider(dispatcher)
   );

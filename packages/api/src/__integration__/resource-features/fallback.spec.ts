@@ -187,4 +187,101 @@ describe('AI-Resource fallback', () => {
       service.completion('ws-1', 'env-1', baseRequest)
     ).rejects.toThrow(/no fallback available/);
   });
+
+  describe('useFallback toggle', () => {
+    it('does not iterate past the primary when useFallback=false and primary fails', async () => {
+      const resource = {
+        resourceId: 'res-1',
+        workspaceId: 'ws-1',
+        environmentId: 'env-1',
+        name: 'default',
+        description: null,
+        model: { provider: 'openai', model: 'primary', connectionId: 'conn-1' },
+        fallbackModels: [
+          {
+            provider: 'anthropic',
+            model: 'fallback-1',
+            connectionId: 'conn-1',
+          },
+          { provider: 'gemini', model: 'fallback-2', connectionId: 'conn-1' },
+        ],
+        secondaryModels: [],
+        routing: null,
+        capacity: [],
+        useFallback: false,
+      } as never;
+      const { service, spies } = buildCompletionFlowHarness({
+        resource,
+        providerThrows: new Error('primary boom'),
+      });
+      await expect(
+        service.completion('ws-1', 'env-1', baseRequest)
+      ).rejects.toThrow(/primary boom/);
+      // Only the primary leg should have been attempted — no fallback
+      // calls despite two fallback entries being declared on the entity.
+      expect(spies.providerCompletion).toHaveBeenCalledTimes(1);
+      const onlyCallModel = spies.providerCompletion.mock.calls[0]?.[2] as {
+        model: string;
+      };
+      expect(onlyCallModel.model).toBe('primary');
+    });
+
+    it('still applies the primary model maxRetries when useFallback=false', async () => {
+      const { service, spies } = buildCompletionFlowHarness({
+        resource: {
+          resourceId: 'res-1',
+          workspaceId: 'ws-1',
+          environmentId: 'env-1',
+          name: 'default',
+          model: {
+            provider: 'openai',
+            model: 'primary',
+            connectionId: 'conn-1',
+            maxRetries: 5,
+            timeoutMs: 1234,
+          },
+          fallbackModels: [
+            {
+              provider: 'anthropic',
+              model: 'fallback-1',
+              connectionId: 'conn-1',
+              maxRetries: 9,
+            },
+          ],
+          secondaryModels: [],
+          routing: null,
+          capacity: [],
+          useFallback: false,
+        } as never,
+        providerThrows: new Error('primary boom'),
+      });
+      await expect(
+        service.completion('ws-1', 'env-1', baseRequest)
+      ).rejects.toThrow(/primary boom/);
+      expect(spies.providerCompletion).toHaveBeenCalledTimes(1);
+      const primaryOpts = spies.providerCompletion.mock.calls[0]?.[3] as {
+        maxRetries: number;
+        timeoutMs: number;
+      };
+      expect(primaryOpts.maxRetries).toBe(5);
+      expect(primaryOpts.timeoutMs).toBe(1234);
+    });
+
+    it('runs the fallback chain when useFallback=true (regression guard)', async () => {
+      const { service, spies } = buildCompletionFlowHarness({
+        resource: buildResource({ provider: 'openai', model: 'primary' }, [
+          { provider: 'anthropic', model: 'fallback-1' },
+        ]),
+      });
+      let n = 0;
+      spies.providerCompletion.mockImplementation(async () => {
+        n += 1;
+        if (n === 1) throw new Error('primary fail');
+        return successResponse('cmpl_fb', 'fallback-1');
+      });
+      const result = await service.completion('ws-1', 'env-1', baseRequest);
+      expect(spies.providerCompletion).toHaveBeenCalledTimes(2);
+      expect((result.data as { id: string }).id).toBe('cmpl_fb');
+    });
+  });
 });

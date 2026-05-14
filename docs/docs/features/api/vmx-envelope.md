@@ -69,7 +69,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="<vmx-api-key>",
-    base_url="http://localhost:3000/v1/completion/<workspace>/<environment>",
+    base_url="http://localhost:3030/api/v1/completion/<workspace>/<environment>",
 )
 
 response = client.chat.completions.create(
@@ -93,7 +93,7 @@ import OpenAI from 'openai';
 
 const client = new OpenAI({
   apiKey: '<vmx-api-key>',
-  baseURL: 'http://localhost:3000/v1/completion/<workspace>/<environment>',
+  baseURL: 'http://localhost:3030/api/v1/completion/<workspace>/<environment>',
 });
 
 const completion = await client.chat.completions.create({
@@ -122,7 +122,7 @@ import anthropic
 
 client = anthropic.Anthropic(
     api_key="<vmx-api-key>",
-    base_url="http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic",
+    base_url="http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic",
 )
 
 message = client.messages.create(
@@ -146,7 +146,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
   apiKey: '<vmx-api-key>',
-  baseURL: 'http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic',
+  baseURL: 'http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic',
 });
 
 const message = await client.messages.create({
@@ -161,12 +161,32 @@ const message = await client.messages.create({
   </TabItem>
 </Tabs>
 
+### Headers fallback — `x-vmx-*`
+
+For SDKs that fully own the request body (notably the Claude Code CLI
+and Claude Agent SDK, which pin every byte of the outgoing
+`/anthropic/messages` body), the gateway also accepts two envelope
+fields as **request headers** and folds them back onto
+`body.vmx` before routing:
+
+| Header                 | Maps to               |
+| ---------------------- | --------------------- |
+| `x-vmx-correlation-id` | `vmx.correlationId`   |
+| `x-vmx-metadata-<key>` | `vmx.metadata[<key>]` |
+
+Body always wins on a key collision; metadata is unioned across the
+two sources. The rest of the envelope (`resourceConfigOverrides`,
+`providerArgs`, `secondaryModelIndex`, `timeoutMs`) is body-only —
+either too structured for a flat header map or rarely useful as an
+environment default. See the Claude Agent SDK examples in this repo
+for the typical `ANTHROPIC_CUSTOM_HEADERS` env recipe.
+
 ### cURL (any endpoint)
 
 `vmx` is just a top-level JSON field; nothing special:
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -238,18 +258,81 @@ can't express, drop it on `vmx.providerArgs`. The gateway merges it on
 top of the parsed body so the field reaches the upstream SDK
 unchanged.
 
-| Provider   | Common `providerArgs`                                                                                                                        |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Perplexity | `{ "search_recency_filter": "week" }`, `{ "search_domain_filter": [...] }`, `{ "search_after_date_filter": "2024-01-01" }`                   |
-| Anthropic  | `{ "top_k": 10 }`, `{ "thinking": { "type": "enabled", "budget_tokens": 5000 } }` (note: also expressible natively on `/anthropic/messages`) |
-| Gemini     | `{ "safetySettings": [...] }`, `{ "responseMimeType": "application/json" }`                                                                  |
-| OpenAI     | `{ "service_tier": "scale" }`, `{ "user": "user-7e9..." }`                                                                                   |
-| Groq       | `{ "service_tier": "on_demand" }`                                                                                                            |
+| Provider   | Common `providerArgs`                                                                                                                                                                                                                               |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Perplexity | `{ "search_recency_filter": "week" }`, `{ "search_domain_filter": [...] }`, `{ "search_after_date_filter": "2024-01-01" }`                                                                                                                          |
+| Anthropic  | `{ "top_k": 10 }`, `{ "thinking": { "type": "enabled", "budget_tokens": 5000 } }` (note: also expressible natively on `/anthropic/messages`)                                                                                                        |
+| Gemini     | `{ "safetySettings": [...] }`, `{ "responseModalities": [...] }`, `{ "mediaResolution": "..." }`, `{ "speechConfig": {...} }`, `{ "cachedContent": "..." }`, `{ "labels": {...} }`, `{ "thinkingConfig": {...} }`, `{ "tools": [...] }` (see below) |
+| OpenAI     | `{ "service_tier": "scale" }`, `{ "user": "user-7e9..." }`                                                                                                                                                                                          |
+| Groq       | `{ "service_tier": "on_demand" }`                                                                                                                                                                                                                   |
 
 `providerArgs` wins over both `defaultArgs` (resource-level) and the
 parsed request body — even for structured fields like `messages` and
 `tools`. If you set `providerArgs.messages`, that completely replaces
 the parsed `messages` array.
+
+### Gemini quirk: provider-args key allowlist
+
+Gemini is the one provider that doesn't merge `providerArgs` onto the
+wire body verbatim — its SDK takes a strongly-typed
+`GenerateContentConfig` rather than a free-form object, so the gateway
+applies a fixed allowlist. Today the allowlist is:
+
+```
+safetySettings, responseModalities, mediaResolution, speechConfig,
+audioTimestamp, cachedContent, labels, routingConfig,
+modelSelectionConfig, modelArmorConfig, serviceTier,
+enableEnhancedCivicAnswers, imageConfig, automaticFunctionCalling
+```
+
+Anything else under `vmx.providerArgs` is silently ignored by the
+Gemini providers (it still passes through the orchestrator merge, but
+the Gemini converters only copy these keys onto the SDK config). If
+you need a knob that isn't on the list, file an issue — adding a key
+is a one-line change in
+[`packages/api/src/ai-provider/gemini/shared.ts`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/ai-provider/gemini/shared.ts).
+
+### Tools-via-`providerArgs` escape hatch (Gemini-native tools)
+
+The cross-format converters map OpenAI / Anthropic tool entries onto
+Gemini's `Tool[]` shape, but that mapping is lossy — Responses'
+`web_search.user_location`, `allowed_domains`, and Vertex-only
+`excludeDomains` have no Gemini-API equivalent and get dropped. To
+reach those, push a **Gemini-native tool entry** through
+`vmx.providerArgs.tools`. The orchestrator merges `providerArgs` over
+the parsed body, so the Gemini converter sees a `tools[]` array with
+your native entries already in it. Each converter detects native
+entries by these top-level keys and forwards them unchanged:
+
+```
+googleSearch, googleSearchRetrieval, urlContext, codeExecution,
+fileSearch, computerUse, mcpServer, googleMaps, retrieval,
+functionDeclarations
+```
+
+```jsonc
+{
+  "model": "my-gemini-resource",
+  "messages": [{ "role": "user", "content": "Latest TS releases?" }],
+  "vmx": {
+    "providerArgs": {
+      "tools": [
+        {
+          "googleSearch": {
+            "timeRangeFilter": {
+              "startTime": "2026-04-01T00:00:00Z",
+              "endTime": "2026-05-01T00:00:00Z"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+Mixing native and standard entries in the same `tools[]` array is
+supported — the converter classifies each one independently.
 
 ### Example: Perplexity recency filter
 
@@ -292,7 +375,7 @@ const completion = await client.chat.completions.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -323,7 +406,11 @@ them.
 You generally don't write `__vmx_passthrough` by hand — VM-X populates
 it during request conversion. But the carrier is part of the wire shape
 and shows up in `providerRequestPayload` audit rows, so it's useful to
-know what's there.
+know what's there. Both `vmx` and `__vmx_passthrough` are stripped from
+the body by `stripPassthroughEnvelope` immediately before the provider
+SDK is invoked, so strict OpenAI-compat upstreams (Groq, Perplexity,
+the Anthropic OpenAI shim, Gemini's OpenAI bridge) that reject unknown
+top-level fields never see them.
 
 ```jsonc
 {

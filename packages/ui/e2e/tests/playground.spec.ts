@@ -112,16 +112,18 @@ test.describe.serial('AI Resource playground — UI controls', () => {
     await expect(streaming).toBeVisible();
     await expect(webSearch).toBeVisible();
 
-    // Switching to Responses disables the Streaming switch.
+    // Streaming is supported on every surface — Chat Completions
+    // streams natively, Responses streams via OpenAI Responses, and
+    // Anthropic Messages streams via the `@ai-sdk/anthropic` provider
+    // (Anthropic `thinking_delta` deltas land as AI SDK
+    // `reasoning-delta` chunks). The Streaming toggle stays enabled
+    // across all three.
     await responses.click();
-    await expect(streaming).toBeDisabled();
+    await expect(streaming).toBeEnabled();
 
-    // Switching to Anthropic Messages also disables Streaming
-    // (Anthropic SSE event-shape mapping is Phase 11B follow-up).
     await anthropic.click();
-    await expect(streaming).toBeDisabled();
+    await expect(streaming).toBeEnabled();
 
-    // Switching back to Chat Completions re-enables it.
     await chatCompletions.click();
     await expect(streaming).toBeEnabled();
 

@@ -223,8 +223,8 @@ describe('OpenAI Responses ↔ Anthropic signature round-trip (T2)', () => {
 });
 
 describe('Bedrock-Converse Resp adapter signature round-trip (T2)', () => {
-  it('Resp→Converse request: prior reasoning item carries signature into reasoningContent', () => {
-    const body = requestResponsesToConverse(
+  it('Resp→Converse request: prior reasoning item carries signature into reasoningContent', async () => {
+    const body = await requestResponsesToConverse(
       {
         model: 'us.anthropic.claude-haiku-4-5',
         input: [

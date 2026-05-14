@@ -298,6 +298,9 @@ It includes one file per scenario:
 - `object.ts` — `generateObject` with a Zod schema
 - `vmx-envelope.ts` — custom `fetch` wrapper that injects `correlationId`
   / `metadata` / `timeoutMs` into the request body
+- `config.ts` — shared helper that loads `.env.local` and computes the
+  `…/{ws}/{env}` and `…/{ws}/{env}/anthropic` base URLs reused by every
+  scenario file above
 
 To get started:
 

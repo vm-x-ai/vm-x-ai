@@ -1,44 +1,105 @@
-# Provider Integration Tests
+# API Test Suite
 
-The API package ships a live integration suite that hits real provider APIs
-through the VM-X provider classes. It's opt-in so default `nx run api:test`
-stays free and offline.
+The `api` package's vitest setup is split into three test **projects**
+(declared in [`packages/api/vite.config.ts`](../packages/api/vite.config.ts))
+and surfaced as nx target **configurations**
+(declared in [`nx.json`](../nx.json) `targetDefaults.test.configurations`).
 
-Source: [`packages/api/src/__integration__/`](../packages/api/src/__integration__/README.md)
-(the suite has its own README with the coverage matrix).
+| nx configuration          | vitest project(s)                                 | Hits the network? | Typical runtime |
+| ------------------------- | ------------------------------------------------- | ----------------- | --------------- |
+| `api:test:unit` (default) | `unit`                                            | No                | ~1s             |
+| `api:test:integration`    | `integration`                                     | No                | ~5s             |
+| `api:test:live`           | `live`                                            | Yes               | minutes         |
+| `api:test:all`            | `unit` + `integration` + `live`                   | Yes (live cells)  | minutes         |
+| `api:test:coverage`       | `unit` + `integration` + `live` with `--coverage` | Yes               | minutes         |
 
-## Master switch
+The bare `api:test` target with no suffix runs the **`unit`** configuration
+(see `nx.targets.test.defaultConfiguration` in
+[`packages/api/package.json`](../packages/api/package.json)). That's what
+`nx affected -t test` exercises on PRs, so CI is offline by default.
 
-Without `RUN_LIVE_PROVIDER_TESTS=1`, every provider spec is skipped. The
-offline converter test (`responses/converter.spec.ts`) always runs.
+## What each project covers
+
+- **`unit`** — pure functions, adapters, detectors, single-service tests.
+  Everything under `src/**/*.{test,spec}.ts` _except_ the integration and
+  live globs below. No DI graph, no network.
+- **`integration`** — multi-service mocked-DI orchestrator specs and
+  resource-feature tests. Globs:
+  [`src/__integration__/flow/`](../packages/api/src/__integration__/flow/)
+  and
+  [`src/__integration__/resource-features/`](../packages/api/src/__integration__/resource-features/).
+  No network.
+- **`live`** — real upstream-provider HTTP calls. Globs:
+  [`src/__integration__/providers/`](../packages/api/src/__integration__/providers/),
+  [`src/__integration__/live-flow/`](../packages/api/src/__integration__/live-flow/),
+  `src/__integration__/audit-payload-capture*.spec.ts`, and
+  `src/__integration__/responses/end-to-end.spec.ts`.
+  Each spec uses `describe.skipIf(!hasKeys(...))` (see
+  [`helpers/env.ts`](../packages/api/src/__integration__/helpers/env.ts))
+  to self-skip when its provider's env var is missing — contributors with
+  only one provider key still get useful coverage. Configured with
+  `retry: 2` so transient network blips and known model-behaviour flakes
+  (Gemini-2.5-flash empty thinking output, Anthropic JSON wrapped in
+  markdown fences, missing OpenAI web-search citations) don't fail the run.
+
+## Running
 
 ```bash
-pnpm nx run api:test                        # converter test only
-RUN_LIVE_PROVIDER_TESTS=1 pnpm nx run api:test   # full live suite
+# Offline, cached, default for CI / PRs. Same as `api:test`.
+pnpm exec nx run api:test:unit
+
+# Offline mocked-DI feature specs.
+pnpm exec nx run api:test:integration
+
+# Live upstream calls — needs provider keys in `.env.local`.
+pnpm exec nx run api:test:live
+
+# All three projects in one vitest invocation (no coverage).
+pnpm exec nx run api:test:all
+
+# Combined coverage across all three projects. Report at
+# packages/api/test-output/vitest/coverage/index.html.
+pnpm exec nx run api:test:coverage
 ```
 
-## Required env vars
+### Filtering inside a project
 
-Place these in the workspace-root `.env.local` (the suite reads it
-automatically):
+Vitest's `-t` (pattern on test name) and positional path filters apply
+inside whichever project you pick:
 
-| Provider               | Required keys                        |
-| ---------------------- | ------------------------------------ |
-| OpenAI                 | `OPENAI_API_KEY`                     |
-| Anthropic              | `ANTHROPIC_API_KEY`                  |
-| Groq                   | `GROQ_API_KEY`                       |
-| Gemini                 | `GEMINI_API_KEY`                     |
-| Perplexity             | `PERPLEXITY_API_KEY`                 |
-| AWS Bedrock (Converse) | `AWS_BEDROCK_ROLE_ARN`, `AWS_REGION` |
-| AWS Bedrock (Invoke)   | `AWS_BEDROCK_ROLE_ARN`, `AWS_REGION` |
+```bash
+# Run only OpenAI live cells:
+pnpm exec nx run api:test:live -- src/__integration__/providers/openai.spec.ts
 
-Provider keys are independent — each provider's specs auto-skip when its key
-is missing. Bedrock additionally needs AWS credentials in the shell (e.g.
-`aws-vault exec my-profile -- pnpm nx run api:test`).
+# Run only tests whose name matches a regex:
+pnpm exec nx run api:test:live -- -t "tool call"
+```
 
-## Optional model overrides
+## Env vars for the `live` project
 
-Each test uses a "cheap, deterministic" default model. Override via env:
+Place keys in `.env.local` at the workspace root or in
+`packages/api/.env.local`. Nx loads both before invoking vitest; the
+project-root file additionally carries DB/Redis/`BASE_URL` config that
+the live HTTP harness's AppModule boot depends on (see
+[`packages/api/test-setup.ts`](../packages/api/test-setup.ts)).
+
+| Provider               | Required keys                                              |
+| ---------------------- | ---------------------------------------------------------- |
+| OpenAI                 | `OPENAI_API_KEY`                                           |
+| Anthropic              | `ANTHROPIC_API_KEY`                                        |
+| Groq                   | `GROQ_API_KEY`                                             |
+| Gemini                 | `GEMINI_API_KEY`                                           |
+| Perplexity             | `PERPLEXITY_API_KEY`                                       |
+| AWS Bedrock (Converse) | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
+| AWS Bedrock (Invoke)   | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
+
+Setting only a subset is fine — every other provider's cells skip via
+`describe.skipIf(!hasKeys(...))`.
+
+### Optional model overrides
+
+Each live spec uses a "cheap, deterministic" default; override per
+provider when you need to validate a different model:
 
 | Env var                        | Default                                       |
 | ------------------------------ | --------------------------------------------- |
@@ -47,22 +108,31 @@ Each test uses a "cheap, deterministic" default model. Override via env:
 | `OPENAI_REASONING_TEST_MODEL`  | `o4-mini`                                     |
 | `ANTHROPIC_TEST_MODEL`         | `claude-haiku-4-5`                            |
 | `GROQ_TEST_MODEL`              | `llama-3.3-70b-versatile`                     |
-| `GEMINI_TEST_MODEL`            | `gemini-2.5-flash`                            |
+| `GEMINI_TEST_MODEL`            | `gemini-2.5-flash-lite`                       |
 | `PERPLEXITY_TEST_MODEL`        | `sonar`                                       |
 | `PERPLEXITY_SEARCH_TEST_MODEL` | `sonar-pro`                                   |
 | `BEDROCK_TEST_MODEL`           | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
 | `BEDROCK_INVOKE_TEST_MODEL`    | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
 
-## Running a single provider
+## Where to put new tests
 
-```bash
-RUN_LIVE_PROVIDER_TESTS=1 pnpm nx run api:test -- \
-  src/__integration__/providers/openai.spec.ts
-```
+- Pure function or single-class spec → colocate next to the source as
+  `*.spec.ts`. Auto-picked up by the `unit` project as long as it isn't
+  under `src/__integration__/flow/`, `resource-features/`, `providers/`,
+  `live-flow/`, or one of the live-only path patterns.
+- Multi-service orchestrator / feature spec that wires mocked DI but
+  doesn't touch the network →
+  [`src/__integration__/flow/`](../packages/api/src/__integration__/flow/)
+  or
+  [`src/__integration__/resource-features/`](../packages/api/src/__integration__/resource-features/).
+  Joins the `integration` project automatically.
+- Real upstream call →
+  [`src/__integration__/providers/`](../packages/api/src/__integration__/providers/)
+  for direct provider-class tests, or
+  [`src/__integration__/live-flow/`](../packages/api/src/__integration__/live-flow/)
+  for AppModule-boot HTTP harness tests. Gate every `describe` with
+  `describe.skipIf(!hasKeys('<PROVIDER>_API_KEY'))`.
 
-## What the suite does NOT cover
-
-Read [`packages/api/src/__integration__/README.md`](../packages/api/src/__integration__/README.md)
-for the full coverage matrix. Notably, this suite tests provider classes
-**directly** — it doesn't go through HTTP, routing, fallback, audit writes,
-or cost calculation. End-to-end HTTP tests are tracked separately.
+See
+[`packages/api/src/__integration__/README.md`](../packages/api/src/__integration__/README.md)
+for the live coverage matrix and known gaps.

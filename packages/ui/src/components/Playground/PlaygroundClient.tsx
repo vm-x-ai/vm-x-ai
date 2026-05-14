@@ -15,6 +15,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import FormGroup from '@mui/material/FormGroup';
 import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
+import Slider from '@mui/material/Slider';
 import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -28,7 +29,10 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import Chat, { type ChatEndpointMode } from '@/components/Chat/Chat';
+import Chat, {
+  type ChatEndpointMode,
+  type ReasoningEffort,
+} from '@/components/Chat/Chat';
 import AuditDetail from '@/components/Audit/AuditDetails';
 import Editor from '@/components/Editor';
 import AppContainer from '@/components/Layout/Container';
@@ -89,9 +93,14 @@ export default function PlaygroundClient({
   const [connectionName, setConnectionName] = useState<string>('');
   const [modelName, setModelName] = useState<string>('');
   const [endpointMode, setEndpointMode] =
-    useState<ChatEndpointMode>('chat-completions');
+    useState<ChatEndpointMode>('responses');
   const [stream, setStream] = useState<boolean>(true);
   const [webSearch, setWebSearch] = useState<boolean>(false);
+  // `undefined` means "don't override" — the model uses its own default.
+  // The slider can move into one of the four tiers, or back to off.
+  const [reasoningEffort, setReasoningEffort] = useState<
+    ReasoningEffort | undefined
+  >(undefined);
   // Active request id for the in-page audit drawer. Set when the
   // user clicks "view audit details" on a bot reply; cleared when
   // they close the drawer. Null = drawer hidden.
@@ -237,6 +246,8 @@ export default function PlaygroundClient({
           onStreamChange={setStream}
           webSearch={webSearch}
           onWebSearchChange={setWebSearch}
+          reasoningEffort={reasoningEffort}
+          onReasoningEffortChange={setReasoningEffort}
         />
         <Paper
           sx={{
@@ -298,6 +309,8 @@ export default function PlaygroundClient({
         onStreamChange={setStream}
         webSearch={webSearch}
         onWebSearchChange={setWebSearch}
+        reasoningEffort={reasoningEffort}
+        onReasoningEffortChange={setReasoningEffort}
         resourcePicker={resourcePicker}
       />
       {mode === 'connection-model' && (
@@ -371,6 +384,7 @@ export default function PlaygroundClient({
               endpointMode={endpointMode}
               stream={stream}
               webSearch={webSearch}
+              reasoningEffort={reasoningEffort}
               height="calc(100vh - 18rem)"
               padding={0}
               correlationId={correlationId.trim() || undefined}
@@ -677,6 +691,26 @@ function GatewayEnvelopePanel({
   );
 }
 
+// Slider stops: 0 = off (no override), 1 = minimal, 2 = low, 3 = medium,
+// 4 = high. Encoded as integers because MUI Slider operates on numbers;
+// `EFFORT_VALUES` does the integer ↔ tier mapping.
+const EFFORT_VALUES: Array<ReasoningEffort | undefined> = [
+  undefined,
+  'minimal',
+  'low',
+  'medium',
+  'high',
+];
+
+function effortToIndex(effort: ReasoningEffort | undefined): number {
+  const idx = EFFORT_VALUES.indexOf(effort);
+  return idx >= 0 ? idx : 0;
+}
+
+function indexToEffort(idx: number): ReasoningEffort | undefined {
+  return EFFORT_VALUES[idx];
+}
+
 function PlaygroundHeader(props: {
   mode: Mode;
   onModeChange: (mode: Mode) => void;
@@ -686,6 +720,8 @@ function PlaygroundHeader(props: {
   onStreamChange: (stream: boolean) => void;
   webSearch: boolean;
   onWebSearchChange: (webSearch: boolean) => void;
+  reasoningEffort: ReasoningEffort | undefined;
+  onReasoningEffortChange: (effort: ReasoningEffort | undefined) => void;
   /**
    * Optional element rendered after the toggle/switch row — used by
    * the playground to drop the AI Resource picker right next to the
@@ -752,15 +788,6 @@ function PlaygroundHeader(props: {
             <Switch
               checked={props.stream}
               onChange={(event) => props.onStreamChange(event.target.checked)}
-              // Streaming over the Responses-API and Anthropic paths
-              // is non-trivial today (Anthropic SSE event-shape mapping
-              // is Phase 11B); the playground hooks for both modes are
-              // single-shot non-streaming, so disable the toggle so the
-              // UI accurately reflects what the call will do.
-              disabled={
-                props.endpointMode === 'responses' ||
-                props.endpointMode === 'anthropic'
-              }
             />
           }
           label="Streaming"
@@ -779,6 +806,35 @@ function PlaygroundHeader(props: {
           label="Web search"
         />
       </FormGroup>
+      <Box sx={{ minWidth: 220, px: 1 }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: 'block', lineHeight: 1 }}
+        >
+          Reasoning effort
+          {props.reasoningEffort ? `: ${props.reasoningEffort}` : ': off'}
+        </Typography>
+        <Slider
+          size="small"
+          value={effortToIndex(props.reasoningEffort)}
+          onChange={(_, v) => {
+            const next = Array.isArray(v) ? v[0] : v;
+            props.onReasoningEffortChange(indexToEffort(next));
+          }}
+          min={0}
+          max={EFFORT_VALUES.length - 1}
+          step={1}
+          marks={[
+            { value: 0, label: 'off' },
+            { value: 1, label: 'min' },
+            { value: 2, label: 'low' },
+            { value: 3, label: 'med' },
+            { value: 4, label: 'high' },
+          ]}
+          aria-label="Reasoning effort"
+        />
+      </Box>
       {props.resourcePicker}
     </Paper>
   );

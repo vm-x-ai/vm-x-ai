@@ -1,8 +1,6 @@
 import Anthropic, { APIError, RateLimitError } from '@anthropic-ai/sdk';
 import type {
   Message,
-  MessageCreateParamsNonStreaming,
-  MessageCreateParamsStreaming,
   RawMessageStreamEvent,
 } from '@anthropic-ai/sdk/resources/messages';
 import { HttpStatus, Injectable } from '@nestjs/common';
@@ -19,11 +17,11 @@ import { CompletionError } from '../../gateway/completion.types';
 import { ErrorCode } from '../../error-code';
 import { throwServiceError } from '../../error';
 import type { AnthropicMessagesRequest } from '../../gateway/anthropic/anthropic.types';
+import { assertClaudeModel } from '../adapters/anthropic-messages.adapter';
 import {
   anthropicResponseToChatCompletion,
   anthropicStreamToChatCompletionChunks,
-  assertClaudeModel,
-} from '../adapters/anthropic-messages.adapter';
+} from './openai-chat-completion.provider';
 
 export type AnthropicConnectionConfig = {
   apiKey: string;
@@ -48,7 +46,7 @@ function liftBetasToHeader(body: AnthropicMessagesRequest): {
     return { body, betaHeader: undefined };
   }
   return {
-    body: rest as AnthropicMessagesRequest,
+    body: rest,
     betaHeader: { 'anthropic-beta': betas.join(',') },
   };
 }
@@ -229,9 +227,25 @@ export class AnthropicDispatcher {
     model: AIResourceModelConfigEntity,
     options?: CompletionRequestOptions
   ): Promise<AnthropicMessagesResponse> {
-    assertClaudeModel(model.model);
-    const client = await createAnthropicClient(connection);
     this.logger.info({ body }, 'Anthropic request body');
+
+    // Run the gates INSIDE the try so a non-Claude model id or a
+    // missing apiKey still attaches `providerRequestPayload` on the
+    // resulting CompletionError — audit invariant: every error path
+    // surfaces the wire body the dispatcher was about to send.
+    let client: Anthropic;
+    try {
+      assertClaudeModel(model.model);
+      client = await createAnthropicClient(connection);
+    } catch (error) {
+      if (error instanceof CompletionError) {
+        if (error.data.providerRequestPayload === undefined) {
+          error.data.providerRequestPayload = body;
+        }
+        throw error;
+      }
+      handleAnthropicError(error, body, this.logger);
+    }
 
     try {
       if (body.stream) {
@@ -241,24 +255,29 @@ export class AnthropicDispatcher {
           options?.forwardHeaders,
           streamBetaHeader
         );
-        const sdkStream = client.messages.stream(
-          streamBody as MessageCreateParamsStreaming,
-          {
-            signal: options?.signal,
-            // Anthropic SDK has a first-class per-request `timeout` —
-            // pass the gateway-clamped deadline through so internal
-            // SDK retries share the budget and a timeout surfaces as
-            // an `APITimeoutError` rather than a generic AbortError.
-            ...(options?.timeoutMs != null
-              ? { timeout: options.timeoutMs }
-              : {}),
-            // T18: same caller-header forwarding on the streaming path.
-            ...(streamHeaders ? { headers: streamHeaders } : {}),
-          }
-        );
-        const requestId = (sdkStream as { request_id?: string }).request_id;
+        const sdkStream = client.messages.stream(streamBody, {
+          signal: options?.signal,
+          // Anthropic SDK has a first-class per-request `timeout` —
+          // pass the gateway-clamped deadline through so internal
+          // SDK retries share the budget and a timeout surfaces as
+          // an `APITimeoutError` rather than a generic AbortError.
+          ...(options?.timeoutMs != null ? { timeout: options.timeoutMs } : {}),
+          // T18: same caller-header forwarding on the streaming path.
+          ...(streamHeaders ? { headers: streamHeaders } : {}),
+        });
+        // `MessageStream.request_id` is a synchronous getter that's
+        // `undefined` until the underlying fetch has received its
+        // response headers — reading it inline (the previous shape)
+        // always returned `undefined`, leaving the audit row's
+        // `x-request-id` empty on every streaming call. The SDK's
+        // `.withResponse()` is documented as the canonical way to
+        // observe the request id; it awaits the response object
+        // (cheap — just the headers, not the body) and exposes the id
+        // alongside the same `MessageStream` we'd otherwise return.
+        const { data: streamWithId, request_id: requestId } =
+          await sdkStream.withResponse();
         return {
-          data: this.iterateSdkStream(sdkStream, body),
+          data: this.iterateSdkStream(streamWithId, body),
           headers: requestId ? { 'x-request-id': requestId } : {},
           providerRequestPayload: body,
         };
@@ -281,7 +300,7 @@ export class AnthropicDispatcher {
         response: rawResponse,
         request_id,
       } = await client.messages
-        .create(bodyForWire as MessageCreateParamsNonStreaming, {
+        .create(bodyForWire, {
           signal: options?.signal,
           // Native per-request timeout — see the streaming branch.
           ...(options?.timeoutMs != null ? { timeout: options.timeoutMs } : {}),
@@ -298,7 +317,7 @@ export class AnthropicDispatcher {
         headers['x-request-id'] = request_id;
       }
       return {
-        data: response as Message,
+        data: response,
         headers,
         providerRequestPayload: body,
       };
@@ -366,24 +385,4 @@ export class AnthropicDispatcher {
   }
 }
 
-/**
- * Strip the gateway's `vmx` envelope and the cross-format
- * `__vmx_passthrough` carrier from an Anthropic body before it
- * touches the wire. Anthropic rejects unknown top-level fields with a
- * 400 (`vmx: Extra inputs are not permitted`).
- */
-export function stripGatewayEnvelopes(
-  request: AnthropicMessagesRequest
-): AnthropicMessagesRequest {
-  const {
-    vmx: _vmx,
-    __vmx_passthrough: _envelope,
-    ...rest
-  } = request as AnthropicMessagesRequest & {
-    vmx?: unknown;
-    __vmx_passthrough?: unknown;
-  };
-  void _vmx;
-  void _envelope;
-  return rest as AnthropicMessagesRequest;
-}
+export { stripPassthroughEnvelope as stripGatewayEnvelopes } from '../passthrough.helpers';

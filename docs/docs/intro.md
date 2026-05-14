@@ -4,19 +4,19 @@ sidebar_position: 1
 
 # Introduction to VM-X AI
 
-**VM-X AI** is a comprehensive management layer for AI workloads, designed to centralize and optimize your interactions with multiple AI providers. Whether you're building applications that need to route requests intelligently, manage capacity across providers, or ensure high availability through fallback mechanisms, VM-X AI provides the infrastructure and tools you need.
+**VM-X AI** is a **multi-surface AI gateway** that sits between your applications and every major LLM provider. Send your traffic in the SDK shape you already use — OpenAI Chat Completions, OpenAI Responses, or Anthropic Messages — and VM-X routes it to the right provider, converts the wire format when the client and upstream don't match natively, enforces capacity, and writes a request-level audit row to Postgres for every call.
 
 ## What is VM-X AI?
 
-VM-X AI is a server and UI application that acts as a **routing and management layer** for AI workloads. It enables you to:
+VM-X AI is a server + UI that acts as a **routing, conversion, and management layer** for AI workloads. It enables you to:
 
-- **Centralize AI Access**: Manage all your AI provider credentials and connections in one place
-- **Intelligent Routing**: Route requests to different providers based on dynamic conditions (token count, error rates, request characteristics)
-- **Automatic Fallback**: Ensure high availability by automatically falling back to alternative providers when primary ones fail
-- **Capacity Management**: Define and enforce custom capacity limits (RPM, TPM) per connection and resource
-- **Prioritization**: Allocate capacity across multiple resources using sophisticated prioritization algorithms
-- **Usage Analytics**: Track every request via Postgres-backed audit logs aggregated on demand into usage dashboards
-- **OpenAI Compatibility**: Use the standard OpenAI SDK to connect to VM-X and access any supported provider
+- **Three client surfaces, one gateway**: Speak OpenAI Chat Completions, OpenAI Responses, or Anthropic Messages — VM-X converts between surfaces when needed and preserves the upstream wire format verbatim when it doesn't.
+- **Centralize AI access**: Manage credentials, capacity, and routing for every provider in one place.
+- **Intelligent routing**: Route requests dynamically based on token count, tool usage, error rates, or any expression over the request shape.
+- **Automatic fallback**: Cascade through alternative connections when a primary provider errors or runs out of capacity.
+- **Capacity & prioritization**: Per-connection and per-resource RPM/TPM limits with weighted prioritization across resources.
+- **Usage analytics**: Every request is stored in the Postgres `request_audit` table and rolled up on demand into dashboards.
+- **SDK compatibility**: Drop-in for the OpenAI, Anthropic, Vercel AI, LangChain, and Claude Agent SDKs.
 
 ## The Problem We Solve
 
@@ -147,35 +147,37 @@ VM-X AI is ideal for:
 
 ## Supported AI Providers
 
-VM-X AI currently supports seven providers:
+VM-X AI currently supports seven providers, each implemented with **per-surface converter classes** under `packages/api/src/ai-provider/<provider>/`:
 
-- **OpenAI** — GPT and o-series models
-- **Anthropic** — Claude models, native SDK with full feature support (`cache_control`, extended `thinking`, server tools, …)
-- **Google Gemini** — via Google's OpenAI-compatible endpoint
-- **Groq** — high-performance Llama / Mixtral / Gemma inference
-- **Perplexity** — search-augmented Sonar models with citations
-- **AWS Bedrock (Converse)** — every Bedrock foundation model (Claude, Llama, Mistral, Nova, …) under the unified Converse API
-- **AWS Bedrock-Invoke** — Claude on AWS via the InvokeModel API with full Anthropic Messages passthrough (cache markers, thinking, server tools survive)
+- **OpenAI** — GPT and o-series. Native on Chat Completions and Responses; Anthropic Messages traffic is converted via Responses.
+- **Anthropic** — Claude models, native Messages SDK with full feature support (`cache_control`, extended `thinking`, server tools, …).
+- **Google Gemini** — native `@google/genai` SDK. Tools, file inputs, and web search use Gemini-native shapes (`googleSearch.timeRangeFilter`, `code_execution`, etc.).
+- **Groq** — high-performance Llama / Mixtral / Gemma inference. Native Responses API support.
+- **Perplexity** — search-augmented Sonar models with citations. Native Responses API support; web search via `tools[].filters`.
+- **AWS Bedrock (Converse)** — every Bedrock foundation model (Claude, Llama, Mistral, Nova, …) under the unified Converse API.
+- **AWS Bedrock-Invoke** — Claude on AWS via `InvokeModel` with full Anthropic Messages passthrough (cache markers, `thinking`, server tools survive).
 
-See the [LLM Providers](./integrations/providers/index.md) index for
-the side-by-side capability matrix and per-provider pages.
+For each provider, the gateway picks the converter matching the **inbound surface** the client called:
 
-## Supported Operations
+- [`chat-completion.provider.ts`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider) — inbound OpenAI Chat Completions
+- [`openai-response.provider.ts`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider) — inbound OpenAI Responses
+- [`anthropic-messages.provider.ts`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider) — inbound Anthropic Messages
 
-VM-X exposes three completion endpoints; you can hit each provider
-through any of them, with the gateway converting shapes when the
-client SDK and the upstream don't match natively:
+When the inbound surface matches the upstream natively, the gateway forwards the upstream payload **verbatim** (no normalization of provider quirks). Live integration specs in [`packages/api/src/__integration__/providers/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/__integration__/providers) are the source of truth for every cell.
 
-- **Chat Completions** — `POST /v1/completion/{ws}/{env}/chat/completions`. The classic OpenAI shape.
-- **Anthropic Messages** — `POST /v1/completion/{ws}/{env}/anthropic/messages`. The full Anthropic Messages API; passes through verbatim to Anthropic + Bedrock-Invoke connections.
-- **Responses** — `POST /v1/completion/{ws}/{env}/responses`. OpenAI's typed-events Responses API.
+See the [LLM Providers](./integrations/providers/index.md) index for the side-by-side capability matrix and per-provider pages.
 
-See [API Endpoints](./features/api/index.md) for the contract,
-client examples, and the `vmx` envelope (correlation IDs, custom
-metadata, per-request timeouts, provider-native `providerArgs`).
+## Supported Surfaces
 
-Future versions will add additional operations like embeddings,
-fine-tuning, and more.
+VM-X exposes three completion endpoints. Any provider can be reached through any of them; the matching converter handles the surface conversion:
+
+- **OpenAI Chat Completions** — `POST /v1/completion/{ws}/{env}/chat/completions`
+- **OpenAI Responses** — `POST /v1/completion/{ws}/{env}/responses` (typed-events surface; `web_search` tool, not `web_search_preview`)
+- **Anthropic Messages** — `POST /v1/completion/{ws}/{env}/anthropic/messages` (also exposed at `…/anthropic/v1/messages`); passes through verbatim to Anthropic + Bedrock-Invoke
+
+Every request can carry a [`vmx` envelope](./features/api/vmx-envelope.md) (correlation ID, metadata, timeouts, `resourceConfigOverrides`) or a `__vmx_passthrough` marker. `vmx.providerArgs` injects provider-native fields directly into the upstream payload without going through the converter — handy for surface-specific knobs your SDK doesn't expose.
+
+See [API Endpoints](./features/api/index.md) for the contract and client examples.
 
 ## Key Concepts
 
@@ -187,17 +189,18 @@ VM-X AI is organized around several key concepts:
 - **AI Resources**: Logical endpoints with routing and fallback rules
 - **Users & Roles**: Fine-grained access control with policy-based permissions
 - **API Keys**: Authentication tokens scoped to resources and environments
+- **Playground**: Per-environment in-UI tester for all three surfaces and every connection (see [Playground](./features/playground.md))
 
 ## Architecture Overview
 
 VM-X AI consists of:
 
-- **API Server** (NestJS) - Backend service handling all AI requests, routing, and management
-- **UI Application** (Next.js) - Web interface for configuration and monitoring
-- **PostgreSQL** - Single source of truth for configuration, audit logs, and usage analytics (the `request_audit` table is aggregated on demand for dashboards)
-- **Redis** (cluster mode) - Caching and capacity / prioritization counters
-- **AWS KMS / Libsodium** - Encryption for sensitive credentials
-- **OpenTelemetry** (optional) - Application observability via OTel collector → Jaeger / Prometheus / Loki / Grafana, decoupled from usage data
+- **API Server** (NestJS) — handles request conversion, routing, fallback, capacity, audit, and admin APIs. Local port `3030`; in-container port `3000`.
+- **UI Application** (Next.js) — admin console + playground. Local port `3001`.
+- **PostgreSQL** — single source of truth for configuration and the `request_audit` table; usage dashboards aggregate this table on demand.
+- **Redis** (cluster mode, 3 nodes) — capacity / prioritization counters and short-lived caches.
+- **AWS KMS or Libsodium** — encryption for connection credentials at rest.
+- **OpenTelemetry** (optional) — application observability via OTel collector → Jaeger / Prometheus / Loki / Grafana (or any OTel backend). Fully decoupled from the audit pipeline; disabling OTel does not affect usage data.
 
 ## Next Steps
 
@@ -206,4 +209,4 @@ Ready to get started? Check out:
 - [Core Components](./core-components.md) - Learn about AI Connections and AI Resources
 - [Architecture](./architecture.md) - Understand the technical stack
 - [Getting Started](./getting-started.md) - Deploy VM-X AI locally with Docker Compose
-- [Deployment Guides](../deployment/minikube) - Deploy to Kubernetes or AWS
+- [Deployment Guides](./deployment/minikube.md) - Deploy to Kubernetes or AWS

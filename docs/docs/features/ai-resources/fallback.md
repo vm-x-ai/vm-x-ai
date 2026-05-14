@@ -66,10 +66,27 @@ In practice this includes:
   also be denied, so configure your fallback chain across
   different providers / connections to get real failover.
 
-Each failed leg records a `fallback` audit event with the failed
-model, the upstream status code, and the error message — visible
-in the audit log and on the response's
-`x-vmx-event-{i}-fallback-*` headers.
+Each failed leg records a `fallback` audit event carrying the
+failed model, upstream status code, failure reason, error message,
+and any provider response headers — all preserved on the audit
+row. The response surfaces a compact subset via
+`x-vmx-event-{i}-fallback-failed-model` and
+`x-vmx-event-{i}-fallback-failure-reason` (one pair per failed
+leg, ordered by `x-vmx-event-count`); the full per-leg detail
+lives on the audit row.
+
+### Surface-preserving dispatch
+
+The inbound wire format the client used — Chat Completions,
+Responses, or Anthropic Messages — is preserved across every leg
+of the fallback chain. Each provider's three-method dispatch
+(`openAICompletion` / `openAIResponse` / `anthropicMessages`)
+takes the body verbatim and either passes it through or converts
+it to the provider's native shape, so a request that landed on
+`/v1/messages` will be tried as Anthropic Messages on the primary
+and on every fallback, regardless of which provider each leg
+targets. Cross-**provider** failover is fully supported; the legs
+just don't change surface mid-request.
 
 ## Fallback Chain Example
 

@@ -167,7 +167,7 @@ export class CompletionBatchController {
     @WorkspaceIdParam() workspaceId: string,
     @EnvironmentIdParam() environmentId: string,
     @BatchIdParam() batchId: string,
-    @Param('batchId', new ParseUUIDPipe({ version: '4' })) itemId: string
+    @Param('itemId', new ParseUUIDPipe({ version: '4' })) itemId: string
   ): Promise<CompletionBatchItemEntity> {
     return await this.completionBatchItemService.getById({
       workspaceId,

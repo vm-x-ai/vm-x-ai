@@ -59,9 +59,16 @@ export class OpenAIChatCompletionProvider {
     // Captured here so it's available to every error path — the audit
     // row's `providerRequestPayload` carries this even when the SDK
     // throws, so ops can debug parsing issues without re-running.
+    //
+    // `stream_options.include_usage` is force-enabled on every stream
+    // so the gateway's billing path sees the final usage chunk —
+    // merge over any caller-supplied `stream_options` instead of
+    // replacing, so sibling fields (`include_obfuscation`) survive.
     const requestBody = {
       ...sanitised,
-      stream_options: sanitised.stream ? { include_usage: true } : undefined,
+      stream_options: sanitised.stream
+        ? { ...(sanitised.stream_options ?? {}), include_usage: true }
+        : undefined,
       model: model.model,
     };
     try {

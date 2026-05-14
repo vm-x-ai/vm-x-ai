@@ -6,15 +6,13 @@ import {
   CompletionRequestOptions,
 } from '../ai-provider.types';
 import type { AnthropicMessagesRequest } from '../../gateway/anthropic/anthropic.types';
-import { dispatchAnthropicMessagesViaOpenAICompat } from '../gemini/anthropic-messages.provider';
-import { GroqChatCompletionProvider } from './openai-chat-completion.provider';
+import { dispatchAnthropicMessagesViaOpenAIResponses } from '../openai/anthropic-via-responses';
+import { GroqResponseProvider } from './openai-response.provider';
 import type { OpenAIConnectionConfig } from '../openai/shared';
 
 @Injectable()
 export class GroqAnthropicMessagesProvider {
-  constructor(
-    private readonly chatCompletionProvider: GroqChatCompletionProvider
-  ) {}
+  constructor(private readonly responseProvider: GroqResponseProvider) {}
 
   handle(
     request: AnthropicMessagesRequest,
@@ -22,8 +20,8 @@ export class GroqAnthropicMessagesProvider {
     model: AIResourceModelConfigEntity,
     options?: CompletionRequestOptions
   ): Promise<AnthropicMessagesResponse> {
-    return dispatchAnthropicMessagesViaOpenAICompat(
-      this.chatCompletionProvider,
+    return dispatchAnthropicMessagesViaOpenAIResponses(
+      this.responseProvider,
       request,
       connection,
       model,

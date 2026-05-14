@@ -1,9 +1,4 @@
-import type {
-  ResponseCreateParams,
-  ResponseCreateParamsNonStreaming,
-  ResponseCreateParamsStreaming,
-  ResponseStreamEvent,
-} from 'openai/resources/responses/responses.js';
+import type { ResponseCreateParams } from 'openai/resources/responses/responses.js';
 import OpenAI, { APIError, RateLimitError } from 'openai';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
@@ -20,6 +15,7 @@ import {
   extractRateLimitResetTime,
   filterRelevantHeaders,
 } from './shared';
+import { stripPassthroughEnvelope } from '../passthrough.helpers';
 
 /**
  * OpenAI Responses input handler — native passthrough.
@@ -61,7 +57,7 @@ export class OpenAIResponseProvider {
     const client = await this.createClient(connection);
     // OpenAI rejects unknown top-level fields — drop the gateway
     // envelopes (`vmx` / `__vmx_passthrough`) the SDK doesn't know.
-    const sanitised = stripResponsesEnvelopes(request);
+    const sanitised = stripPassthroughEnvelope(request);
     const requestBody: ResponseCreateParams = {
       ...sanitised,
       model: model.model,
@@ -86,18 +82,18 @@ export class OpenAIResponseProvider {
 
       if (requestBody.stream) {
         const streaming = await client.responses
-          .create(requestBody as ResponseCreateParamsStreaming, sdkOptions)
+          .create(requestBody, sdkOptions)
           .withResponse();
         const headers = filterRelevantHeaders(streaming.response.headers);
         return {
-          data: streaming.data as unknown as AsyncIterable<ResponseStreamEvent>,
+          data: streaming.data,
           headers,
           providerRequestPayload: requestBody,
         };
       }
 
       const response = await client.responses
-        .create(requestBody as ResponseCreateParamsNonStreaming, sdkOptions)
+        .create(requestBody, sdkOptions)
         .withResponse();
       const headers = filterRelevantHeaders(response.response.headers);
       return {
@@ -169,25 +165,4 @@ export class OpenAIResponseProvider {
       );
     }
   }
-}
-
-/**
- * Drop gateway-specific envelopes (`vmx`, `__vmx_passthrough`) from
- * a Responses-shape request before sending to OpenAI. The OpenAI SDK
- * rejects unknown top-level fields with a 400.
- */
-function stripResponsesEnvelopes(
-  request: ResponseCreateParams
-): ResponseCreateParams {
-  const {
-    vmx: _vmx,
-    __vmx_passthrough: _envelope,
-    ...rest
-  } = request as ResponseCreateParams & {
-    vmx?: unknown;
-    __vmx_passthrough?: unknown;
-  };
-  void _vmx;
-  void _envelope;
-  return rest as ResponseCreateParams;
 }
