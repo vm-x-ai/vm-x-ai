@@ -43,7 +43,23 @@ describe('GroqChatCompletionProvider', () => {
     const provider = new TestableGroqProvider(makeLogger());
     const client = await provider.callCreateClient(makeConnection());
     expect(client).toBeInstanceOf(OpenAI);
-    // OpenAI SDK exposes `baseURL` as a public field on the instance.
-    expect(client.baseURL).toContain('api.groq.com');
+    // Pin the *full* OpenAI-compat path. Groq's chat completions live
+    // at `/openai/v1` — a regression that dropped the path suffix and
+    // pointed at the bare host would 404 on every request but a looser
+    // `toContain('api.groq.com')` would still pass.
+    expect(client.baseURL).toBe('https://api.groq.com/openai/v1');
+  });
+
+  it('createClient rejects when the connection config has no API key', async () => {
+    // The shared `createOpenAIClient` factory enforces this invariant
+    // for every OpenAI-compat sibling (OpenAI, Gemini, Groq, Perplexity).
+    // Pinning here guards against a future Groq-specific override that
+    // forgets to delegate (e.g. instantiating `new OpenAI(...)` directly).
+    const provider = new TestableGroqProvider(makeLogger());
+    const noKey = {
+      connectionId: 'conn-no-key',
+      config: { apiKey: '' },
+    } as unknown as Parameters<typeof provider.callCreateClient>[0];
+    await expect(provider.callCreateClient(noKey)).rejects.toThrow();
   });
 });

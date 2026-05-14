@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Prioritization
 
-Prioritization allows you to allocate capacity across multiple AI resources, ensuring fair distribution and optimal resource utilization. This guide explains how prioritization works and how to configure it.
+Prioritization subdivides an AI Connection's per-minute token capacity across groups (**pools**) of AI Resources, so high-priority workloads keep a guaranteed slice while low-priority ones scale up only when there's headroom. Priority is configured **per-resource** — every AI Resource is assigned to exactly one pool entry — not per-request, per-API-key, or via a request header. Pool membership is the only knob.
 
 ## What is Prioritization?
 
@@ -13,9 +13,9 @@ Prioritization is a system that:
 - **Allocates Capacity**: Distributes available AI Connection capacity (TPM) across pools of resources
 - **Ensures Fairness**: Reserves a guaranteed minimum slice for each pool so high-priority workloads can't be fully starved
 - **Adapts Dynamically**: Scales each pool's current allocation up and down based on observed token usage
-- **Runs as a Gate**: Rejects requests whose pool has exceeded its current allocation, returning a structured reason
+- **Runs as a Gate**: After the capacity gate, rejects requests whose pool has exceeded its current allocation, returning a structured reason
 
-A pool definition is scoped per **workspace + environment** (one definition per environment) and is upserted via the `POST /pool-definition/{workspaceId}/{environmentId}` API or the **Prioritization** page in the UI.
+A pool definition is scoped per **workspace + environment** (one definition per environment) and is upserted via the `POST /pool-definition/{workspaceId}/{environmentId}` API or the **Prioritization** page in the UI. The same definition gates every completion surface — chat completions, responses, and Anthropic messages — since all three share the [`GatewayOrchestratorService`](./ai-resources/index.md) request path.
 
 ## How It Works
 
@@ -67,14 +67,22 @@ The `PrioritizationService` always dispatches to it. The strategy:
 
 ### Prioritization Gate
 
-For each completion / responses / messages request, the gateway calls the prioritization gate after resolving the request's resource and connection. The gate:
+The gateway runs the prioritization gate from `GateService.requestGate` (see `packages/api/src/gateway/gate.service.ts`) on every attempt — primary leg and each fallback leg — across all three completion surfaces ([Chat Completions](./api/chat-completions.md), [Responses](./api/responses.md), [Anthropic Messages](./api/anthropic-messages.md)). The gate is skipped entirely unless **all three** are true:
 
-1. Finds the pool entry that owns the request's resource
-2. Loads (or initializes) the per-connection allocation map
-3. Re-runs the Adaptive Token Scaling logic against the latest metrics
-4. Returns `{ allowed: true, allocation }` if the resource's pool is still under its current allocation, or `{ allowed: false, allocation, reason }` otherwise
+1. The workspace + environment has a pool definition.
+2. The resolved AI Resource appears in some pool entry's `resources` array.
+3. The resolved AI Connection has an **enabled** `MINUTE` capacity entry (so there's a TPM number to subdivide).
 
-Capacity enforcement (TPM/RPM caps on the connection and resource) is a **separate** mechanism — see [Capacity Management](./ai-resources/capacity.md). Prioritization runs on top of capacity to subdivide the connection's TPM among pools.
+When it runs, the gate:
+
+1. Finds the pool entry that owns the request's resource (resources not in any pool fall through with no gating).
+2. Loads (or initializes from each entry's `minReservation`) the per-connection allocation map.
+3. Re-runs the Adaptive Token Scaling logic against the latest 30-second window metrics.
+4. Returns `{ allowed: true, allocation }` if the pool's current-minute token usage is still under its allocated share, or `{ allowed: false, allocation, reason }` otherwise.
+
+A denial is translated by the gateway into a `429 Too Many Requests` with `openai_compatible_error.code = "prioritization_gate_denied"` and `retryable: true`. The fallback runner then treats the denial like any other leg failure and tries the next entry in the resource's [fallback chain](./ai-resources/fallback.md) — point fallbacks at a different connection (or a resource in a different pool) to get real failover when one pool is saturated.
+
+Capacity enforcement (TPM/RPM caps on the connection and resource) is a **separate** mechanism that runs **before** prioritization — see [Capacity Management](./ai-resources/capacity.md). Prioritization runs on top of capacity to subdivide the connection's TPM among pools.
 
 ## Configuring Prioritization
 
@@ -251,5 +259,6 @@ Before deploying:
 
 - [AI Connections](./ai-connections.md) — where the MINUTE TPM capacity that prioritization subdivides is defined
 - [Capacity Management](./ai-resources/capacity.md) — the underlying TPM/RPM enforcement that prioritization layers on top of
+- [Fallback](./ai-resources/fallback.md) — how a prioritization denial is retried on the next leg
 - [AI Resources](./ai-resources/index.md) — the resources that get grouped into pool entries
-- [Chat Completions API](./api/chat-completions.md), [Responses API](./api/responses.md), [Anthropic Messages API](./api/anthropic-messages.md) — the request paths the prioritization gate runs on
+- [Chat Completions](./api/chat-completions.md), [Responses](./api/responses.md), [Anthropic Messages](./api/anthropic-messages.md) — the surfaces the prioritization gate runs on

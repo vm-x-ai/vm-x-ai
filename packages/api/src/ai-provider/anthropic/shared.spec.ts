@@ -24,7 +24,25 @@ vi.mock('@anthropic-ai/sdk', async (importOriginal) => {
         };
       },
       stream: (body: unknown, sdkOptions: Record<string, unknown>) => {
-        return sdkSpies.stream(body, sdkOptions);
+        const result = sdkSpies.stream(body, sdkOptions);
+        // Mirror the production SDK's `MessageStream.withResponse()`
+        // contract — the dispatcher awaits it for the `request_id`
+        // before iterating the stream. The spy may return either a
+        // bare async-iterable (as most tests construct) or a thrown
+        // Error; the former is wrapped here with the request_id it
+        // carries; the latter rejects through.
+        return {
+          withResponse: async () => {
+            if (result instanceof Error) throw result;
+            const stream = result as AsyncIterable<unknown> & {
+              request_id?: string | null;
+            };
+            return {
+              data: stream,
+              request_id: stream.request_id ?? null,
+            };
+          },
+        };
       },
     };
   }
@@ -436,6 +454,121 @@ describe('AnthropicDispatcher.dispatchNative', () => {
         providerRequestPayload: { preset: true },
       }),
     });
+  });
+
+  it('non-Claude model gate attaches providerRequestPayload (audit invariant)', async () => {
+    // `assertClaudeModel` runs pre-SDK; without the gate-side catch
+    // the CompletionError it raises would propagate with
+    // providerRequestPayload === undefined and the audit row would
+    // record `null` for the wire body. This test pins the invariant.
+    await expect(
+      dispatcher.dispatchNative(
+        baseRequest,
+        makeConnection(),
+        makeModel('not-anthropic-something')
+      )
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({
+        statusCode: 400,
+        providerRequestPayload: baseRequest,
+      }),
+    });
+  });
+
+  it('missing-apiKey gate also attaches providerRequestPayload', async () => {
+    const noKeyConnection = {
+      connectionId: 'conn-no-key',
+      config: {},
+    } as unknown as Parameters<typeof dispatcher.dispatchNative>[1];
+    await expect(
+      dispatcher.dispatchNative(baseRequest, noKeyConnection, makeModel())
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({
+        providerRequestPayload: baseRequest,
+      }),
+    });
+  });
+
+  it('streaming: every RawMessageStreamEvent variant passes through verbatim', async () => {
+    // Wire-fidelity sweep — covers every event type + delta variant
+    // the SDK enumerates today. Regressions in `iterateSdkStream`
+    // (e.g. accidentally filtering a delta type) would silently break
+    // Anthropic-native clients (Claude SDK, Cursor) so we pin all of
+    // them here.
+    const events: RawMessageStreamEvent[] = [
+      {
+        type: 'message_start',
+        message: {
+          id: 'msg_1',
+          type: 'message',
+          role: 'assistant',
+          model: 'claude-haiku-4-5',
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 5, output_tokens: 0 },
+        },
+      } as unknown as RawMessageStreamEvent,
+      {
+        type: 'content_block_start',
+        index: 0,
+        content_block: { type: 'text', text: '', citations: null },
+      } as unknown as RawMessageStreamEvent,
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'text_delta', text: 'pong' },
+      } as unknown as RawMessageStreamEvent,
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'input_json_delta', partial_json: '{"a":1}' },
+      } as unknown as RawMessageStreamEvent,
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'thinking_delta', thinking: 'pondering' },
+      } as unknown as RawMessageStreamEvent,
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'signature_delta', signature: 'sig' },
+      } as unknown as RawMessageStreamEvent,
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: {
+          type: 'citations_delta',
+          citation: { type: 'web_search_result_location', url: 'u' },
+        },
+      } as unknown as RawMessageStreamEvent,
+      {
+        type: 'content_block_stop',
+        index: 0,
+      } as unknown as RawMessageStreamEvent,
+      {
+        type: 'message_delta',
+        delta: { stop_reason: 'end_turn', stop_sequence: null },
+        usage: { output_tokens: 4 },
+      } as unknown as RawMessageStreamEvent,
+      { type: 'message_stop' } as RawMessageStreamEvent,
+    ];
+    async function* fakeStream() {
+      for (const ev of events) yield ev;
+    }
+    patchAnthropicSdk({ stream: () => fakeStream() });
+
+    const result = await dispatcher.dispatchNative(
+      { ...baseRequest, stream: true } as AnthropicMessagesRequest,
+      makeConnection(),
+      makeModel()
+    );
+    const seen: RawMessageStreamEvent[] = [];
+    for await (const ev of result.data as AsyncIterable<RawMessageStreamEvent>) {
+      seen.push(ev);
+    }
+    // Order + identity preserved; nothing dropped, nothing rewritten.
+    expect(seen).toEqual(events);
   });
 });
 

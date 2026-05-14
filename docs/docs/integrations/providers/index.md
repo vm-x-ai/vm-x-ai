@@ -4,20 +4,41 @@ sidebar_position: 1
 
 # LLM Providers
 
-VM-X currently supports seven providers, each implemented as a
-plug-in class behind the `CompletionProvider` interface. Pick one (or
-several — VM-X is built for multi-provider routing) by creating an
-**AI Connection**.
+VM-X supports seven providers — five direct vendors plus two flavors
+of AWS Bedrock. Each lives in its own folder under
+`packages/api/src/ai-provider/<folder>/` and exposes up to three
+per-surface converter classes (one per [API endpoint](../../features/api/index.md)).
+Pick one (or several — VM-X is built for multi-provider routing) by
+creating an **AI Connection**.
 
-| Provider                                                         | Provider id          | Endpoint shape on the wire                    | Auth     |
-| ---------------------------------------------------------------- | -------------------- | --------------------------------------------- | -------- |
-| [OpenAI](./openai.md)                                            | `openai`             | OpenAI Chat Completions                       | API key  |
-| [Anthropic](./anthropic.md)                                      | `anthropic`          | Anthropic Messages (native SDK)               | API key  |
-| [Google Gemini](./gemini.md)                                     | `gemini`             | OpenAI-compatible endpoint                    | API key  |
-| [Groq](./groq.md)                                                | `groq`               | OpenAI-compatible endpoint                    | API key  |
-| [Perplexity](./perplexity.md)                                    | `perplexity`         | OpenAI-compatible endpoint (search-augmented) | API key  |
-| [AWS Bedrock (Converse)](./aws-bedrock.md)                       | `aws-bedrock`        | Bedrock Converse                              | IAM role |
-| [AWS Bedrock-Invoke (Anthropic on AWS)](./aws-bedrock-invoke.md) | `aws-bedrock-invoke` | Anthropic Messages via Bedrock InvokeModel    | IAM role |
+| Provider                                                         | Provider id          | Folder                 | Endpoint shape on the wire                    | Auth     |
+| ---------------------------------------------------------------- | -------------------- | ---------------------- | --------------------------------------------- | -------- |
+| [OpenAI](./openai.md)                                            | `openai`             | `openai`               | OpenAI Chat Completions + Responses           | API key  |
+| [Anthropic](./anthropic.md)                                      | `anthropic`          | `anthropic`            | Anthropic Messages (native SDK)               | API key  |
+| [Google Gemini](./gemini.md)                                     | `gemini`             | `gemini`               | OpenAI-compat + native `@google/genai` SDK    | API key  |
+| [Groq](./groq.md)                                                | `groq`               | `groq`                 | OpenAI-compatible endpoint                    | API key  |
+| [Perplexity](./perplexity.md)                                    | `perplexity`         | `perplexity`           | OpenAI-compatible endpoint (search-augmented) | API key  |
+| [AWS Bedrock (Converse)](./aws-bedrock.md)                       | `aws-bedrock`        | `aws-bedrock-converse` | Bedrock Converse                              | IAM role |
+| [AWS Bedrock-Invoke (Anthropic on AWS)](./aws-bedrock-invoke.md) | `aws-bedrock-invoke` | `aws-bedrock-invoke`   | Anthropic Messages via Bedrock InvokeModel    | IAM role |
+
+### One-line summaries
+
+- **OpenAI** — direct vendor; Chat Completions + Responses are both
+  native, so they passthrough on their respective endpoints.
+- **Anthropic** — direct vendor via the official Anthropic SDK;
+  Anthropic Messages is the native shape (passthrough).
+- **Google Gemini** — OpenAI-compat by default; auto-routes to the
+  native `@google/genai` SDK when the request uses a Gemini-only
+  feature (server tools, grounding, `web_search_options`).
+- **Groq** — fast Llama / Mixtral inference on the OpenAI-compat
+  endpoint.
+- **Perplexity** — OpenAI-compat Sonar models; every completion is
+  search-augmented (custom `tools` not exposed).
+- **AWS Bedrock (Converse)** — pan-vendor Bedrock surface (Anthropic,
+  Llama, Mistral, Cohere, Titan, …) via the Converse API; IAM auth.
+- **AWS Bedrock-Invoke** — Anthropic models on Bedrock via
+  `InvokeModel` using the native Anthropic wire format; preserves
+  `cache_control`, `thinking`, server tools, etc. end-to-end.
 
 ## Endpoints
 
@@ -92,10 +113,11 @@ limits, and the shared IAM-role pattern for AWS providers.
 ## Adding a new provider (contributors)
 
 The provider classes live in
-`packages/api/src/ai-provider/<provider-id>/` — one folder per
-provider with the same 4-file shape (`shared.ts`,
+`packages/api/src/ai-provider/<folder>/` — one folder per provider
+with up to three per-surface converter classes plus shared helpers:
 `openai-chat-completion.provider.ts`, `openai-response.provider.ts`,
-`anthropic-messages.provider.ts`, plus an `index.ts` composer). The
+`anthropic-messages.provider.ts`, a `shared.ts`, and an `index.ts`
+composer that wires them into one provider entry. The
 contributor doc walks through the three "paths" for adding a new
 one — extending `OpenAIProvider`, modeling after `AnthropicProvider`
 / `AWSBedrockInvokeProvider`, or full custom — with code skeletons,

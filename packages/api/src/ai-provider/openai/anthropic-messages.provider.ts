@@ -7,6 +7,7 @@ import type {
   ResponseStreamEvent,
   Tool as ResponsesTool,
 } from 'openai/resources/responses/responses.js';
+import { dispatchAnthropicMessagesViaOpenAIResponses } from './anthropic-via-responses';
 import type {
   ContentBlock as AnthropicContentBlock,
   ContentBlockParam as AnthropicContentBlockParam,
@@ -30,6 +31,14 @@ import type {
 import { OpenAIResponseProvider } from './openai-response.provider';
 import { CompletionError } from '../../gateway/completion.types';
 import type { OpenAIConnectionConfig } from './shared';
+import { reasoningBudgetToEffort } from '../adapters/anthropic-reasoning';
+import {
+  classifyAnthropicServerTool,
+  isServerToolHistoryBlock,
+  liftAnthropicServerToolBlockToText,
+  raiseUnsupportedServerTool,
+} from '../adapters/anthropic-server-tools';
+import type { ToolUnion as AnthropicToolUnion } from '@anthropic-ai/sdk/resources/messages';
 
 /**
  * OpenAI provider's handler for Anthropic Messages input — D5
@@ -112,15 +121,34 @@ export function requestAnthropicToResponses(
   // ResponseCreateParams has no `stop` field — Anthropic's
   // `stop_sequences` is dropped on this conversion path. Forward via
   // `__vmx_passthrough` if a future native provider opts in.
+  // `top_k` is Anthropic-only and dropped for the same reason.
   if (req.stream) {
     (out as ResponseCreateParams & { stream?: boolean }).stream = true;
   }
 
-  // Tools (custom function tools only — server tools have no
-  // ResponsesAPI-by-OpenAI native equivalent worth mapping in the
-  // common case).
+  // Anthropic `metadata.user_id` → Responses `safety_identifier`
+  // (the modern replacement for the deprecated `user` field). Without
+  // this the abuse-detection identifier is silently dropped on the
+  // Anthropic-input path.
+  if (req.metadata?.user_id) {
+    out.safety_identifier = req.metadata.user_id;
+  }
+
+  // Anthropic `service_tier` (`auto` | `standard_only` | …) maps onto
+  // Responses' tier enum where the labels overlap. Anthropic-only
+  // values (`standard_only`) collapse to `default`; unknown values
+  // are dropped so the SDK doesn't 400 on an unrecognised enum.
+  const tier = mapAnthropicServiceTierToResponses(
+    req.service_tier as string | null | undefined
+  );
+  if (tier) out.service_tier = tier;
+
+  // Tools — custom function tools plus the subset of Anthropic
+  // server tools that have a native Responses analogue (web_search,
+  // code_interpreter). Server tools without a parallel reject with a
+  // per-target 400 so customers see the gap explicitly.
   const tools = mapAnthropicToolsToResponses(
-    req.tools as AnthropicTool[] | undefined
+    req.tools as AnthropicToolUnion[] | undefined
   );
   if (tools && tools.length > 0) {
     out.tools = tools;
@@ -128,13 +156,47 @@ export function requestAnthropicToResponses(
       const tc = mapAnthropicToolChoiceToResponses(req.tool_choice);
       if (tc) out.tool_choice = tc;
     }
+    // Anthropic encodes parallel-tool-call control on the `tool_choice`
+    // object (`disable_parallel_tool_use`). Responses uses a top-level
+    // `parallel_tool_calls` boolean — surface the gate so multi-tool
+    // turns the caller explicitly serialised stay serial.
+    if (
+      req.tool_choice &&
+      'disable_parallel_tool_use' in req.tool_choice &&
+      req.tool_choice.disable_parallel_tool_use === true
+    ) {
+      out.parallel_tool_calls = false;
+    }
   }
 
   if (req.thinking?.type === 'enabled' && req.thinking.budget_tokens != null) {
-    out.reasoning = { effort: budgetToEffort(req.thinking.budget_tokens) };
+    out.reasoning = {
+      effort: reasoningBudgetToEffort(req.thinking.budget_tokens),
+    };
   }
 
   return out;
+}
+
+function mapAnthropicServiceTierToResponses(
+  tier: string | null | undefined
+): ResponseCreateParams['service_tier'] | undefined {
+  if (!tier) return undefined;
+  switch (tier) {
+    case 'auto':
+      return 'auto';
+    case 'standard_only':
+    case 'standard':
+      return 'default';
+    case 'priority':
+      return 'priority';
+    case 'batch':
+      // Responses has no `batch` tier; `flex` is the closest analogue
+      // for cost-optimised throughput-class workloads.
+      return 'flex';
+    default:
+      return undefined;
+  }
 }
 
 function appendAnthropicMessageToResponses(
@@ -179,19 +241,8 @@ function appendAnthropicMessageToResponses(
         } as ResponseInputContent);
         break;
       case 'image': {
-        const src = block.source;
-        if (src.type === 'base64') {
-          const dataUrl = `data:${src.media_type};base64,${src.data}`;
-          messageContent.push({
-            type: 'input_image',
-            image_url: dataUrl,
-          } as ResponseInputContent);
-        } else if (src.type === 'url') {
-          messageContent.push({
-            type: 'input_image',
-            image_url: src.url,
-          } as ResponseInputContent);
-        }
+        const img = anthropicImageBlockToInputImage(block.source);
+        if (img) messageContent.push(img as ResponseInputContent);
         break;
       }
       case 'tool_use':
@@ -205,19 +256,18 @@ function appendAnthropicMessageToResponses(
         } as unknown as ResponseInputItem);
         break;
       case 'tool_result': {
-        const text =
-          typeof block.content === 'string'
-            ? block.content
-            : Array.isArray(block.content)
-            ? (block.content as Array<{ type?: string; text?: string }>)
-                .filter((c) => c.type === 'text')
-                .map((c) => c.text ?? '')
-                .join('')
-            : '';
+        // Responses' `function_call_output.output` accepts either a
+        // plain string or an array of `input_text` / `input_image` /
+        // `input_file` content items. Anthropic's `tool_result.content`
+        // can be a string OR an array of text/image/document/etc. blocks
+        // — flattening everything to text would drop the image(s) the
+        // tool returned. Preserve the array shape whenever there's a
+        // non-text part; otherwise fall back to the cheaper string form.
+        const output = mapAnthropicToolResultContentToResponses(block.content);
         trailingFollowups.push({
           type: 'function_call_output',
           call_id: block.tool_use_id,
-          output: text,
+          output,
         } as ResponseInputItem);
         break;
       }
@@ -244,6 +294,19 @@ function appendAnthropicMessageToResponses(
         } as unknown as ResponseInputItem);
         break;
       default:
+        // Server-tool history blocks (web_search_tool_result,
+        // *_code_execution_tool_result, server_tool_use, etc.) have no
+        // Responses-side input slot. Lift to a plain text content
+        // part so the model keeps prior tool-invocation context.
+        if (isServerToolHistoryBlock(block)) {
+          const lifted = liftAnthropicServerToolBlockToText(block);
+          if (lifted) {
+            messageContent.push({
+              type: m.role === 'assistant' ? 'output_text' : 'input_text',
+              text: lifted.text,
+            } as ResponseInputContent);
+          }
+        }
         break;
     }
   }
@@ -259,22 +322,175 @@ function appendAnthropicMessageToResponses(
   for (const f of trailingFollowups) out.push(f);
 }
 
+type AnthropicImageSource = Extract<
+  AnthropicContentBlockParam,
+  { type: 'image' }
+>['source'];
+
+/**
+ * Build the Responses-shape `input_image` content item for an Anthropic
+ * image source. Returns `null` for source kinds we don't yet map
+ * (e.g. `file` references), letting the caller drop the part.
+ */
+function anthropicImageBlockToInputImage(
+  src: AnthropicImageSource
+): { type: 'input_image'; image_url: string } | null {
+  if (src.type === 'base64') {
+    return {
+      type: 'input_image',
+      image_url: `data:${src.media_type};base64,${src.data}`,
+    };
+  }
+  if (src.type === 'url') {
+    return { type: 'input_image', image_url: src.url };
+  }
+  return null;
+}
+
+/**
+ * Convert an Anthropic `tool_result.content` value to the
+ * Responses `function_call_output.output` shape.
+ *
+ * The Responses API accepts either a plain string or an array of
+ * `input_text` / `input_image` / `input_file` content items. We
+ * preserve the array form whenever the tool result contains a
+ * non-text block (image, etc.) so multimodal tool outputs survive
+ * the conversion; for the common text-only case we fold to a string
+ * to keep the wire payload simple.
+ */
+type AnthropicToolResultContent = Extract<
+  AnthropicContentBlockParam,
+  { type: 'tool_result' }
+>['content'];
+
+function mapAnthropicToolResultContentToResponses(
+  content: AnthropicToolResultContent
+):
+  | string
+  | Array<
+      | { type: 'input_text'; text: string }
+      | { type: 'input_image'; image_url: string }
+    > {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+
+  type OutItem =
+    | { type: 'input_text'; text: string }
+    | { type: 'input_image'; image_url: string };
+  const items: OutItem[] = [];
+  let hasNonText = false;
+  for (const c of content) {
+    if (c.type === 'text') {
+      items.push({ type: 'input_text', text: c.text ?? '' });
+    } else if (c.type === 'image') {
+      const img = anthropicImageBlockToInputImage(c.source);
+      if (img) {
+        items.push(img);
+        hasNonText = true;
+      }
+    }
+    // Other block kinds (document, search_result, tool_reference) have
+    // no Responses-side equivalent yet — drop them, mirroring the
+    // previous behaviour for non-text array entries.
+  }
+
+  if (!hasNonText) {
+    return items.map((i) => (i.type === 'input_text' ? i.text : '')).join('');
+  }
+  return items;
+}
+
 function mapAnthropicToolsToResponses(
-  tools?: AnthropicTool[]
+  tools?: AnthropicToolUnion[]
 ): ResponsesTool[] | undefined {
   if (!tools || tools.length === 0) return undefined;
-  return tools
-    .map((t): ResponsesTool | null => {
-      if (!('input_schema' in t)) return null;
-      return {
-        type: 'function',
-        name: t.name,
-        description: t.description ?? null,
-        parameters: t.input_schema as Record<string, unknown>,
-        strict: null,
-      } as unknown as ResponsesTool;
-    })
-    .filter((t): t is ResponsesTool => t != null);
+  const out: ResponsesTool[] = [];
+  const unsupported: string[] = [];
+  for (const t of tools) {
+    const family = classifyAnthropicServerTool(t);
+    switch (family) {
+      case 'custom': {
+        const ct = t as AnthropicTool;
+        // Anthropic's `Tool` and Responses' `FunctionTool` agree on
+        // `name`, `description`, `strict`, and `defer_loading` — forward
+        // them verbatim instead of hard-coding nulls. `strict` defaults
+        // to `null` so the upstream's own default applies when the
+        // caller didn't set one (Anthropic: false-ish, Responses: true).
+        // Other Anthropic-side knobs (`cache_control`, `allowed_callers`,
+        // `eager_input_streaming`, `input_examples`, `type: 'custom'`)
+        // have no Responses-side equivalent and are dropped.
+        const fn: ResponsesTool = {
+          type: 'function',
+          name: ct.name,
+          description: ct.description ?? null,
+          parameters: ct.input_schema as Record<string, unknown>,
+          strict: ct.strict ?? null,
+        };
+        if (ct.defer_loading != null) {
+          (fn as ResponsesTool & { defer_loading?: boolean }).defer_loading =
+            ct.defer_loading;
+        }
+        out.push(fn);
+        break;
+      }
+      case 'web_search': {
+        // Anthropic's `user_location` mirrors Responses 1:1 (city /
+        // country / region / timezone). `allowed_domains` projects
+        // onto Responses' `filters.allowed_domains`. `blocked_domains`
+        // has no Responses-side analogue and is dropped.
+        const w = t as {
+          user_location?: {
+            type?: 'approximate';
+            city?: string | null;
+            country?: string | null;
+            region?: string | null;
+            timezone?: string | null;
+          } | null;
+          allowed_domains?: string[] | null;
+        };
+        const tool: ResponsesTool = { type: 'web_search' } as ResponsesTool;
+        if (w.user_location) {
+          (
+            tool as ResponsesTool & {
+              user_location?: Record<string, unknown>;
+            }
+          ).user_location = {
+            city: w.user_location.city ?? null,
+            country: w.user_location.country ?? null,
+            region: w.user_location.region ?? null,
+            timezone: w.user_location.timezone ?? null,
+          };
+        }
+        if (w.allowed_domains && w.allowed_domains.length > 0) {
+          (
+            tool as ResponsesTool & {
+              filters?: { allowed_domains?: string[] };
+            }
+          ).filters = { allowed_domains: w.allowed_domains };
+        }
+        out.push(tool);
+        break;
+      }
+      case 'code_execution': {
+        // Responses' `code_interpreter` requires a `container` — the
+        // sandbox the model writes / runs code in. Default to the
+        // auto-container so the gateway doesn't force callers to
+        // pre-provision one (Anthropic's surface is similarly
+        // managed-server-side).
+        out.push({
+          type: 'code_interpreter',
+          container: { type: 'auto' },
+        } as ResponsesTool);
+        break;
+      }
+      default:
+        unsupported.push((t as { type?: string }).type ?? family);
+    }
+  }
+  if (unsupported.length > 0) {
+    raiseUnsupportedServerTool(unsupported, 'openai_responses');
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 function mapAnthropicToolChoiceToResponses(
@@ -301,12 +517,6 @@ function mapAnthropicToolChoiceToResponses(
   }
 }
 
-function budgetToEffort(budget: number): 'low' | 'medium' | 'high' {
-  if (budget <= 2048) return 'low';
-  if (budget <= 8192) return 'medium';
-  return 'high';
-}
-
 // ─── Response side (non-streaming) ─────────────────────────────────
 
 export function responseResponsesToAnthropic(
@@ -318,12 +528,30 @@ export function responseResponsesToAnthropic(
   for (const item of resp.output ?? []) {
     if (item.type === 'message') {
       // Each message item → one or more text blocks (one per
-      // output_text content part).
+      // output_text content part). `refusal` parts surface as plain
+      // text so multi-turn flows keep the refusal context visible —
+      // Anthropic has no `refusal` ContentBlock, so the symmetric
+      // mapping is the same one used by the reverse adapter.
       for (const part of (
-        item as { content?: Array<{ type?: string; text?: string }> }
+        item as {
+          content?: Array<{ type?: string; text?: string; refusal?: string }>;
+        }
       ).content ?? []) {
         if (part.type === 'output_text' && typeof part.text === 'string') {
-          content.push({ type: 'text', text: part.text });
+          content.push({
+            type: 'text',
+            text: part.text,
+            citations: null,
+          } as AnthropicContentBlockParam);
+        } else if (
+          part.type === 'refusal' &&
+          typeof part.refusal === 'string'
+        ) {
+          content.push({
+            type: 'text',
+            text: part.refusal,
+            citations: null,
+          } as AnthropicContentBlockParam);
         }
       }
     } else if (item.type === 'function_call') {
@@ -345,7 +573,8 @@ export function responseResponsesToAnthropic(
         id: call.call_id ?? call.id,
         name: call.name,
         input: parsed,
-      });
+        caller: { type: 'direct' },
+      } as unknown as AnthropicContentBlockParam);
     } else if (item.type === 'reasoning') {
       const r = item as {
         type: 'reasoning';
@@ -394,11 +623,19 @@ export function responseResponsesToAnthropic(
     | undefined;
   const usage = u
     ? {
-        input_tokens: u.input_tokens,
-        output_tokens: u.output_tokens,
-        cache_read_input_tokens: u.input_tokens_details?.cached_tokens ?? null,
+        // SDK 0.95.1 `Usage` has eight fields — all must be present
+        // (with nulls where unknown) so downstream consumers that
+        // dereference e.g. `usage.cache_creation` don't NPE on the
+        // OpenAI-pivoted shape.
+        cache_creation: null,
         cache_creation_input_tokens:
           u.input_tokens_details?.cache_creation_input_tokens ?? null,
+        cache_read_input_tokens: u.input_tokens_details?.cached_tokens ?? null,
+        inference_geo: null,
+        input_tokens: u.input_tokens,
+        output_tokens: u.output_tokens,
+        server_tool_use: null,
+        service_tier: null,
         // T15: surface OpenAI Responses' `output_tokens_details.reasoning_tokens`
         // on the Anthropic-shape usage so cost-tracking + audit
         // pipelines see the real reasoning-token spend. The detail
@@ -412,8 +649,6 @@ export function responseResponsesToAnthropic(
               },
             }
           : {}),
-        server_tool_use: null,
-        service_tier: null,
       }
     : undefined;
 
@@ -423,8 +658,10 @@ export function responseResponsesToAnthropic(
     role: 'assistant',
     model,
     content: content as AnthropicContentBlock[],
+    container: null,
     stop_reason: stopReason,
     stop_sequence: null,
+    stop_details: null,
     ...(usage ? { usage } : {}),
   } as unknown as AnthropicMessage;
 }
@@ -485,14 +722,22 @@ export async function* streamResponsesToAnthropic(
         role: 'assistant',
         model,
         content: [],
+        container: null,
         stop_reason: null,
+        stop_details: null,
         stop_sequence: null,
         usage: {
+          cache_creation: null,
+          cache_creation_input_tokens: null,
+          cache_read_input_tokens: null,
+          inference_geo: null,
           input_tokens: 0,
           output_tokens: 0,
-        } as never,
-      } as never,
-    } as unknown as RawMessageStreamEvent;
+          server_tool_use: null,
+          service_tier: null,
+        },
+      },
+    };
   };
 
   for await (const event of source) {
@@ -531,8 +776,8 @@ export async function* streamResponsesToAnthropic(
         yield {
           type: 'content_block_start',
           index: ai,
-          content_block: { type: 'text', text: '' } as never,
-        } as unknown as RawMessageStreamEvent;
+          content_block: { type: 'text', text: '', citations: null },
+        };
       } else if (e.item.type === 'function_call') {
         indexMap.set(e.output_index, {
           kind: 'tool_use',
@@ -545,11 +790,12 @@ export async function* streamResponsesToAnthropic(
           index: ai,
           content_block: {
             type: 'tool_use',
-            id: e.item.call_id ?? e.item.id,
+            id: e.item.call_id ?? e.item.id ?? '',
             name: e.item.name ?? '',
             input: {},
-          } as never,
-        } as unknown as RawMessageStreamEvent;
+            caller: { type: 'direct' },
+          },
+        };
       } else if (e.item.type === 'reasoning') {
         indexMap.set(e.output_index, {
           kind: 'thinking',
@@ -562,8 +808,8 @@ export async function* streamResponsesToAnthropic(
             type: 'thinking',
             thinking: '',
             signature: '',
-          } as never,
-        } as unknown as RawMessageStreamEvent;
+          },
+        };
       }
       continue;
     }
@@ -578,8 +824,8 @@ export async function* streamResponsesToAnthropic(
       yield {
         type: 'content_block_delta',
         index: slot.anthropicIndex,
-        delta: { type: 'text_delta', text: e.delta } as never,
-      } as unknown as RawMessageStreamEvent;
+        delta: { type: 'text_delta', text: e.delta },
+      };
       continue;
     }
 
@@ -594,8 +840,8 @@ export async function* streamResponsesToAnthropic(
         delta: {
           type: 'input_json_delta',
           partial_json: e.delta,
-        } as never,
-      } as unknown as RawMessageStreamEvent;
+        },
+      };
       continue;
     }
 
@@ -607,8 +853,26 @@ export async function* streamResponsesToAnthropic(
       yield {
         type: 'content_block_delta',
         index: slot.anthropicIndex,
-        delta: { type: 'thinking_delta', thinking: e.delta } as never,
-      } as unknown as RawMessageStreamEvent;
+        delta: { type: 'thinking_delta', thinking: e.delta },
+      };
+      continue;
+    }
+
+    if (t === 'response.refusal.delta') {
+      // Anthropic has no `refusal` content block in the stream
+      // protocol — surface refusal text as a plain `text_delta` so
+      // multi-turn flows keep the refused content visible. Matches
+      // the non-streaming converter's symmetric treatment of
+      // `ResponseOutputRefusal`.
+      const e = event as { output_index?: number; delta?: string };
+      if (e.output_index == null || e.delta == null) continue;
+      const slot = indexMap.get(e.output_index);
+      if (!slot) continue;
+      yield {
+        type: 'content_block_delta',
+        index: slot.anthropicIndex,
+        delta: { type: 'text_delta', text: e.delta },
+      };
       continue;
     }
 
@@ -616,6 +880,7 @@ export async function* streamResponsesToAnthropic(
       t === 'response.output_text.done' ||
       t === 'response.function_call_arguments.done' ||
       t === 'response.reasoning_summary_text.done' ||
+      t === 'response.refusal.done' ||
       t === 'response.content_part.done'
     ) {
       // Anthropic doesn't emit per-part done — emit content_block_stop
@@ -652,13 +917,13 @@ export async function* streamResponsesToAnthropic(
           delta: {
             type: 'signature_delta',
             signature: e.item.encrypted_content,
-          } as never,
-        } as unknown as RawMessageStreamEvent;
+          },
+        };
       }
       yield {
         type: 'content_block_stop',
         index: slot.anthropicIndex,
-      } as unknown as RawMessageStreamEvent;
+      };
       continue;
     }
 
@@ -743,20 +1008,49 @@ export async function* streamResponsesToAnthropic(
         },
       });
     }
+
+    if (t === 'error') {
+      // Standalone `error` event (not `response.failed`) — emitted when
+      // the upstream itself reports a stream-level fault before the
+      // response envelope is finalised. Same retry-eligible 502
+      // mapping as `response.failed` so the audit row captures the
+      // upstream code/message.
+      const e = event as {
+        code?: string | null;
+        message?: string;
+        param?: string | null;
+      };
+      throw new CompletionError({
+        rate: false,
+        retryable: true,
+        statusCode: 502,
+        message: e.message ?? 'Responses stream error event',
+        failureReason: 'External API error',
+        openAICompatibleError: {
+          code: e.code ?? 'response_stream_error',
+          param: e.param ?? null,
+        },
+      });
+    }
   }
 
   yield {
     type: 'message_delta',
-    delta: { stop_reason: stopReason, stop_sequence: null },
+    delta: {
+      container: null,
+      stop_details: null,
+      stop_reason: stopReason,
+      stop_sequence: null,
+    },
     usage: {
+      cache_creation_input_tokens: cacheCreationInput,
+      cache_read_input_tokens: cacheReadInput,
       input_tokens: inputTokens,
       output_tokens: outputTokens,
-      cache_read_input_tokens: cacheReadInput,
-      cache_creation_input_tokens: cacheCreationInput,
       server_tool_use: null,
-    } as never,
-  } as unknown as RawMessageStreamEvent;
-  yield { type: 'message_stop' } as unknown as RawMessageStreamEvent;
+    },
+  };
+  yield { type: 'message_stop' };
 }
 
 // ─── Provider class ────────────────────────────────────────────────
@@ -765,42 +1059,18 @@ export async function* streamResponsesToAnthropic(
 export class OpenAIAnthropicMessagesProvider {
   constructor(private readonly responseProvider: OpenAIResponseProvider) {}
 
-  async handle(
+  handle(
     request: AnthropicMessagesRequest,
     connection: AIConnectionEntity<OpenAIConnectionConfig>,
     model: AIResourceModelConfigEntity,
     options?: CompletionRequestOptions
   ): Promise<AnthropicMessagesResponse> {
-    const responsesBody = requestAnthropicToResponses(request);
-    const native = await this.responseProvider.handle(
-      responsesBody,
+    return dispatchAnthropicMessagesViaOpenAIResponses(
+      this.responseProvider,
+      request,
       connection,
       model,
       options
     );
-
-    if (
-      native.data != null &&
-      typeof (native.data as AsyncIterable<ResponseStreamEvent>)[
-        Symbol.asyncIterator
-      ] === 'function'
-    ) {
-      return {
-        data: streamResponsesToAnthropic(
-          native.data as AsyncIterable<ResponseStreamEvent>,
-          model.model
-        ),
-        headers: native.headers,
-        providerRequestPayload: native.providerRequestPayload,
-      };
-    }
-    return {
-      data: responseResponsesToAnthropic(
-        native.data as OpenAIResponse,
-        model.model
-      ),
-      headers: native.headers,
-      providerRequestPayload: native.providerRequestPayload,
-    };
   }
 }

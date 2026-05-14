@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { canonicalAnthropicToBedrockInvoke } from '../../ai-provider/adapters/anthropic-messages.adapter';
 import {
   anthropicResponseToChatCompletion,
   anthropicStreamToChatCompletionChunks,
-  canonicalAnthropicToBedrockInvoke,
   openAIRequestToAnthropic,
-} from '../../ai-provider/adapters/anthropic-messages.adapter';
+} from '../../ai-provider/anthropic/openai-chat-completion.provider';
 import { CompletionError } from '../../gateway/completion.types';
 import type { AnthropicMessagesRequest } from '../../gateway/anthropic/anthropic.types';
 import type {
@@ -68,8 +68,11 @@ describe('anthropic-messages.adapter / openAIRequestToAnthropic', () => {
     } as unknown as ChatCompletionCreateParams);
     expect(out.thinking).toBeDefined();
     expect(out.thinking?.type).toBe('enabled');
+    // Centralised effort/budget table: `high = 16384`, then clamped
+    // to `max_tokens - 1` so the thinking budget never exceeds the
+    // request's generation cap.
     expect((out.thinking as { budget_tokens?: number }).budget_tokens).toBe(
-      Math.floor(4096 * 0.5)
+      4096 - 1
     );
   });
 
@@ -87,6 +90,90 @@ describe('anthropic-messages.adapter / openAIRequestToAnthropic', () => {
     } as unknown as ChatCompletionCreateParams;
     const out = openAIRequestToAnthropic(request);
     expect(out.thinking).toEqual({ type: 'adaptive' });
+  });
+
+  it('forwards `strict` on Chat function tools to Anthropic Tool', () => {
+    const out = openAIRequestToAnthropic({
+      model: 'claude-haiku-4-5',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: 'hi' }],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'lookup',
+            parameters: { type: 'object', properties: {} },
+            strict: true,
+          },
+        },
+      ],
+    } as unknown as ChatCompletionCreateParams);
+    expect(out.tools).toHaveLength(1);
+    const tool = out.tools![0] as { strict?: boolean };
+    expect(tool.strict).toBe(true);
+  });
+
+  it('omits `strict` on Chat function tools when the caller did not set it', () => {
+    const out = openAIRequestToAnthropic({
+      model: 'claude-haiku-4-5',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: 'hi' }],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'lookup',
+            parameters: { type: 'object', properties: {} },
+          },
+        },
+      ],
+    } as unknown as ChatCompletionCreateParams);
+    const tool = out.tools![0] as { strict?: boolean };
+    expect('strict' in tool).toBe(false);
+  });
+
+  it('json_schema → output_config.format on Claude 4.5+ (no synthetic tool)', () => {
+    const out = openAIRequestToAnthropic({
+      model: 'claude-haiku-4-5',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: 'hi' }],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'answer',
+          schema: { type: 'object', properties: { x: { type: 'number' } } },
+        },
+      },
+    } as unknown as ChatCompletionCreateParams);
+    expect(out.output_config?.format).toEqual({
+      type: 'json_schema',
+      schema: { type: 'object', properties: { x: { type: 'number' } } },
+    });
+    // No synthetic tool / forced tool_choice for the native path.
+    expect(out.tools ?? []).toHaveLength(0);
+    expect(out.tool_choice).toBeUndefined();
+  });
+
+  it('json_schema → synthetic tool on legacy Claude (pre-4.5) models', () => {
+    const out = openAIRequestToAnthropic({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: 'hi' }],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'answer',
+          schema: { type: 'object', properties: { x: { type: 'number' } } },
+        },
+      },
+    } as unknown as ChatCompletionCreateParams);
+    expect(out.output_config).toBeUndefined();
+    expect(out.tools).toHaveLength(1);
+    expect(out.tools![0]).toMatchObject({ name: '__vmx_structured_output__' });
+    expect(out.tool_choice).toMatchObject({
+      type: 'tool',
+      name: '__vmx_structured_output__',
+    });
   });
 
   it('translates parallel_tool_calls=false to tool_choice.disable_parallel_tool_use', () => {

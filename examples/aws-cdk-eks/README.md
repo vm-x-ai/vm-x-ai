@@ -6,14 +6,14 @@ This example demonstrates how to deploy VM-X AI to Amazon EKS (Elastic Kubernete
 
 This CDK stack provisions a complete AWS infrastructure for running VM-X AI in production, including:
 
-- **EKS Cluster**: Kubernetes 1.34 cluster with managed node groups
+- **EKS Cluster**: Kubernetes 1.34 cluster (Auto Mode) with managed node pools
 - **VPC**: Multi-AZ VPC with public and private subnets
-- **Aurora PostgreSQL**: Managed database cluster for application data
-- **AWS Timestream**: Time-series database for metrics and telemetry
+- **Aurora PostgreSQL**: Managed database cluster for application data (also stores `request_audit` rows used for usage analytics and cost tracking — no separate time-series database is required)
+- **Redis Cluster**: Deployed by the Helm chart as a 3-node in-cluster cluster
 - **Istio Service Mesh**: Advanced traffic management and observability
 - **External Secrets Operator**: Secure secret management from AWS Secrets Manager
 - **OpenTelemetry**: Full observability stack (Prometheus, Loki, Grafana, Jaeger)
-- **KMS Encryption**: AWS KMS key for encryption at rest
+- **KMS Encryption**: AWS KMS key used by the API for envelope-encrypting AI provider credentials (replaces the libsodium default for production)
 - **IRSA (IAM Roles for Service Accounts)**: Secure AWS service access without credentials
 
 ## Architecture
@@ -44,13 +44,13 @@ This CDK stack provisions a complete AWS infrastructure for running VM-X AI in p
 │  └──────────────────────────────────────────────────────┘  │
 └────────────────────────┬────────────────────────────────────┘
                          │
-         ┌───────────────┼───────────────┐
-         │               │               │
-         ▼               ▼               ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│   Aurora     │ │  Timestream  │ │     KMS      │
-│  PostgreSQL  │ │   Database   │ │     Key      │
-└──────────────┘ └──────────────┘ └──────────────┘
+         ┌───────────────┴───────────────┐
+         │                               │
+         ▼                               ▼
+┌──────────────┐                ┌──────────────┐
+│   Aurora     │                │   AWS KMS    │
+│  PostgreSQL  │                │     Key      │
+└──────────────┘                └──────────────┘
 ```
 
 ## Prerequisites
@@ -66,7 +66,6 @@ Before deploying this stack, ensure you have:
    - EKS clusters and node groups
    - VPCs, subnets, and networking resources
    - RDS Aurora clusters
-   - Timestream databases
    - KMS keys
    - IAM roles and policies
    - Security groups
@@ -122,9 +121,8 @@ This will:
 - Create the VPC and networking infrastructure
 - Provision the EKS cluster with all add-ons
 - Create the Aurora PostgreSQL database
-- Create the Timestream database
 - Create the KMS encryption key
-- Deploy the VM-X AI Helm chart
+- Deploy the VM-X AI Helm chart from the published repository
 - Configure all IAM roles and service accounts
 
 **Deployment typically takes 15-30 minutes.**
@@ -171,10 +169,9 @@ kubectl get pods -n vm-x-ai
 ### Infrastructure Components
 
 - **VPC**: `10.0.0.0/16` CIDR with 3 availability zones
-- **EKS Cluster**: Kubernetes 1.34 with managed node groups
+- **EKS Cluster**: Kubernetes 1.34 (Auto Mode) with `system` and `general-purpose` node pools
 - **Aurora PostgreSQL**: Publicly accessible cluster (for development; use private subnets in production)
-- **Timestream Database**: `vm-x-ai` database for time-series data
-- **KMS Key**: `alias/vm-x-ai-encryption-key` for encryption
+- **KMS Key**: `alias/vm-x-ai-encryption-key` used by the API for envelope encryption of AI provider credentials
 
 ### Kubernetes Add-ons
 
@@ -244,14 +241,13 @@ All components have persistent storage enabled.
 This stack creates several AWS resources that incur costs:
 
 - **EKS Cluster**: ~$0.10/hour (~$73/month)
-- **EKS Node Groups**: Depends on instance types (typically $50-200/month)
+- **EKS Node Pools**: Depends on instance types (typically $50-200/month)
 - **Aurora PostgreSQL**: ~$100-200/month (db.t3.medium)
-- **Timestream**: Pay-per-use (typically $10-50/month for small workloads)
 - **NLB**: ~$0.0225/hour (~$16/month)
 - **NAT Gateway**: ~$0.045/hour (~$32/month)
 - **EBS Volumes**: ~$0.10/GB/month
 
-**Estimated total**: $300-500/month for a minimal production setup.
+**Estimated total**: $270-520/month for a minimal production setup.
 
 To reduce costs:
 

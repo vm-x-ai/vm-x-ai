@@ -122,8 +122,9 @@ export default function AIResourcePlayground({
               }}
             >
               {/*
-                Endpoint mode toggle. Phase 1: text-only Responses API.
-                See `useResponsesStream.ts` for the supported events.
+                Endpoint mode toggle. All three modes flow through
+                the AI SDK's `useChat` — Chat.tsx wires one transport
+                per BFF route.
               */}
               <ToggleButtonGroup
                 size="small"

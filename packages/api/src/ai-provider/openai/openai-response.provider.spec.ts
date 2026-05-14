@@ -1,6 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { PinoLogger } from 'nestjs-pino';
-import { APIError, RateLimitError } from 'openai';
+import {
+  APIConnectionError,
+  APIConnectionTimeoutError,
+  APIError,
+  RateLimitError,
+} from 'openai';
 import type {
   ResponseCreateParams,
   ResponseStreamEvent,
@@ -129,6 +134,64 @@ describe('OpenAIResponseProvider — class layer', () => {
     expect(passedBody).not.toHaveProperty('__vmx_passthrough');
   });
 
+  it('preserves Responses-only fields verbatim (no force-injection)', async () => {
+    // Pins the native-passthrough contract: every modern Responses
+    // field — verbosity, prompt_cache_key, safety_identifier,
+    // service_tier, background, include[], conversation, store,
+    // truncation — must arrive at the SDK unchanged. The Chat
+    // Completions sibling force-injects `stream_options.include_usage`;
+    // Responses' StreamOptions has no such field (usage is auto-emitted
+    // on `response.completed`), so the cell must NOT inject one.
+    provider.setCreateImpl(() => okResponse({ id: 'resp_1' } as never));
+    const rich = {
+      ...baseRequest,
+      stream: true,
+      stream_options: { include_obfuscation: false },
+      text: { verbosity: 'low' },
+      reasoning: { effort: 'medium', summary: 'auto' },
+      service_tier: 'flex',
+      prompt_cache_key: 'cache-key-1',
+      safety_identifier: 'user-hashed-1',
+      background: true,
+      include: ['reasoning.encrypted_content'],
+      store: false,
+      truncation: 'auto',
+      parallel_tool_calls: false,
+      max_output_tokens: 1024,
+      previous_response_id: 'resp_prev',
+      metadata: { tag: 'unit' },
+      tools: [{ type: 'web_search' }],
+    } as unknown as ResponseCreateParams;
+    await provider.handle(rich, makeConnection(), makeModel());
+    const passed = provider.createSpy.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(passed).toMatchObject({
+      stream: true,
+      stream_options: { include_obfuscation: false },
+      text: { verbosity: 'low' },
+      reasoning: { effort: 'medium', summary: 'auto' },
+      service_tier: 'flex',
+      prompt_cache_key: 'cache-key-1',
+      safety_identifier: 'user-hashed-1',
+      background: true,
+      include: ['reasoning.encrypted_content'],
+      store: false,
+      truncation: 'auto',
+      parallel_tool_calls: false,
+      max_output_tokens: 1024,
+      previous_response_id: 'resp_prev',
+      metadata: { tag: 'unit' },
+      tools: [{ type: 'web_search' }],
+    });
+    // Critical: no `include_usage` was synthesised into stream_options
+    // (would be an unknown field on Responses' StreamOptions).
+    expect(
+      (passed.stream_options as Record<string, unknown>).include_usage
+    ).toBeUndefined();
+  });
+
   // ─── Streaming branch ───────────────────────────────────────────
   it('streaming returns the SDK iterable verbatim (D5 native passthrough)', async () => {
     async function* fakeStream(): AsyncIterable<ResponseStreamEvent> {
@@ -168,6 +231,35 @@ describe('OpenAIResponseProvider — class layer', () => {
       unknown
     >;
     expect(sdkOptions.headers).toEqual({ 'OpenAI-Beta': 'responses=v1' });
+  });
+
+  it('omits SDK headers when forwardHeaders is empty/undefined', async () => {
+    provider.setCreateImpl(() => okResponse({ id: 'resp_1' } as never));
+    await provider.handle(baseRequest, makeConnection(), makeModel(), {
+      forwardHeaders: {},
+    });
+    const sdkOptions = provider.createSpy.mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
+    expect(sdkOptions).not.toHaveProperty('headers');
+  });
+
+  it('forwards signal, timeoutMs and maxRetries to the SDK call', async () => {
+    provider.setCreateImpl(() => okResponse({ id: 'resp_1' } as never));
+    const ac = new AbortController();
+    await provider.handle(baseRequest, makeConnection(), makeModel(), {
+      signal: ac.signal,
+      timeoutMs: 12_345,
+      maxRetries: 2,
+    });
+    const sdkOptions = provider.createSpy.mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
+    expect(sdkOptions.signal).toBe(ac.signal);
+    expect(sdkOptions.timeout).toBe(12_345);
+    expect(sdkOptions.maxRetries).toBe(2);
   });
 
   // ─── Response shape ─────────────────────────────────────────────
@@ -244,5 +336,72 @@ describe('OpenAIResponseProvider — class layer', () => {
         (e.data.providerRequestPayload as { model?: string })?.model ===
           'o4-mini'
     );
+  });
+
+  it('APIConnectionError → CompletionError via APIError branch (status:500, retryable:true)', async () => {
+    // APIConnectionError extends APIError but has `status: undefined`.
+    // Falls through the APIError branch and defaults to 500 — which is
+    // in the retryable set, so the gateway can fall forward to the
+    // next model.
+    const connError = new APIConnectionError({ message: 'socket reset' });
+    provider.setCreateImpl(() => connError);
+    await expect(
+      provider.handle(baseRequest, makeConnection(), makeModel())
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({
+        rate: false,
+        retryable: true,
+        statusCode: 500,
+        providerRequestPayload: expect.objectContaining({
+          model: 'gpt-4o-mini',
+        }),
+      }),
+    });
+  });
+
+  it('APIConnectionTimeoutError → CompletionError(retryable:true, status:500)', async () => {
+    const timeoutError = new APIConnectionTimeoutError({
+      message: 'request timed out',
+    });
+    provider.setCreateImpl(() => timeoutError);
+    await expect(
+      provider.handle(baseRequest, makeConnection(), makeModel())
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({
+        rate: false,
+        retryable: true,
+        statusCode: 500,
+      }),
+    });
+  });
+
+  it('every error path attaches providerRequestPayload (audit invariant)', async () => {
+    // Pins the audit-row guarantee: every CompletionError surfaced by
+    // this cell carries the wire body so the operator can replay /
+    // debug a failed upstream call without re-running.
+    const errors = [
+      Object.assign(new RateLimitError(429, undefined, 'rl', new Headers()), {
+        headers: new Headers(),
+      }),
+      Object.assign(new APIError(503, undefined, 'down', new Headers()), {
+        status: 503,
+        headers: new Headers(),
+        code: null,
+        type: null,
+        param: null,
+      }),
+      new Error('weird'),
+    ];
+    for (const err of errors) {
+      provider.setCreateImpl(() => err);
+      await expect(
+        provider.handle(baseRequest, makeConnection(), makeModel('gpt-4o-mini'))
+      ).rejects.toSatisfy(
+        (e: unknown) =>
+          e instanceof CompletionError &&
+          (e.data.providerRequestPayload as { model?: string })?.model ===
+            'gpt-4o-mini'
+      );
+    }
   });
 });

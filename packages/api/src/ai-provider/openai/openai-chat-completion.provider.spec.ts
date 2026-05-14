@@ -1,6 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { PinoLogger } from 'nestjs-pino';
-import { APIError, RateLimitError } from 'openai';
+import {
+  APIConnectionError,
+  APIConnectionTimeoutError,
+  APIError,
+  RateLimitError,
+} from 'openai';
 import type { ChatCompletionCreateParams } from 'openai/resources/index.js';
 import { OpenAIChatCompletionProvider } from './openai-chat-completion.provider';
 import { CompletionError } from '../../gateway/completion.types';
@@ -177,6 +182,27 @@ describe('OpenAIChatCompletionProvider — class layer', () => {
     expect(passedBody.stream_options).toBeUndefined();
   });
 
+  it('merges include_usage into caller-supplied stream_options (preserves include_obfuscation)', async () => {
+    provider.setCreateImpl(() => okResponse({ id: 'cmpl_1' } as never));
+    await provider.handle(
+      {
+        ...baseRequest,
+        stream: true,
+        stream_options: { include_obfuscation: false, include_usage: false },
+      } as ChatCompletionCreateParams,
+      makeConnection(),
+      makeModel()
+    );
+    const passedBody = provider.createSpy.mock
+      .calls[0][0] as ChatCompletionCreateParams;
+    // include_usage is force-overridden (billing invariant); other
+    // stream_options fields the caller set survive the merge.
+    expect(passedBody.stream_options).toEqual({
+      include_obfuscation: false,
+      include_usage: true,
+    });
+  });
+
   // ─── Header forwarding (T18) ────────────────────────────────────
   it('forwards caller headers to the SDK when forwardHeaders is set', async () => {
     provider.setCreateImpl(() => okResponse({ id: 'cmpl_1' } as never));
@@ -317,6 +343,42 @@ describe('OpenAIChatCompletionProvider — class layer', () => {
         rate: false,
         retryable: false,
         statusCode: 400,
+      }),
+    });
+  });
+
+  it('APIConnectionError → CompletionError via APIError branch (status:500, retryable:true)', async () => {
+    // APIConnectionError extends APIError but has no `.status` (undefined).
+    // Falling through the APIError branch should default to 500 and mark
+    // the error retryable so the gateway falls forward to the next model.
+    const connError = new APIConnectionError({ message: 'socket reset' });
+    provider.setCreateImpl(() => connError);
+    await expect(
+      provider.handle(baseRequest, makeConnection(), makeModel())
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({
+        rate: false,
+        retryable: true,
+        statusCode: 500,
+        providerRequestPayload: expect.objectContaining({
+          model: 'gpt-4o-mini',
+        }),
+      }),
+    });
+  });
+
+  it('APIConnectionTimeoutError → CompletionError(retryable:true, status:500)', async () => {
+    const timeoutError = new APIConnectionTimeoutError({
+      message: 'request timed out',
+    });
+    provider.setCreateImpl(() => timeoutError);
+    await expect(
+      provider.handle(baseRequest, makeConnection(), makeModel())
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({
+        rate: false,
+        retryable: true,
+        statusCode: 500,
       }),
     });
   });

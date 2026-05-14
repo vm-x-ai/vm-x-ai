@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chatCompletionStreamToAnthropic } from '../../ai-provider/gemini/anthropic-messages.provider';
+import { chatCompletionStreamToAnthropic } from '../../ai-provider/anthropic/openai-chat-completion.provider';
 import type { ChatCompletionChunk } from 'openai/resources/index.js';
 import type { RawMessageStreamEvent } from '@anthropic-ai/sdk/resources/messages';
 

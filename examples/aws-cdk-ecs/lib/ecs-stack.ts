@@ -294,6 +294,7 @@ export class ECSStack extends cdk.Stack {
           REDIS_TLS: 'true',
           ENCRYPTION_PROVIDER: 'aws-kms',
           AWS_KMS_KEY_ID: encryptionKey.keyArn,
+          AWS_REGION: this.region,
 
           OTEL_ENABLED: 'true',
           OTEL_LOG_LEVEL: 'error',

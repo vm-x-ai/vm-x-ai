@@ -11,6 +11,17 @@ Usage page runs aggregate SQL (`sum`, `avg`, `percentile_cont`, …) over
 them with per-bucket time grouping. This guide explains how to access
 and use this data.
 
+> **Multi-surface gateway.** Every completion enters the gateway through
+> one of three wire formats — OpenAI Chat Completions
+> (`/chat/completions`), OpenAI Responses (`/responses`), or Anthropic
+> Messages (`/anthropic/messages`) — and lands in the same
+> [`request_audit`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/migrations/10-request-audit-table.ts)
+> row. The surface is recorded on the
+> [`format`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/migrations/19-add-request-audit-format.ts)
+> column (`chat-completions` / `responses` / `anthropic`) so every chart,
+> filter, and otel attribute can attribute spend back to the surface that
+> produced it.
+
 ## Overview
 
 VM-X AI tracks:
@@ -98,11 +109,12 @@ Each audit log entry includes:
 
 - **id**: Unique request ID
 - **timestamp**: Request timestamp
-- **endpoint**: `CHAT_COMPLETIONS`, `ANTHROPIC_MESSAGES`, or `RESPONSES`
-- **workspaceId**: Workspace ID
-- **environmentId**: Environment ID
-- **resourceId**: AI Resource ID
-- **connectionId**: AI Connection ID
+- **type**: `COMPLETION`, `COMPLETION_BATCH`, or `RESPONSES` — the audit-row classifier, set by the orchestrator (see `PublicRequestAuditType` in [`entities.generated.ts`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/storage/entities.generated.ts))
+- **format**: Inbound wire surface — `chat-completions`, `responses`, or `anthropic`. Drives the colour-coded **Endpoint** badge in the Audit drawer and is a first-class filter / group-by dimension on the Usage page
+- **workspaceId**: Workspace ID (top-level scope)
+- **environmentId**: Environment ID (sub-scope inside the workspace; every audit row is keyed `(workspaceId, environmentId)` and the Usage query endpoint is mounted at `/request-usage/:workspaceId/:environmentId`)
+- **resourceId**: AI Resource ID (or `ephemeral` for ad-hoc `<connection>/<model>` requests)
+- **connectionId**: AI Connection ID (the upstream provider credential bundle that actually ran the request)
 - **provider**: Provider name
 - **model**: Model name
 - **statusCode**: HTTP status code
@@ -150,12 +162,17 @@ The breakdown carries:
 | `totalCost`         | Sum of all of the above.                                                                                                                                                                                                                                                           |
 
 If a model is missing from `model_pricing` (e.g., a brand-new release),
-`CostService` records `cost: null` on the audit row (so dashboards can
-distinguish "pricing not configured" from "actually zero"). Manage
-entries from **Settings → Pricing** in the console (full CRUD, with the
-rows from migration 17 prepopulated for the major providers). Newly-
-added rows take effect on the next audit row written; historical rows
-keep whatever cost breakdown was computed at the time they were stored.
+[`CostService`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/gateway/cost/cost.service.ts)
+records `cost: null` on the audit row (so dashboards can distinguish
+"pricing not configured" from "actually zero"). Manage entries from
+**Settings → Pricing** in the console (full CRUD). The seed in
+[migration 17](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/migrations/17-create-model-pricing-table.ts)
+loads `SYSTEM`-source rows from the bundled
+[`pricing-fallback.json`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/data/pricing-fallback.json)
+snapshot via `INSERT … ON CONFLICT DO NOTHING`, so re-running migrations
+never clobbers operator overrides. Newly-added rows take effect on the
+next audit row written; historical rows keep whatever cost breakdown was
+computed at the time they were stored.
 
 #### Anthropic prompt caching — saving cost end-to-end
 
@@ -438,20 +455,14 @@ Track capacity usage:
 - Monitor access patterns
 - Track user activity
 
-## Exporting Data
+## Retention
 
-### Audit Logs
-
-Export audit logs for:
-
-- Compliance requirements
-- External analysis
-- Backup and archival
-
-### Usage Metrics
-
-Export usage metrics to:
-
-- Business intelligence tools
-- Performance analysis tools
-- Custom dashboards
+Audit rows live in the Postgres `request_audit` table indefinitely —
+there is no built-in TTL job or rolling window. Both audit and usage
+views are powered by the same rows, so deleting old data also shortens
+the Usage page's effective lookback window. Operators who need bounded
+retention should run a scheduled `DELETE FROM request_audit WHERE
+timestamp < now() - interval '<N> days'` via their own cron (and `VACUUM`
+afterwards so the indexed table reclaims space). Per-row export for
+compliance / archival can be driven off the same `timestamp` predicate
+before deletion.

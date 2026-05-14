@@ -206,4 +206,37 @@ describe('AWSBedrockInvokeOpenAIResponseProvider — class layer', () => {
     await provider.handle(baseRequest, makeConnection(), makeModel(), options);
     expect(dispatcher.dispatchNative.mock.calls[0][4]).toBe(options);
   });
+
+  it('rejects external image URLs with a clean 400 (Bedrock cannot fetch URLs)', async () => {
+    const dispatcher = makeDispatcherStub();
+    const provider = new AWSBedrockInvokeOpenAIResponseProvider(dispatcher);
+    const requestWithExternalImage: ResponseCreateParams = {
+      model: 'test',
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            { type: 'input_text', text: 'describe' },
+            {
+              type: 'input_image',
+              image_url: 'https://example.com/cat.png',
+              detail: 'auto',
+            },
+          ],
+        } as never,
+      ],
+    };
+    await expect(
+      provider.handle(requestWithExternalImage, makeConnection(), makeModel())
+    ).rejects.toMatchObject({
+      data: {
+        statusCode: 400,
+        openAICompatibleError: {
+          code: 'aws_bedrock_invoke_image_url_unsupported',
+        },
+      },
+    });
+    expect(dispatcher.dispatchNative).not.toHaveBeenCalled();
+  });
 });

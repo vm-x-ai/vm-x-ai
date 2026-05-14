@@ -136,6 +136,13 @@ export default defineConfig(() => ({
           // headroom; per-test overrides aren't needed.
           testTimeout: 60_000,
           hookTimeout: 60_000,
+          // Re-load `.env.local` files into `process.env` after Vite's
+          // env initialisation. Vite reserves `BASE_URL` (and others)
+          // and silently injects its own default (`'/'`), which fails
+          // the API's Joi URI validator when live HTTP specs boot the
+          // full AppModule. The setup file runs once per worker before
+          // any test imports — see `test-setup.ts` for details.
+          setupFiles: ['./test-setup.ts'],
         },
       },
     ],

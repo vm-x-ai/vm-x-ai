@@ -221,4 +221,186 @@ describe('AWSBedrockInvokeAnthropicMessagesProvider — class layer', () => {
     );
     expect(out).toBe(result);
   });
+
+  it('passes through every canonical Anthropic field intact (sampling, system, tools, thinking, …)', async () => {
+    // Pin the audit invariant: Anthropic-side fields that Bedrock
+    // InvokeModel accepts must arrive on the wire body untouched
+    // (`model` / `stream` / gateway envelopes are stripped, and
+    // Bedrock-Invoke-rejected fields — `mcp_servers`, `container`,
+    // `context_management`, `inference_geo` — are silently stripped
+    // because the InvokeModel API 400s on them, see the separate
+    // assertion below). A regression on the kept fields would silently
+    // drop caller intent — e.g. a structured-output request losing
+    // its `output_config`, or a cache-control breakpoint going missing.
+    const dispatcher = makeDispatcherStub();
+    dispatcher.dispatchNative.mockResolvedValue({
+      data: fakeMessage,
+      headers: {},
+      providerRequestPayload: {},
+    });
+    const provider = new AWSBedrockInvokeAnthropicMessagesProvider(dispatcher);
+
+    const richRequest = {
+      ...baseRequest,
+      system: 'You are a helpful assistant.',
+      temperature: 0.7,
+      top_p: 0.95,
+      top_k: 40,
+      stop_sequences: ['<END>'],
+      metadata: { user_id: 'u_1' },
+      thinking: { type: 'enabled', budget_tokens: 1024 },
+      tools: [
+        {
+          name: 'get_weather',
+          description: 'Get the weather',
+          input_schema: {
+            type: 'object',
+            properties: { city: { type: 'string' } },
+          },
+        },
+      ],
+      tool_choice: { type: 'auto' },
+      service_tier: 'standard_only',
+      mcp_servers: [{ type: 'url', url: 'https://x', name: 'x' }],
+      context_management: { edits: [{ type: 'clear_tool_uses_20250919' }] },
+      inference_geo: 'us',
+      output_config: { format: { type: 'json_schema', schema: {} } },
+      container: 'cnt_1',
+      cache_control: { type: 'ephemeral' },
+    } as unknown as AnthropicMessagesRequest;
+    await provider.handle(richRequest, makeConnection(), makeModel());
+
+    const wireBody = dispatcher.dispatchNative.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(wireBody.anthropic_version).toBe('bedrock-2023-05-31');
+    for (const key of [
+      'system',
+      'temperature',
+      'top_p',
+      'top_k',
+      'stop_sequences',
+      'metadata',
+      'thinking',
+      'tools',
+      'tool_choice',
+      'service_tier',
+      'output_config',
+      'cache_control',
+      'max_tokens',
+      'messages',
+    ]) {
+      expect(wireBody).toHaveProperty(key);
+    }
+    expect(wireBody).not.toHaveProperty('model');
+    expect(wireBody).not.toHaveProperty('stream');
+    // Bedrock-Invoke-rejected fields (silent strip in the adapter)
+    expect(wireBody).not.toHaveProperty('mcp_servers');
+    expect(wireBody).not.toHaveProperty('container');
+    expect(wireBody).not.toHaveProperty('context_management');
+    expect(wireBody).not.toHaveProperty('inference_geo');
+  });
+
+  it('re-emits `betas` as `anthropic_beta` on the Bedrock wire body', async () => {
+    // Bedrock-Invoke's Anthropic body uses `anthropic_beta` (not the
+    // canonical `betas` field name). The adapter lifts it; verify the
+    // class path keeps that lift intact end-to-end.
+    const dispatcher = makeDispatcherStub();
+    dispatcher.dispatchNative.mockResolvedValue({
+      data: fakeMessage,
+      headers: {},
+      providerRequestPayload: {},
+    });
+    const provider = new AWSBedrockInvokeAnthropicMessagesProvider(dispatcher);
+
+    await provider.handle(
+      {
+        ...baseRequest,
+        betas: ['interleaved-thinking-2025-05-14'],
+      } as AnthropicMessagesRequest,
+      makeConnection(),
+      makeModel()
+    );
+
+    const wireBody = dispatcher.dispatchNative.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(wireBody).not.toHaveProperty('betas');
+    expect(wireBody.anthropic_beta).toEqual([
+      'interleaved-thinking-2025-05-14',
+    ]);
+  });
+
+  it('strips gateway scaffolding (vmx / __vmx_passthrough) before the SDK call', async () => {
+    // Defensive: the Anthropic-input path is supposed to receive
+    // already-Anthropic-shape bodies, but callers occasionally hand
+    // the gateway's internal envelopes through (e.g. when re-using a
+    // canonical body built by the converter). Bedrock 400s on unknown
+    // top-level fields, so this MUST be stripped on the wire.
+    const dispatcher = makeDispatcherStub();
+    dispatcher.dispatchNative.mockResolvedValue({
+      data: fakeMessage,
+      headers: {},
+      providerRequestPayload: {},
+    });
+    const provider = new AWSBedrockInvokeAnthropicMessagesProvider(dispatcher);
+
+    await provider.handle(
+      {
+        ...baseRequest,
+        vmx: { correlationId: 'corr-1' },
+        __vmx_passthrough: { anthropic: { top_k: 5 } },
+      } as unknown as AnthropicMessagesRequest,
+      makeConnection(),
+      makeModel()
+    );
+
+    const wireBody = dispatcher.dispatchNative.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(wireBody).not.toHaveProperty('vmx');
+    expect(wireBody).not.toHaveProperty('__vmx_passthrough');
+  });
+
+  it('forwards Anthropic server tools (BashTool / WebSearchTool / etc.) on the wire body', async () => {
+    // Server-tool definitions are part of the canonical Anthropic
+    // tools[] union. Bedrock-Invoke speaks Anthropic on the wire, so
+    // the gateway forwards them verbatim — the model decides server-
+    // side whether a given tool is supported. Pin the passthrough so
+    // a future "strip unsupported tools" optimisation doesn't silently
+    // erase caller intent.
+    const dispatcher = makeDispatcherStub();
+    dispatcher.dispatchNative.mockResolvedValue({
+      data: fakeMessage,
+      headers: {},
+      providerRequestPayload: {},
+    });
+    const provider = new AWSBedrockInvokeAnthropicMessagesProvider(dispatcher);
+
+    const tools = [
+      { type: 'web_search_20250305', name: 'web_search' },
+      { type: 'bash_20250124', name: 'bash' },
+      {
+        type: 'text_editor_20250728',
+        name: 'str_replace_based_edit_tool',
+      },
+    ];
+    await provider.handle(
+      {
+        ...baseRequest,
+        tools: tools as never,
+      } as AnthropicMessagesRequest,
+      makeConnection(),
+      makeModel()
+    );
+
+    const wireBody = dispatcher.dispatchNative.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(wireBody.tools).toEqual(tools);
+  });
 });

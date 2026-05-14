@@ -17,6 +17,14 @@ shape, see the [API overview](./api/index.md) and the
 [`vmx` envelope reference](./api/vmx-envelope.md). This page only
 covers the Claude-Agent-SDK-specific bits.
 
+The gateway exposes the **Anthropic Messages surface** as a
+multi-provider entry point — every provider (Anthropic, OpenAI,
+Gemini, Groq, Perplexity, AWS Bedrock-Invoke, AWS Bedrock-Converse)
+now ships an `anthropic-messages.provider.ts` converter. That means
+your Agent-SDK requests can transparently land on a non-Anthropic
+upstream as long as the target model supports the agent payload
+(see [Cross-provider targeting](#cross-provider-targeting) below).
+
 ## Overview
 
 The Claude Agent SDK is a thin wrapper around the Claude Code CLI
@@ -322,6 +330,33 @@ per-request model / routing overrides with an agent workload, use the
 raw Anthropic SDK directly (which lets you reach the body); use the
 Agent SDK for the agentic-loop use cases where the resource's static
 configuration is sufficient.
+
+## Cross-provider targeting
+
+Because the gateway's `/anthropic` surface is multi-provider, you can
+point the Agent SDK at an AI Resource whose connection is **not**
+Anthropic. The gateway's per-provider `anthropic-messages.provider.ts`
+converters translate the canonical request body to each upstream's
+native shape (and the response back), preserving the Anthropic wire
+format end-to-end on the client side.
+
+The agent CLI is opinionated about the request shape it sends —
+`output_config.effort`, `context_management`, tool-use blocks — so
+the upstream model must accept that payload. In practice:
+
+| Connection                 | Agent SDK works?                                                                   |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| Anthropic                  | Yes, with Sonnet 4.6+ / Opus 4.5+ (Haiku rejects `output_config.effort`).          |
+| AWS Bedrock-Invoke         | Yes, on Claude models with the agent-payload features enabled.                     |
+| AWS Bedrock-Converse       | Yes — the Converse adapter maps `output_config` / cache markers / server tools.    |
+| OpenAI                     | Yes if you route to a reasoning model (the adapter pivots `effort` → `reasoning`). |
+| Gemini / Groq / Perplexity | Yes if the chosen model accepts the converted tool-use payload.                    |
+
+If you change connection providers, just repoint your VM-X **AI
+Resource** at a new connection — the Agent SDK config (`model`,
+`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`) does not change. See
+[Anthropic Messages: provider matrix](./api/anthropic-messages.md)
+for the full conversion details.
 
 ## Example projects
 

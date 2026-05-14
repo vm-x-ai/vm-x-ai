@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import {
+  ModelTimeoutException,
+  ServiceUnavailableException,
   ThrottlingException,
   ValidationException,
   ModelStreamErrorException,
@@ -55,6 +57,8 @@ type StreamItem =
   | { chunk: { bytes: Uint8Array } }
   | { internalServerException: unknown }
   | { modelStreamErrorException: ModelStreamErrorException }
+  | { modelTimeoutException: ModelTimeoutException }
+  | { serviceUnavailableException: ServiceUnavailableException }
   | { throttlingException: ThrottlingException }
   | { validationException: ValidationException };
 
@@ -291,5 +295,265 @@ describe('AWSBedrockInvokeDispatcher.parseBedrockEventStream', () => {
     const data = (caught as CompletionError).data;
     expect(data.message).toMatch(/exceeded/);
     expect(data.providerRequestPayload).toEqual(requestBody);
+  });
+
+  it('throws CompletionError on modelTimeoutException stream item', async () => {
+    const provider = makeProvider();
+    const parse = getStreamParser(provider);
+
+    const timeoutErr = new ModelTimeoutException({
+      $metadata: { requestId: 'req-timeout' },
+      message: 'Model timed out',
+    });
+    const output = makeOutput([{ modelTimeoutException: timeoutErr }]);
+
+    let caught: unknown;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of parse(output, requestBody)) {
+        // unreachable
+      }
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CompletionError);
+    const data = (caught as CompletionError).data;
+    expect(data.statusCode).toBe(504);
+    expect(data.retryable).toBe(true);
+    expect(data.openAICompatibleError?.code).toBe(
+      'aws_bedrock_invoke_model_timeout'
+    );
+    expect(data.providerRequestPayload).toEqual(requestBody);
+  });
+
+  it('throws CompletionError on serviceUnavailableException stream item', async () => {
+    const provider = makeProvider();
+    const parse = getStreamParser(provider);
+
+    const unavailErr = Object.assign(
+      new ServiceUnavailableException({
+        $metadata: { requestId: 'req-unavail' },
+        message: 'Service unavailable',
+      }),
+      { $retryable: { throttling: true } }
+    );
+    const output = makeOutput([{ serviceUnavailableException: unavailErr }]);
+
+    let caught: unknown;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of parse(output, requestBody)) {
+        // unreachable
+      }
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CompletionError);
+    const data = (caught as CompletionError).data;
+    expect(data.statusCode).toBe(503);
+    expect(data.openAICompatibleError?.code).toBe(
+      'aws_bedrock_invoke_service_unavailable'
+    );
+    expect(data.providerRequestPayload).toEqual(requestBody);
+  });
+});
+
+describe('AWSBedrockInvokeDispatcher — Claude-only gate', () => {
+  /**
+   * Bedrock Invoke speaks the Anthropic Messages wire format and only
+   * accepts Claude models. `assertClaudeModel` is the runtime gate that
+   * rejects non-Claude families (Titan, Llama, Mistral, Nova, DeepSeek)
+   * with a 400 before any AWS SDK call. We pin every Claude variant the
+   * SDK actually accepts (native, cross-region, EU/APAC prefixes) +
+   * representative non-Claude families.
+   */
+  const provider = makeProvider();
+  const baseConnection = {
+    connectionId: 'c1',
+    config: {
+      iamRoleArn: 'arn:aws:iam::123456789012:role/test',
+      region: 'us-east-1',
+    },
+  } as Parameters<typeof provider.dispatchNative>[2];
+  const baseBody = {
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: 16,
+    messages: [{ role: 'user', content: 'hi' }],
+  } as unknown as Parameters<typeof provider.dispatchNative>[0];
+
+  it.each([
+    'claude-haiku-4-5',
+    'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    'eu.anthropic.claude-3-5-sonnet-20241022-v2:0',
+    'apac.anthropic.claude-3-haiku-20240307-v1:0',
+  ])('accepts Claude model id %s (gate passes)', async (model) => {
+    // We can't actually dispatch (no AWS creds), but the gate fires
+    // before the SDK call. If the gate accepts the model, the next
+    // step is the AWS client send — that will reject with a different
+    // error (not a CompletionError shaped as 'anthropic_unsupported_model').
+    let err: unknown;
+    try {
+      await provider.dispatchNative(baseBody, false, baseConnection, {
+        model,
+      } as Parameters<typeof provider.dispatchNative>[3]);
+    } catch (e) {
+      err = e;
+    }
+    if (err instanceof CompletionError) {
+      expect(err.data.openAICompatibleError?.code).not.toBe(
+        'anthropic_unsupported_model'
+      );
+    }
+  });
+
+  it.each([
+    'amazon.titan-text-express-v1',
+    'us.amazon.nova-pro-v1:0',
+    'meta.llama3-70b-instruct-v1:0',
+    'mistral.mixtral-8x7b-instruct-v0:1',
+    'cohere.command-r-plus-v1:0',
+    'deepseek.r1-v1:0',
+  ])('rejects non-Claude model id %s with a 400', async (model) => {
+    await expect(
+      provider.dispatchNative(baseBody, false, baseConnection, {
+        model,
+      } as Parameters<typeof provider.dispatchNative>[3])
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({
+        statusCode: 400,
+        openAICompatibleError: { code: 'anthropic_unsupported_model' },
+      }),
+    });
+  });
+
+  it('attaches providerRequestPayload on the gate rejection path', async () => {
+    // The audit invariant: even when the model gate fires before any
+    // AWS SDK call, the CompletionError carries the wire body so the
+    // audit row sees what would have been sent.
+    let caught: unknown;
+    try {
+      await provider.dispatchNative(baseBody, false, baseConnection, {
+        model: 'amazon.titan-text-express-v1',
+      } as Parameters<typeof provider.dispatchNative>[3]);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CompletionError);
+    expect((caught as CompletionError).data.providerRequestPayload).toEqual(
+      baseBody
+    );
+  });
+});
+
+describe('AWSBedrockInvokeDispatcher.handleError — AWS exception map', () => {
+  /**
+   * Bedrock's `InvokeModel` and `InvokeModelWithResponseStream` commands
+   * can reject with the full Bedrock-Runtime exception family.
+   * `handleError` maps each instance to a `CompletionError` with the
+   * audit-row-friendly status code, retryability, and openAI-compat
+   * `code`. Tests here exercise the additive cases beyond the original
+   * five (validation/throttling/internal/serviceUnavailable/modelStream).
+   */
+  type HandleError = (err: unknown, payload?: unknown) => never;
+  const getHandleError = (p: AWSBedrockInvokeDispatcher): HandleError =>
+    (p as unknown as { handleError: HandleError }).handleError.bind(p);
+
+  it('maps AccessDeniedException → 403 + access_denied code', async () => {
+    const { AccessDeniedException } = await import(
+      '@aws-sdk/client-bedrock-runtime'
+    );
+    const provider = makeProvider();
+    const handle = getHandleError(provider);
+    const err = new AccessDeniedException({
+      $metadata: { requestId: 'req-denied' },
+      message: 'No permission',
+    });
+    let caught: unknown;
+    try {
+      handle(err, { body: 'wire' });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CompletionError);
+    const data = (caught as CompletionError).data;
+    expect(data.statusCode).toBe(403);
+    expect(data.retryable).toBe(false);
+    expect(data.openAICompatibleError?.code).toBe(
+      'aws_bedrock_invoke_access_denied'
+    );
+    expect(data.providerRequestPayload).toEqual({ body: 'wire' });
+  });
+
+  it('maps ResourceNotFoundException → 404 + resource_not_found code', async () => {
+    const { ResourceNotFoundException } = await import(
+      '@aws-sdk/client-bedrock-runtime'
+    );
+    const provider = makeProvider();
+    const handle = getHandleError(provider);
+    const err = new ResourceNotFoundException({
+      $metadata: { requestId: 'req-notfound' },
+      message: 'Model not found',
+    });
+    let caught: unknown;
+    try {
+      handle(err, { body: 'wire' });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CompletionError);
+    const data = (caught as CompletionError).data;
+    expect(data.statusCode).toBe(404);
+    expect(data.openAICompatibleError?.code).toBe(
+      'aws_bedrock_invoke_resource_not_found'
+    );
+    expect(data.providerRequestPayload).toEqual({ body: 'wire' });
+  });
+
+  it('maps ServiceQuotaExceededException → 429 + service_quota_exceeded code', async () => {
+    const { ServiceQuotaExceededException } = await import(
+      '@aws-sdk/client-bedrock-runtime'
+    );
+    const provider = makeProvider();
+    const handle = getHandleError(provider);
+    const err = new ServiceQuotaExceededException({
+      $metadata: { requestId: 'req-quota' },
+      message: 'Quota exhausted',
+    });
+    let caught: unknown;
+    try {
+      handle(err, { body: 'wire' });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CompletionError);
+    const data = (caught as CompletionError).data;
+    expect(data.statusCode).toBe(429);
+    expect(data.retryable).toBe(true);
+    expect(data.openAICompatibleError?.code).toBe(
+      'aws_bedrock_invoke_service_quota_exceeded'
+    );
+  });
+
+  it('maps ModelTimeoutException → 504 + model_timeout code', async () => {
+    const provider = makeProvider();
+    const handle = getHandleError(provider);
+    const err = new ModelTimeoutException({
+      $metadata: { requestId: 'req-timeout' },
+      message: 'Model timed out',
+    });
+    let caught: unknown;
+    try {
+      handle(err, { body: 'wire' });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CompletionError);
+    const data = (caught as CompletionError).data;
+    expect(data.statusCode).toBe(504);
+    expect(data.retryable).toBe(true);
+    expect(data.openAICompatibleError?.code).toBe(
+      'aws_bedrock_invoke_model_timeout'
+    );
   });
 });

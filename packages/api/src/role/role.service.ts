@@ -24,6 +24,30 @@ export class RoleService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache
   ) {}
 
+  /**
+   * Compile a role-policy pattern (action or resource) into an anchored
+   * regular expression. `*` is the only wildcard character — it expands
+   * to `.*`. Every other regex metacharacter is escaped so it matches
+   * literally, and the result is anchored with `^`/`$` so a pattern like
+   * `workspace:prod` does not accidentally match `workspace:production`.
+   *
+   * Exposed as `static` so the bug-fix is unit-testable in isolation
+   * without standing up a full `RoleService` instance.
+   */
+  public static compilePattern(pattern: string): RegExp {
+    // Escape every regex metacharacter except `*`, which is the
+    // intentional wildcard. The placeholder (a NUL byte) is replaced
+    // with `.*` after escaping so that the `.` inside `.*` is not
+    // itself escaped.
+    const WILDCARD_PLACEHOLDER = '\x00';
+    const escaped = pattern
+      .replace(/\*/g, WILDCARD_PLACEHOLDER)
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .split(WILDCARD_PLACEHOLDER)
+      .join('.*');
+    return new RegExp(`^${escaped}$`);
+  }
+
   public async validate(
     userId: string,
     action: string,
@@ -34,14 +58,10 @@ export class RoleService {
       const role = await this.getById(userRole.roleId, false, false);
       for (const statement of role.policy.statements) {
         for (const statementAction of statement.actions) {
-          const regex = new RegExp(
-            statementAction.replace(/\*/g, '.*').replace(/\?/g, '.')
-          );
+          const regex = RoleService.compilePattern(statementAction);
           if (regex.test(action)) {
             for (const statementResource of statement.resources) {
-              const regex = new RegExp(
-                statementResource.replace(/\*/g, '.*').replace(/\?/g, '.')
-              );
+              const regex = RoleService.compilePattern(statementResource);
               if (regex.test(resource)) {
                 // If the statement effect is DENY, throw an error
                 if (statement.effect === RolePolicyEffect.DENY) {

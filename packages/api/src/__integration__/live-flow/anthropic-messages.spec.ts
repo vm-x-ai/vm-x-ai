@@ -27,7 +27,11 @@ const ANTHROPIC_MODELS: Partial<Record<string, string>> = {
   anthropic: 'claude-haiku-4-5',
   gemini: 'gemini-2.5-flash-lite',
   groq: 'llama-3.3-70b-versatile',
-  perplexity: 'sonar',
+  // Perplexity's Anthropic-Messages cell now pivots through Responses
+  // (https://api.perplexity.ai/v1/responses). That endpoint requires
+  // the namespaced `<provider>/<model>` form; the bare `sonar` 400s
+  // with "model not supported".
+  perplexity: 'perplexity/sonar',
 };
 
 const WEATHER_TOOL = {
@@ -134,8 +138,16 @@ describe.each(LIVE_PROVIDERS)('Live: Anthropic Messages × $id', (cfg) => {
   describe.skipIf(!run)('scenarios', () => {
     const provider = cfg.build();
     const connection = run ? cfg.buildConnection() : (null as never);
-    const model = run ? cfg.buildModel() : (null as never);
     const modelId = ANTHROPIC_MODELS[cfg.id] ?? cfg.model;
+    // The provider overrides `request.model` with the resource
+    // entity's `model` field, so the format-specific id (e.g.
+    // `perplexity/sonar` for the Responses pivot) needs to live on
+    // the entity — not just on the request body.
+    const model = run
+      ? ({ ...cfg.buildModel(), model: modelId } as ReturnType<
+          typeof cfg.buildModel
+        >)
+      : (null as never);
 
     const dispatch = async (body: AnthropicMessagesRequest, stream = false) => {
       const payload = { ...body, stream } as AnthropicMessagesRequest;

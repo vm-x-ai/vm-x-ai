@@ -46,6 +46,17 @@ The OpenAI SDK that backs `ChatOpenAI` sends `Authorization: Bearer <key>`,
 which is one of the two header forms VM-X accepts (the other being
 `x-api-key`). No extra config needed.
 
+Three things differ from a direct OpenAI call:
+
+1. `base_url` points at the VM-X `/chat/completions` route, ending at
+   the `{workspace_id}/{environment_id}` segment — the SDK appends
+   `/chat/completions` itself.
+2. `api_key` is your VM-X API key, not an OpenAI key.
+3. `model` is the **AI Resource name** configured in VM-X — not an
+   upstream model id like `gpt-4o`. The gateway resolves the resource
+   to a provider + model, applies routing/fallback, and forwards the
+   request.
+
 ```python
 import os
 from langchain_openai import ChatOpenAI
@@ -55,10 +66,13 @@ environment_id = "your-environment-id"
 resource_name = "your-resource-name"
 api_key = os.getenv("VMX_AI_API_KEY")
 
-base_url = f"http://localhost:3000/v1/completion/{workspace_id}/{environment_id}"
+# The `/api` prefix is always present — the API mounts every HTTP route
+# under `BASE_PATH=/api` (see `packages/api/src/main.ts`). Port `3030` is
+# the local-dev default; the in-container default is `3000`.
+base_url = f"http://localhost:3030/api/v1/completion/{workspace_id}/{environment_id}"
 
 model = ChatOpenAI(
-    model=resource_name,  # Your AI Resource name
+    model=resource_name,  # Your AI Resource name (not an upstream model id)
     api_key=api_key,
     base_url=base_url,
 )
@@ -89,7 +103,7 @@ resource_name = "your-resource-name"
 api_key = os.getenv("VMX_AI_API_KEY")
 
 # Anthropic SDK appends `/v1/messages`; we end the base_url at `/anthropic`.
-base_url = f"http://localhost:3000/v1/completion/{workspace_id}/{environment_id}/anthropic"
+base_url = f"http://localhost:3030/api/v1/completion/{workspace_id}/{environment_id}/anthropic"
 
 model = ChatAnthropic(
     model=resource_name,  # AI Resource name (NOT a claude-* model id)
@@ -137,11 +151,11 @@ def get_weather(city: str) -> str:
 
 
 def main():
-    workspace_id = "8eab8372-a0ae-4856-9d6e-ad8589499c80"
-    environment_id = "c24ff5a5-40f1-417c-919d-b627f06060b0"
-    resource_name = "openai"
-    api_key = os.getenv("VMX_AI_API_KEY")
-    base_url = f"http://localhost:3000/v1/completion/{workspace_id}/{environment_id}"
+    workspace_id = os.environ["VMX_WORKSPACE_ID"]
+    environment_id = os.environ["VMX_ENVIRONMENT_ID"]
+    resource_name = os.environ.get("VMX_RESOURCE_NAME", "openai")
+    api_key = os.environ["VMX_AI_API_KEY"]
+    base_url = f"http://localhost:3030/api/v1/completion/{workspace_id}/{environment_id}"
 
     model = ChatOpenAI(
         model=resource_name,  # It will use the resource model/routing configuration
@@ -206,19 +220,24 @@ if __name__ == "__main__":
     main()
 ```
 
-## Overriding Resource Configuration
+## VM-X envelope (`extra_body`)
 
-You can override the resource's model/routing configuration for specific
-requests by passing a `vmx` field through `extra_body` (Python). See the
+The OpenAI SDK forwards anything in `extra_body` as top-level fields
+on the JSON request body. VM-X uses this to carry the `vmx` envelope
+(`correlationId`, `metadata`, `timeoutMs`, `providerArgs`,
+`secondaryModelIndex`, `resourceConfigOverrides`) — same shape as a
+raw `/chat/completions` call. See the
 [`vmx` envelope reference](./api/vmx-envelope.md) for the full field
-list — `correlationId`, `metadata`, `timeoutMs`, `providerArgs`,
-`secondaryModelIndex`, `resourceConfigOverrides`.
+list and semantics.
+
+The snippet below overrides the resolved model/provider per request
+via `resourceConfigOverrides`:
 
 ```python
 from langchain_openai import ChatOpenAI
 
 model = ChatOpenAI(
-    model="router",  # Resource name
+    model=resource_name,
     api_key=api_key,
     base_url=base_url,
     extra_body={
@@ -228,7 +247,7 @@ model = ChatOpenAI(
                 "model": {
                     "provider": "aws-bedrock",
                     "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-                    "connectionId": "f0fb0a42-6b31-424e-ae85-2ee6ffdeff65",
+                    "connectionId": "<aws-bedrock-connection-uuid>",
                 }
             }
         }
@@ -287,21 +306,37 @@ for chunk in model.stream("Tell me a story"):
 
 ## Example Project
 
-A complete example is available in the [examples/langchain](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/langchain) directory.
+A complete, runnable example lives in
+[examples/langchain](https://github.com/vm-x-ai/vm-x-ai/tree/main/examples/langchain).
+It uses `ChatOpenAI` against the gateway's Chat Completions surface,
+builds an agent with a tool, and streams the agent's intermediate
+messages. The required configuration is read from environment
+variables — there are no hardcoded workspace / environment / resource
+ids in the example.
 
-The example includes:
+Required env vars (set in your shell or in
+`examples/langchain/.env.local`):
 
-- Agent creation with tools
-- Streaming support
-- Resource configuration overrides
-- Error handling
+- `VMX_AI_API_KEY` — your VM-X API key
+- `VMX_WORKSPACE_ID` — workspace UUID
+- `VMX_ENVIRONMENT_ID` — environment UUID
+- `VMX_RESOURCE_NAME` — AI Resource name (defaults to `openai`)
+- `VMX_BASE_URL` — defaults to `http://localhost:3030/api` for the
+  local docker-compose stack. Set to your gateway origin for a
+  deployed environment.
 
-To get started with the example:
+Run it via Nx (preferred — uses the project's `uv` lockfile):
+
+```bash
+pnpm exec nx run langchain-example:run
+```
+
+Or directly:
 
 ```bash
 cd examples/langchain
-pip install -e .
-python -m langchain_vmx_example
+uv sync
+uv run python -m langchain_vmx_example
 ```
 
 ## Troubleshooting

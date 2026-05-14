@@ -2068,6 +2068,10 @@ export type RequestAuditEntity = {
    */
   type: RequestAuditType;
   /**
+   * Inbound wire format the request landed on — one of `chat-completions`, `responses`, or `anthropic`. Populated by the gateway from the originating endpoint; null on pre-migration rows.
+   */
+  format?: 'chat-completions' | 'responses' | 'anthropic';
+  /**
    * The status code of the completion audit event
    */
   statusCode: number;

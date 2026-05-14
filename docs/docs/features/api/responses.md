@@ -51,7 +51,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="<vmx-api-key>",
-    base_url="http://localhost:3000/v1/completion/<workspace>/<environment>",
+    base_url="http://localhost:3030/api/v1/completion/<workspace>/<environment>",
 )
 
 response = client.responses.create(
@@ -76,7 +76,7 @@ import OpenAI from 'openai';
 
 const client = new OpenAI({
   apiKey: '<vmx-api-key>',
-  baseURL: 'http://localhost:3000/v1/completion/<workspace>/<environment>',
+  baseURL: 'http://localhost:3030/api/v1/completion/<workspace>/<environment>',
 });
 
 const response = await client.responses.create({
@@ -98,7 +98,7 @@ console.log(text);
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -145,7 +145,7 @@ const response = await client.responses.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -172,16 +172,17 @@ name, so resource names that legitimately contain `/` still resolve.
 
 ## Shape primer — what's different from Chat Completions
 
-| Field             | Chat Completions        | Responses                                                         |
-| ----------------- | ----------------------- | ----------------------------------------------------------------- |
-| Conversation      | `messages[]`            | `input` (string or `input[]` of typed items)                      |
-| System prompt     | `messages[role:system]` | `instructions` (top-level)                                        |
-| Tokens cap        | `max_tokens`            | `max_output_tokens`                                               |
-| Tool definition   | `tools[].function`      | `tools[]` (`type: 'function' \| 'web_search'`)                    |
-| Reasoning control | n/a                     | `reasoning: { effort: 'low' \| 'medium' \| 'high' }`              |
-| Streaming events  | `data: {chunk}`         | `event: <type>\ndata: {…}\n\n` per event                          |
-| Stop reason       | `finish_reason`         | `status` (`completed` / `incomplete` / …)                         |
-| Output            | `choices[].message`     | `output[]` (typed items: `message`, `function_call`, `reasoning`) |
+| Field             | Chat Completions        | Responses                                                                 |
+| ----------------- | ----------------------- | ------------------------------------------------------------------------- |
+| Conversation      | `messages[]`            | `input` (string or `input[]` of typed items)                              |
+| System prompt     | `messages[role:system]` | `instructions` (top-level)                                                |
+| Tokens cap        | `max_tokens`            | `max_output_tokens`                                                       |
+| Tool definition   | `tools[].function`      | `tools[]` (`type: 'function' \| 'web_search'`)                            |
+| Reasoning control | n/a                     | `reasoning: { effort: 'low' \| 'medium' \| 'high' }`                      |
+| Streaming events  | `data: {chunk}`         | `event: <type>\ndata: {…}\n\n` per event                                  |
+| Stop reason       | `finish_reason`         | `status` (`completed` / `incomplete` / …)                                 |
+| Output            | `choices[].message`     | `output[]` (typed items: `message`, `function_call`, `reasoning`)         |
+| Continuity        | n/a (resend history)    | `previous_response_id` + `store: true` (OpenAI-native; ignored elsewhere) |
 
 ## Examples
 
@@ -248,7 +249,7 @@ const response = await client.responses.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -331,7 +332,7 @@ console.log(fc?.name, fc?.arguments);
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -445,7 +446,7 @@ const response = await client.responses.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -467,12 +468,25 @@ curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
 ### Web search (hosted tool)
 
 Web search is a built-in server-side tool — no function definition
-needed. Add `{ type: 'web_search' }` to `tools[]`. The model VM-X
-dispatches to must support the tool natively (OpenAI Responses-capable
-search models, Anthropic Claude with the `web_search_20250305` server
-tool, etc.). For routes through OpenAI-compat upstreams that don't
-speak hosted tools (Gemini / Groq / Perplexity), the gateway returns
-`400 responses_unsupported_tool_type`.
+needed. Add `{ type: 'web_search' }` to `tools[]`. Use the canonical
+`web_search` type (not the older `web_search_preview` — OpenAI still
+accepts both, and VM-X normalises `web_search_preview` to
+`web_search` when dispatching to Perplexity).
+
+Provider behaviour at a glance:
+
+- **OpenAI** — passthrough to OpenAI's hosted `web_search`. Note that
+  the Chat-Completions-only search models (`gpt-5-search-api`,
+  `gpt-4o-search-preview`, `gpt-4o-mini-search-preview`) cannot run on
+  this endpoint at all — see [BFF constraints](#bff-constraints) below.
+- **Anthropic / AWS Bedrock (Converse + Invoke)** — adapter maps the
+  tool to Claude's `web_search_20250305` server tool.
+- **Perplexity** — Sonar searches by default; `{type: 'web_search'}` is
+  the native tool shape, including optional `filters` /
+  `user_location`.
+- **Gemini** — adapter maps to Google's grounded search tool.
+- **Groq** — passed through verbatim (Groq's Responses-compat endpoint
+  accepts hosted-tool entries; support depends on the upstream model).
 
 <Tabs>
   <TabItem value="python" label="Python">
@@ -500,7 +514,7 @@ const response = await client.responses.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -563,7 +577,7 @@ for await (const event of stream) {
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -N -d '{
@@ -591,18 +605,24 @@ data: {"type":"response.completed","response":{...,"usage":{...}}}
 
 Common event types VM-X forwards:
 
-| Event                                    | When                                                                  |
-| ---------------------------------------- | --------------------------------------------------------------------- |
-| `response.created`                       | Response object is registered (with `id`).                            |
-| `response.in_progress`                   | Generation started.                                                   |
-| `response.output_item.added`             | A new top-level output item begins (message/function_call/reasoning). |
-| `response.content_part.added`            | A content part begins inside a message item.                          |
-| `response.output_text.delta`             | Streaming text delta.                                                 |
-| `response.function_call_arguments.delta` | Streaming JSON args delta on a function call.                         |
-| `response.reasoning_summary_text.delta`  | Streaming reasoning text delta.                                       |
-| `response.output_item.done`              | An output item finished.                                              |
-| `response.completed`                     | Stream done; final `response` object on the event.                    |
-| `error`                                  | Mid-stream error frame.                                               |
+| Event                                    | When                                                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `response.created`                       | Response object is registered (with `id`).                                                  |
+| `response.in_progress`                   | Generation started.                                                                         |
+| `response.output_item.added`             | A new top-level output item begins (message/function_call/reasoning).                       |
+| `response.content_part.added`            | A content part begins inside a message item.                                                |
+| `response.output_text.delta`             | Streaming text delta.                                                                       |
+| `response.function_call_arguments.delta` | Streaming JSON args delta on a function call.                                               |
+| `response.reasoning_summary_text.delta`  | Streaming reasoning text delta.                                                             |
+| `response.output_item.done`              | An output item finished.                                                                    |
+| `response.completed`                     | Stream done; final `response` object on the event (carries `usage` + assembled `output[]`). |
+| `response.incomplete`                    | Generation stopped before completion — usually `max_output_tokens` or `content_filter`.     |
+| `error`                                  | Mid-stream error frame (no trailing `[DONE]` sentinel).                                     |
+
+Every event carries a strictly monotonic `sequence_number` starting at
+`0`, and `usage` always lands on the final `response.completed` /
+`response.incomplete` event — there is no separate usage chunk like
+Chat Completions has.
 
 ### Attaching `vmx` metadata
 
@@ -643,7 +663,7 @@ const response = await client.responses.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -662,19 +682,45 @@ curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
 
 ## Provider compatibility
 
-| Provider             | Native passthrough? | Notes                                                                                                                                                                            |
-| -------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OpenAI               | ✅ Yes              | Direct dispatch via `client.responses.create`.                                                                                                                                   |
-| Anthropic            | Convert (D5)        | Direct Responses↔Anthropic adapter — no internal pivot through Chat Completions. Reasoning effort → `thinking.budget_tokens`; reasoning content comes back as `reasoning` items. |
-| AWS Bedrock-Converse | Convert             | Direct Responses↔Converse adapter.                                                                                                                                               |
-| AWS Bedrock-Invoke   | Convert             | Responses → Anthropic (canonical adapter) → Bedrock-Invoke wire shape.                                                                                                           |
-| Gemini               | Convert             | Via Chat Completions on Google's OpenAI-compat endpoint.                                                                                                                         |
-| Groq                 | Convert             | Via Chat Completions.                                                                                                                                                            |
-| Perplexity           | Convert             | Via Chat Completions.                                                                                                                                                            |
+| Provider             | Native passthrough? | Notes                                                                                                                                                                                    |
+| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenAI               | Yes                 | Direct dispatch via `client.responses.create`. Supports `previous_response_id` / `conversation` continuity, hosted tools, and the full reasoning event stream.                           |
+| Anthropic            | Convert             | Direct Responses↔Anthropic adapter — no internal pivot through Chat Completions. Reasoning effort → `thinking.budget_tokens`; reasoning content comes back as `reasoning` items.         |
+| AWS Bedrock-Converse | Convert             | Direct Responses↔Converse adapter.                                                                                                                                                       |
+| AWS Bedrock-Invoke   | Convert             | Responses → Anthropic (canonical adapter) → Bedrock-Invoke wire shape (Claude-only on this connection).                                                                                  |
+| Gemini               | Convert             | Direct Responses↔Gemini adapter via the native `@google/genai` SDK (no OpenAI-compat hop).                                                                                               |
+| Groq                 | Yes                 | Native passthrough to Groq's Responses-compatible endpoint (`api.groq.com/openai/v1/responses`). Assistant `output_text` parts in `input[]` are flattened to plain strings (Groq quirk). |
+| Perplexity           | Yes                 | Native passthrough to Perplexity's `POST /v1/responses` (alias to `/v1/agent`). `{type:'web_search_preview'}` is renamed to `{type:'web_search'}` before dispatch.                       |
 
 For the per-pair conversion details (which Responses fields survive
 each conversion path), see the
 [conversion matrix](https://github.com/vm-x-ai/vm-x-ai/blob/main/contributing-docs/conversion-matrix.md).
+
+## BFF constraints
+
+The playground UI (Next.js BFF at
+[`packages/ui/src/app/api/responses/route.ts`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/ui/src/app/api/responses/route.ts))
+adds two pre-flight checks on top of the gateway. **Direct gateway
+callers (OpenAI SDK, cURL, your own service) are not affected** —
+these only fire on requests routed through the playground.
+
+- **OpenAI Chat-Completions-only search models are rejected.**
+  `gpt-5-search-api`, `gpt-4o-search-preview`, and
+  `gpt-4o-mini-search-preview` have web search baked into the model
+  and only run on `/chat/completions`. The BFF returns
+  `400 model_endpoint_mismatch` with a hint to switch to the Chat
+  Completions endpoint instead of surfacing the upstream's
+  `Tool 'web_search_preview' is not supported` / 500-on-plain-prompt
+  error. The allow-list lives in
+  [`openai-model-quirks.ts`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/ui/src/app/api/_lib/openai-model-quirks.ts).
+- **Non-canonical `output[]` items are stripped on non-streaming
+  responses.** Perplexity emits `{type:'search_results', …}` items
+  alongside the canonical message/reasoning/function_call set. The AI
+  SDK's Responses Zod schema rejects unknown discriminators, so the
+  BFF filters `output[]` down to the AI-SDK-accepted union. Sources
+  are still readable via the top-level `citations[]` /
+  `search_results[]` extension fields that Perplexity also stamps —
+  the gateway preserves both verbatim.
 
 ## Errors
 

@@ -24,8 +24,8 @@ const baseTools = {
 } as const;
 
 describe('Anthropic→Converse tool_choice none (T11)', () => {
-  it('strips tools when tool_choice.type === "none"', () => {
-    const out = requestAnthropicToConverse(
+  it('strips tools when tool_choice.type === "none"', async () => {
+    const out = await requestAnthropicToConverse(
       {
         model: 'claude',
         max_tokens: 64,
@@ -38,8 +38,8 @@ describe('Anthropic→Converse tool_choice none (T11)', () => {
     expect(out.toolConfig).toBeUndefined();
   });
 
-  it('still emits tools when tool_choice.type === "auto"', () => {
-    const out = requestAnthropicToConverse(
+  it('still emits tools when tool_choice.type === "auto"', async () => {
+    const out = await requestAnthropicToConverse(
       {
         model: 'claude',
         max_tokens: 64,
@@ -54,8 +54,8 @@ describe('Anthropic→Converse tool_choice none (T11)', () => {
 });
 
 describe('Resp→Converse tool_choice none (T11)', () => {
-  it('strips tools when tool_choice === "none"', () => {
-    const out = requestResponsesToConverse(
+  it('strips tools when tool_choice === "none"', async () => {
+    const out = await requestResponsesToConverse(
       {
         model: 'us.anthropic.claude-haiku-4-5',
         input: 'hi',

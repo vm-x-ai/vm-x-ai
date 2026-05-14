@@ -18,6 +18,16 @@ Dynamic routing evaluates conditions for each request and selects the most appro
 - **Content analysis**: Route based on message content or patterns
 - **Traffic splitting**: A/B test models or gradually roll out new models
 
+Routing is one knob on an AI Resource and runs **once per request**,
+before any provider call. Its job is to pick the _first_ model the
+gateway will try. After routing produces a model, the resource's
+[fallback](./fallback.md) chain still runs if that model fails, and
+the resource's [capacity](./capacity.md) limits still apply. The same
+routing rules fire for any of the three gateway surfaces — OpenAI
+Chat Completions, OpenAI Responses, and Anthropic Messages — because
+non-Responses requests are converted to the canonical Responses shape
+before routing evaluates conditions.
+
 ## Basic Routing
 
 Route based on simple conditions. This example demonstrates token-based routing, where requests with fewer than 100 input tokens are routed to a faster, cost-effective model (Groq with `openai/gpt-oss-20b`), while larger requests use the default primary model.
@@ -63,46 +73,69 @@ Route requests that include function calling or tool usage to models that suppor
 ## Available Routing Fields and Expressions
 
 Routing conditions evaluate against a small set of request-shaped
-variables. The OpenAI-shape body is always available under `request.*`
-regardless of which endpoint the caller used (Chat Completions,
-Responses, or Anthropic Messages) — Responses and Anthropic requests
-are converted to OpenAI shape before routing runs.
+variables. The **canonical shape is OpenAI Responses** — Chat
+Completions and Anthropic Messages requests are converted to the
+Responses shape before routing runs, so the same template works
+across all three gateway surfaces. See the
+[`RoutingContext`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/gateway/routing.context.ts)
+type and
+[`ResourceRoutingService`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/gateway/routing.service.ts)
+for the exact set of variables exposed to EJS.
 
 ### Token-Based Conditions
 
 - **`tokens.input`**: Number of input tokens in the request
   - Example: Route to Groq if input tokens < 100
 
-### Request Conditions
+### Request Conditions (Canonical Responses Shape)
 
-- **`request.model`**: The resource name the caller targeted (the
-  request's `model` field).
-- **`request.messagesCount`**: Number of messages in the request.
-- **`request.toolsCount`**: Number of tools declared on the request.
-  Use `GREATER_THAN 0` to check whether the request uses tools at all.
+Spread of the canonical Responses-shape body, so any Responses field
+is reachable as `request.<field>`:
+
+- **`request.model`**: The resource name the caller targeted.
+- **`request.input`**: The Responses input items array (or string).
+- **`request.instructions`**: Responses-style system instructions.
+- **`request.tools`**: Tool definitions attached to the request.
+- **`request.reasoning`**: Reasoning config block when present.
+
+### Derived Convenience Variables
+
+To keep familiar Chat-Completions-style expressions working, the
+routing engine derives a few helpers from the canonical Responses
+body:
+
+- **`request.messages`**: A `{ role, content }[]` view derived from
+  `instructions` + `input` (`developer` items collapse into `system`).
+  Function-call items and tool-result items are skipped — branch on
+  `request.input` directly if you need them.
+- **`request.messagesCount`**: Length of the derived `messages` array.
+- **`request.toolsCount`**: `request.tools?.length ?? 0`. Use
+  `GREATER_THAN 0` to check whether the request uses tools at all.
 - **`request.firstMessage`** / **`request.lastMessage`**: First and
-  last message objects. Read `.content` for the text body. Both are
-  `undefined` when the request has no messages.
-- **`request.allMessagesContent`**: All message contents joined into
-  a single string. Supports `CONTAINS` and `PATTERN`. Length-based
-  routing uses `request.allMessagesContent.length` with a numeric
-  comparator.
+  last derived message objects. Read `.content` for the text body.
+  Both are `undefined` when the request has no messages.
+- **`request.allMessagesContent`**: All derived message contents
+  joined into a single string. Supports `CONTAINS` and `PATTERN`.
+  Length-based routing uses `request.allMessagesContent.length` with
+  a numeric comparator.
 
 ### Format and Native-Body Conditions
 
 Routing rules can also branch on the **input format** the client
-used and read fields the OpenAI conversion would otherwise drop:
+used and read fields the canonical Responses conversion drops:
 
-- **`request.format`**: One of `"openai"`, `"responses"`,
+- **`request.format`**: One of `"chat-completions"`, `"responses"`,
   `"anthropic"`. Lets a single resource apply different rules
   depending on which endpoint was hit.
 - **`request.nativeBody`**: The original request body, before
   format conversion. Use this to read provider-native fields that
-  the OpenAI shape doesn't model — for example
-  `request.nativeBody.thinking` (Anthropic extended thinking),
-  `request.nativeBody.cache_control` (Anthropic prompt caching),
-  `request.nativeBody.instructions` or `request.nativeBody.reasoning`
-  (Responses-only fields).
+  the canonical shape doesn't model — for example
+  `request.nativeBody.thinking` (Anthropic extended thinking) or
+  `request.nativeBody.cache_control` (Anthropic prompt caching).
+  When `request.format === 'chat-completions'` it's the OpenAI
+  Chat Completions body; when `'responses'` it's the original
+  Responses body (same as `request`); when `'anthropic'` it's the
+  Anthropic Messages body.
 
 These fields are evaluated through EJS, so they appear in advanced-
 mode routing expressions like
@@ -142,10 +175,12 @@ Each route declares an action. There are two:
   is the default action used by token-based, error-rate-based, and
   traffic-splitting routes.
 - **`BLOCK`** — when the route matches, the gateway short-circuits
-  and returns `400 Bad Request` to the caller without calling any
-  provider. Use this to enforce policy at the routing layer (for
-  example, block requests whose prompt matches a known
-  prompt-injection probe).
+  and returns `400 Bad Request` with an OpenAI-compatible
+  `blocked_by_routing_condition` error to the caller without
+  calling any provider. Use this to enforce policy at the routing
+  layer (for example, block requests whose prompt matches a known
+  prompt-injection probe). Blocked requests are also marked
+  non-retryable, so fallback does **not** run.
 
 ## Traffic Splitting
 

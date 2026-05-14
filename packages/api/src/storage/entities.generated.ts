@@ -236,6 +236,7 @@ export interface RequestAudit {
   errorMessage: string | null;
   events: Json | null;
   failureReason: string | null;
+  format: string | null;
   gateDuration: number | null;
   id: Generated<string>;
   messageId: string | null;

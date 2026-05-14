@@ -24,12 +24,11 @@ export type { AnthropicConnectionConfig } from './shared';
  * `CompletionProvider` interface by delegating to the format-specific
  * @Injectable handlers in this folder.
  *
- * Native passthrough is here for `anthropicMessages`; OpenAI Chat
- * Completions and Responses inputs are converted via the shared
- * `anthropic-messages.adapter.ts` (canonical OpenAI↔Anthropic) before
- * the wire call. The Responses path currently routes through the
- * ChatCompletion pivot; a direct Responses↔Anthropic adapter is
- * tracked as a Phase B follow-up.
+ * `anthropicMessages` is native passthrough. `openAICompletion` and
+ * `openAIResponse` are direct converters: Chat Completions input pivots
+ * through the shared `anthropic-messages.adapter.ts`; Responses input
+ * goes through `openai-response.provider.ts` directly (no Chat
+ * Completions hop).
  */
 @Injectable()
 export class AnthropicProvider implements CompletionProvider {

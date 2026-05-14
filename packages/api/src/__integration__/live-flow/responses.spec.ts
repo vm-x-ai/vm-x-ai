@@ -24,7 +24,11 @@ const RESPONSES_MODELS: Partial<Record<string, string>> = {
   anthropic: 'claude-haiku-4-5',
   gemini: 'gemini-2.5-flash-lite',
   groq: 'llama-3.3-70b-versatile',
-  perplexity: 'sonar',
+  // Perplexity's Responses endpoint requires the `<provider>/<model>`
+  // namespaced form; bare `sonar` is rejected with `model "sonar" is
+  // not supported`. Their Chat Completions endpoint is the opposite
+  // (bare id only) — different surface, different naming.
+  perplexity: 'perplexity/sonar',
 };
 
 const WEATHER_TOOL = {
@@ -153,8 +157,16 @@ describe.each(LIVE_PROVIDERS)('Live: Responses × $id', (cfg) => {
   describe.skipIf(!run)('scenarios', () => {
     const provider = cfg.build();
     const connection = run ? cfg.buildConnection() : (null as never);
-    const model = run ? cfg.buildModel() : (null as never);
     const modelId = RESPONSES_MODELS[cfg.id] ?? cfg.model;
+    // The provider overrides `request.model` with the resource
+    // entity's `model` field, so the Responses-specific id (e.g.
+    // `perplexity/sonar`) needs to live on the entity — not just on
+    // the request body.
+    const model = run
+      ? ({ ...cfg.buildModel(), model: modelId } as ReturnType<
+          typeof cfg.buildModel
+        >)
+      : (null as never);
 
     const dispatch = async (body: ResponsesRequestDto, stream = false) => {
       const payload = { ...body, stream } as ResponsesRequestDto;
@@ -190,6 +202,12 @@ describe.each(LIVE_PROVIDERS)('Live: Responses × $id', (cfg) => {
       TIMEOUT
     );
 
+    // Groq's Responses surface rejects typed `output_text` content
+    // parts inside assistant messages ("Input contains unsupported
+    // content types or unsupported content fields"). The
+    // `GroqResponseProvider` flattens typed assistant content to a
+    // plain string before the SDK call, which restores parity with
+    // OpenAI's Responses contract for this scenario.
     it(
       'multi-message conversation (non-streaming)',
       async () => {
@@ -382,15 +400,25 @@ describe.each(LIVE_PROVIDERS)('Live: Responses × $id', (cfg) => {
       TIMEOUT
     );
 
-    if (cfg.providerSpecificArgs) {
+    // Groq's Responses-shape `service_tier` enum is narrower than its
+    // Chat Completions sibling: it accepts only `auto`/`default`/`flex`
+    // (no `on_demand`). The `providerSpecificArgs` on the shared
+    // `LIVE_PROVIDERS` config is tuned for Chat Completions, so swap
+    // in the Responses-compatible value here for Groq.
+    const responsesProviderArgs: Record<string, unknown> | undefined =
+      cfg.id === 'groq'
+        ? { service_tier: 'auto' }
+        : (cfg.providerSpecificArgs as Record<string, unknown> | undefined);
+
+    if (responsesProviderArgs) {
       it(
         `accepts provider-native field passthrough on Responses shape (${Object.keys(
-          cfg.providerSpecificArgs
+          responsesProviderArgs
         ).join(', ')})`,
         async () => {
           const response = await dispatch(
             baseRequest(modelId, 'Reply with the word: pong', {
-              ...(cfg.providerSpecificArgs as Partial<ResponsesRequestDto>),
+              ...(responsesProviderArgs as Partial<ResponsesRequestDto>),
             })
           );
           const text = await getResponseText(response.data);

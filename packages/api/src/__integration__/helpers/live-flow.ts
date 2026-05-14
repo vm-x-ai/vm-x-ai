@@ -3,6 +3,8 @@ import type { AIConnectionEntity } from '../../ai-connection/entities/ai-connect
 import type { AIResourceModelConfigEntity } from '../../ai-resource/common/model.entity';
 import {
   buildAnthropicProvider,
+  buildBedrockInvokeProvider,
+  buildBedrockProvider,
   buildGeminiProvider,
   buildGroqProvider,
   buildOpenAIProvider,
@@ -19,9 +21,20 @@ import { hasKeys, requiredEnv } from './env';
  */
 export type LiveProviderConfig = {
   /** Stable id used to derive describe titles + filtering. */
-  id: 'openai' | 'anthropic' | 'gemini' | 'groq' | 'perplexity';
-  /** Env var the provider's API key lives under. */
-  envKey: string;
+  id:
+    | 'openai'
+    | 'anthropic'
+    | 'gemini'
+    | 'groq'
+    | 'perplexity'
+    | 'aws-bedrock'
+    | 'aws-bedrock-invoke';
+  /**
+   * Env var(s) gating the provider's live cells. The cell only runs
+   * when every listed var is present — used by AWS Bedrock variants
+   * that need both `AWS_BEDROCK_ROLE_ARN` and `AWS_REGION`.
+   */
+  envKey: string | readonly string[];
   /** Factory returning a fresh provider instance. */
   build: () => CompletionProvider;
   /** Model id used for plain chat scenarios. */
@@ -124,11 +137,65 @@ export const LIVE_PROVIDERS: LiveProviderConfig[] = [
     // Completions spec but accepted by Perplexity's compat endpoint.
     providerSpecificArgs: { search_recency_filter: 'week' },
   },
+  {
+    id: 'aws-bedrock',
+    // Bedrock auth uses an assumed IAM role + region rather than an
+    // API key. Both env vars are required for the SigV4 client to
+    // construct correctly.
+    envKey: ['AWS_BEDROCK_ROLE_ARN', 'AWS_REGION'],
+    build: buildBedrockProvider,
+    model:
+      process.env.BEDROCK_TEST_MODEL ??
+      'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    supportsTools: true,
+    buildConnection: () =>
+      makeConnection('aws-bedrock', {
+        iamRoleArn: requiredEnv('AWS_BEDROCK_ROLE_ARN'),
+        region: requiredEnv('AWS_REGION'),
+      }),
+    buildModel: () =>
+      makeModel(
+        'aws-bedrock',
+        process.env.BEDROCK_TEST_MODEL ??
+          'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+      ),
+    // Bedrock Converse accepts `additionalModelRequestFields` for
+    // model-specific knobs. `reasoning_effort` is the closest analogue
+    // to the Anthropic Claude `thinking.budget_tokens` knob on this
+    // surface and lets the providerArgs round-trip test exercise the
+    // additional-fields path.
+    providerSpecificArgs: { reasoning_effort: 'low' },
+  },
+  {
+    id: 'aws-bedrock-invoke',
+    envKey: ['AWS_BEDROCK_ROLE_ARN', 'AWS_REGION'],
+    build: buildBedrockInvokeProvider,
+    model:
+      process.env.BEDROCK_INVOKE_TEST_MODEL ??
+      'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    supportsTools: true,
+    buildConnection: () =>
+      makeConnection('aws-bedrock-invoke', {
+        iamRoleArn: requiredEnv('AWS_BEDROCK_ROLE_ARN'),
+        region: requiredEnv('AWS_REGION'),
+      }),
+    buildModel: () =>
+      makeModel(
+        'aws-bedrock-invoke',
+        process.env.BEDROCK_INVOKE_TEST_MODEL ??
+          'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+      ),
+    // Bedrock-Invoke speaks the Anthropic wire body verbatim. `top_k`
+    // is the canonical Anthropic-only knob the providerArgs path
+    // surfaces — same field the native Anthropic cell uses.
+    providerSpecificArgs: { top_k: 10 },
+  },
 ];
 
-/** True when both the live-test toggle is on and the provider's key is set. */
+/** True when every env var listed in `cfg.envKey` is present. */
 export function shouldRunLive(cfg: LiveProviderConfig): boolean {
-  return hasKeys(cfg.envKey);
+  const keys = Array.isArray(cfg.envKey) ? cfg.envKey : [cfg.envKey as string];
+  return hasKeys(...keys);
 }
 
 /** Convenience for `describe.each` titles. */

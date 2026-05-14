@@ -467,6 +467,73 @@ Roles are **global** and not scoped to workspaces or environments. A role's perm
 5. Capacity is checked at both the connection and resource levels
 6. All requests are logged for audit and metrics
 
+## Platform Architecture
+
+The sections above describe the user-facing concepts. The runtime is built from a focused set of NestJS modules under [`packages/api/src/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src) and a Next.js admin / playground UI under [`packages/ui/src/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/ui/src).
+
+### Multi-surface Gateway
+
+The gateway lives in [`packages/api/src/gateway/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/gateway) and exposes three wire-compatible surfaces. All three are mounted under the shared `completion` controller prefix and resolve to the same AI Resource / routing engine:
+
+- **OpenAI Chat Completions** — `POST /completion/:workspaceId/:environmentId/chat/completions` ([`chat-completions/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/gateway/chat-completions))
+- **OpenAI Responses** — `POST /completion/:workspaceId/:environmentId/responses` ([`responses/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/gateway/responses))
+- **Anthropic Messages** — `POST /completion/:workspaceId/:environmentId/anthropic/messages` and `.../anthropic/v1/messages` ([`anthropic/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/gateway/anthropic))
+
+Shared gateway internals:
+
+- [`gateway-orchestrator.service.ts`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/gateway/gateway-orchestrator.service.ts) — primary dispatch, fallback, retry, and streaming glue
+- [`routing.service.ts`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/gateway/routing.service.ts) — evaluates the routing conditions documented above
+- [`cost/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/gateway/cost) — per-request cost computation against the model-pricing table
+- [`metrics/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/gateway/metrics) — aggregated request/latency/error metrics surfaced to the UI
+- [`batch/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/gateway/batch) — asynchronous batch-completion queue (Redis-backed consumer)
+
+The gateway preserves each provider's response wire format verbatim; per-surface adaptation happens in the provider layer, not in the gateway.
+
+### Provider Layer
+
+Each provider in [`packages/api/src/ai-provider/<provider>/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider) ships **three converter classes**, one per gateway surface:
+
+- `openai-chat-completion.provider.ts`
+- `openai-response.provider.ts`
+- `anthropic-messages.provider.ts`
+
+Supported providers:
+
+- [`openai/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider/openai)
+- [`anthropic/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider/anthropic)
+- [`gemini/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider/gemini) — uses the native `@google/genai` SDK
+- [`groq/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider/groq)
+- [`perplexity/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider/perplexity)
+- [`aws-bedrock-converse/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider/aws-bedrock-converse) — Bedrock Converse API
+- [`aws-bedrock-invoke/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider/aws-bedrock-invoke) — Bedrock `InvokeModel` API
+
+Cross-provider helpers live in [`adapters/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-provider/adapters) (reasoning, server-tools, Anthropic-messages adapter) plus [`passthrough.helpers.ts`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/ai-provider/passthrough.helpers.ts) and [`forward-headers.ts`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/ai-provider/forward-headers.ts).
+
+### Resource & Tenancy Modules
+
+- [`workspace/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/workspace) and [`environment/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/environment) — tenancy primitives described above
+- [`ai-connection/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-connection) and [`ai-resource/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/ai-resource) — CRUD for the connection/resource concepts
+- [`api-key/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/api-key) — bearer-token issuance and request guard
+- [`users/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/users), [`role/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/role), [`auth/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/auth) — local + OIDC authentication and global role policies
+- [`pool-definition/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/pool-definition) — declarative bundles that can apply across resources
+- [`capacity/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/capacity) — capacity entity and counter service shared by connections and resources
+- [`prioritization/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/prioritization) — request-prioritization strategies (e.g. adaptive token scaling) with a Redis-backed store
+- [`model-pricing/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/model-pricing) — per-token pricing table and sync service feeding the cost module
+
+### Persistence, Security, and Observability
+
+- [`storage/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/storage) — Kysely-typed Postgres access (types generated by `nx run api:codegen`)
+- [`migrations/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/migrations) — versioned schema migrations run by `nx run api:migrate`
+- [`cache/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/cache) — Redis cluster client used for caching, prioritization, and the batch queue
+- [`vault/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/vault) — credential encryption with pluggable backends ([`aws-kms/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/vault/aws-kms) and [`libsodium/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/vault/libsodium))
+- [`audit/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/audit) — request audit log persisted to Postgres (single backend; no separate time-series store)
+- [`usage/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/usage) — usage aggregation backed by the [`postgres/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/api/src/usage/postgres) reader
+- [`tracing.ts`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/packages/api/src/tracing.ts) — OpenTelemetry bootstrap exporting to the OTel collector, with Jaeger / Prometheus / Loki / Grafana wired in [`docker-compose.yml`](https://github.com/vm-x-ai/open-vm-x-ai/blob/main/docker-compose.yml)
+
+### Admin UI and Playground
+
+The Next.js app under [`packages/ui/src/app/`](https://github.com/vm-x-ai/open-vm-x-ai/tree/main/packages/ui/src/app) exposes per-workspace, per-environment surfaces for **AI connections**, **AI resources**, **prioritization**, **insights**, an interactive **playground**, **SDK** quickstarts, and **security** (users, roles, API keys), plus global **settings** (users, roles, model pricing).
+
 ## Best Practices
 
 ### AI Connections

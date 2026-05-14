@@ -46,26 +46,27 @@ def openai_chat_completions_search(cfg) -> None:
 
 
 def openai_responses_search(cfg) -> None:
-    """OpenAI Responses hosted web_search.
+    """OpenAI Responses hosted `web_search` tool.
 
-    Known gateway limitation: VM-X currently runs the Responses converter
-    unconditionally for routing, and the converter rejects `web_search`
-    because it has no Chat Completions equivalent. The doc claims this
-    works as a native passthrough — capture the failure cleanly so the
-    drift is visible.
+    Uses a non-search-class OpenAI resource — the three Chat-Completions-only
+    search models (`gpt-5-search-api`, `gpt-4o-search-preview`,
+    `gpt-4o-mini-search-preview`) cannot run on the Responses endpoint
+    and the BFF rejects them with `model_endpoint_mismatch`. The
+    `web_search` tool itself is the canonical Responses-side opt-in;
+    `web_search_preview` still works for older integrations.
     """
-    if not cfg.openai_search_resource:
-        print("[openai_responses_search] skipped (no openai-search resource)")
+    if not cfg.openai_resource:
+        print("[openai_responses_search] skipped (no openai resource)")
         return
     client = OpenAI(api_key=cfg.api_key, base_url=cfg.base_completion_url)
     try:
         response = client.responses.create(
-            model=cfg.openai_search_resource,
+            model=cfg.openai_resource,
             input="What's the latest TypeScript release?",
             tools=[{"type": "web_search"}],
         )
     except BadRequestError as exc:
-        print(f"[openai_responses_search] gateway-blocked: {exc.message[:120]}")
+        print(f"[openai_responses_search] failed: {exc.message[:120]}")
         return
     text_parts = [
         part.text
@@ -131,6 +132,41 @@ def perplexity_builtin_search(cfg) -> None:
           f"first={citations[0] if citations else None}")
 
 
+def perplexity_responses_filters(cfg) -> None:
+    """Perplexity Responses surface with tools[].filters.
+
+    On the Responses endpoint Perplexity nests recency/domain knobs
+    under each search-tool entry's `filters` object. The gateway's
+    PerplexityResponseProvider renames OpenAI-canonical
+    `web_search_preview` → Perplexity-canonical `web_search` and
+    preserves `filters` verbatim.
+    """
+    if not cfg.perplexity_resource:
+        print("[perplexity_responses_filters] skipped (no perplexity resource)")
+        return
+    client = OpenAI(api_key=cfg.api_key, base_url=cfg.base_completion_url)
+    try:
+        response = client.responses.create(
+            model=cfg.perplexity_resource,
+            input="Latest TypeScript release?",
+            tools=[
+                {
+                    "type": "web_search",
+                    "filters": {
+                        "search_domain_filter": ["github.com", "typescriptlang.org"],
+                        "search_recency_filter": "week",
+                    },
+                }
+            ],
+        )
+    except BadRequestError as exc:
+        print(f"[perplexity_responses_filters] failed: {exc.message[:120]}")
+        return
+    citations = getattr(response, "citations", None) or []
+    print(f"[perplexity_responses_filters] citations={len(citations)} "
+          f"first={citations[0] if citations else None}")
+
+
 def gemini_google_search(cfg) -> None:
     """Gemini googleSearch tool — auto-routes to native @google/genai."""
     if not cfg.gemini_resource:
@@ -168,6 +204,7 @@ def main() -> None:
     openai_responses_search(cfg)
     anthropic_messages_search(cfg)
     perplexity_builtin_search(cfg)
+    perplexity_responses_filters(cfg)
     gemini_google_search(cfg)
 
 

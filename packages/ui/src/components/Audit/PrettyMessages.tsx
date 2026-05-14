@@ -163,10 +163,33 @@ function extractTurns(
   }
   // Anthropic Messages response: { role: 'assistant', content: [{type: 'text', text}] }
   if (obj.role === 'assistant' && Array.isArray(obj.content)) {
+    const turns: RoleTurn[] = [];
+    // Anthropic's `thinking` blocks live inside the assistant
+    // message's `content[]`. Lift them into a sibling reasoning turn
+    // so the audit drawer surfaces the model's thinking alongside the
+    // reply rather than dropping it on the floor (walkContent has no
+    // text slot for them).
+    const reasoning = extractThinkingFromContent(obj.content as unknown[]);
+    if (reasoning) {
+      turns.push({ role: 'reasoning', content: reasoning });
+    }
     const t = toRoleTurn(obj);
-    if (t) return [t];
+    if (t) turns.push(t);
+    return turns.length ? turns : null;
   }
   return null;
+}
+
+function extractThinkingFromContent(content: unknown[]): string | null {
+  const out: string[] = [];
+  for (const part of content) {
+    if (!part || typeof part !== 'object') continue;
+    const p = part as Record<string, unknown>;
+    if (p.type === 'thinking' && typeof p.thinking === 'string') {
+      out.push(p.thinking);
+    }
+  }
+  return out.length > 0 ? out.join('\n') : null;
 }
 
 function toRoleTurn(item: unknown): RoleTurn | null {
@@ -190,6 +213,28 @@ function toRoleTurn(item: unknown): RoleTurn | null {
         ? m.output
         : JSON.stringify(m.output ?? '', null, 2);
     return { role: 'tool', content: output };
+  }
+
+  // OpenAI Responses-API `reasoning` items carry the model's
+  // (optionally summarised) thinking. Render as a `reasoning` turn so
+  // the audit drawer surfaces it alongside the assistant reply
+  // instead of dropping it on the floor.
+  if (m.type === 'reasoning') {
+    const summary = Array.isArray(m.summary)
+      ? (m.summary as Array<Record<string, unknown>>)
+          .map((s) => (typeof s.text === 'string' ? s.text : ''))
+          .filter(Boolean)
+          .join('\n')
+      : '';
+    if (!summary) return null;
+    return { role: 'reasoning', content: summary };
+  }
+
+  // Anthropic Messages `thinking` content blocks (non-Responses
+  // path) — same treatment as the Responses `reasoning` item above.
+  if (m.type === 'thinking' && typeof m.thinking === 'string') {
+    if (!m.thinking) return null;
+    return { role: 'reasoning', content: m.thinking };
   }
 
   const role = typeof m.role === 'string' ? m.role : 'message';
@@ -378,6 +423,21 @@ function coalesceResponseArray(arr: unknown[]): unknown {
   if (!first || typeof first !== 'object')
     return arr.length === 1 ? first : arr;
 
+  // OpenAI Responses-API streaming events: every chunk has
+  // `type: 'response.*'`. Coalesce by either picking the final
+  // `response.completed` event (which carries the fully assembled
+  // `response.output[]` + `usage`) or, as a fallback, accumulating
+  // `response.output_text.delta` / `response.reasoning_summary_text.delta`
+  // events into a synthetic `output[]` shape `extractTurns` already
+  // understands.
+  const firstType =
+    typeof (first as Record<string, unknown>).type === 'string'
+      ? ((first as Record<string, unknown>).type as string)
+      : null;
+  if (firstType && firstType.startsWith('response.')) {
+    return coalesceResponsesStream(arr as Array<Record<string, unknown>>);
+  }
+
   // OpenAI ChatCompletionChunk[] -> ChatCompletion-shape
   const obj = first as Record<string, unknown>;
   if (Array.isArray(obj.choices)) {
@@ -426,12 +486,187 @@ function coalesceResponseArray(arr: unknown[]): unknown {
       ],
     };
   }
+  // Anthropic Messages streaming events: every chunk has
+  // `type: 'message_start' | 'content_block_*' | 'message_*'`.
+  // Coalesce text + thinking + tool_use deltas into a single
+  // Anthropic-shape response object so the pretty path renders one
+  // assistant turn.
+  if (typeof obj.type === 'string' && isAnthropicStreamEvent(obj.type)) {
+    return coalesceAnthropicStream(arr as Array<Record<string, unknown>>);
+  }
   // Anthropic + Responses-API non-streaming responses are persisted
   // as a single-element array (`responseData: [response]`). Unwrap so
   // the downstream `extractTurns` sees the actual response object
   // rather than its enclosing array.
   if (arr.length === 1) return first;
   return arr;
+}
+
+/**
+ * Coalesce an OpenAI Responses-API SSE event stream into a single
+ * non-streaming `Response`-shape object so the pretty path renders
+ * the assembled assistant turn instead of a raw event dump.
+ *
+ * Preference order:
+ *   1. The terminal `response.completed` event carries the fully
+ *      assembled response (`output[]` + `usage`). Use it verbatim.
+ *   2. Fallback — accumulate `response.output_text.delta` and
+ *      `response.reasoning_summary_text.delta` events into a synthetic
+ *      `{ output: [{ type: 'message', content: [{type:'output_text',text}] }] }`.
+ */
+function coalesceResponsesStream(arr: Array<Record<string, unknown>>): unknown {
+  for (const event of arr) {
+    if (event.type === 'response.completed' && event.response) {
+      return event.response;
+    }
+  }
+  let textBuf = '';
+  let reasoningBuf = '';
+  for (const event of arr) {
+    if (
+      event.type === 'response.output_text.delta' &&
+      typeof event.delta === 'string'
+    ) {
+      textBuf += event.delta;
+    } else if (
+      event.type === 'response.reasoning_summary_text.delta' &&
+      typeof event.delta === 'string'
+    ) {
+      reasoningBuf += event.delta;
+    }
+  }
+  const output: Array<Record<string, unknown>> = [];
+  if (reasoningBuf) {
+    output.push({
+      type: 'reasoning',
+      summary: [{ type: 'summary_text', text: reasoningBuf }],
+    });
+  }
+  if (textBuf) {
+    output.push({
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'output_text', text: textBuf }],
+    });
+  }
+  return output.length > 0 ? { output } : arr;
+}
+
+function isAnthropicStreamEvent(type: string): boolean {
+  return (
+    type === 'message_start' ||
+    type === 'message_delta' ||
+    type === 'message_stop' ||
+    type === 'content_block_start' ||
+    type === 'content_block_delta' ||
+    type === 'content_block_stop' ||
+    type === 'ping'
+  );
+}
+
+/**
+ * Coalesce an Anthropic Messages SSE event stream into a single
+ * non-streaming `Message`-shape object. Walks `content_block_start`
+ * + `content_block_delta` pairs per index and assembles a
+ * `content[]` array of `text` / `thinking` / `tool_use` blocks.
+ *
+ * The fully-assembled message lets the pretty path reuse the same
+ * code that renders non-streaming Anthropic responses — no
+ * Anthropic-specific branch needed downstream.
+ */
+function coalesceAnthropicStream(arr: Array<Record<string, unknown>>): unknown {
+  const blocks = new Map<number, Record<string, unknown>>();
+  // Tool-use arguments stream as `input_json_delta.partial_json`
+  // fragments that we concatenate per block index until done.
+  const toolBuffers = new Map<number, string>();
+  let role: string | undefined;
+  let model: string | undefined;
+  let stopReason: string | undefined;
+  let usage: Record<string, unknown> | undefined;
+
+  for (const event of arr) {
+    const t = event.type;
+    if (t === 'message_start' && event.message) {
+      const m = event.message as Record<string, unknown>;
+      if (typeof m.role === 'string') role = m.role;
+      if (typeof m.model === 'string') model = m.model;
+      if (m.usage && typeof m.usage === 'object') {
+        usage = m.usage as Record<string, unknown>;
+      }
+    } else if (t === 'content_block_start' && typeof event.index === 'number') {
+      const block = event.content_block as Record<string, unknown> | undefined;
+      if (block) {
+        blocks.set(event.index as number, { ...block });
+      }
+    } else if (t === 'content_block_delta' && typeof event.index === 'number') {
+      const idx = event.index as number;
+      const block = blocks.get(idx) ?? {};
+      const delta = event.delta as Record<string, unknown> | undefined;
+      if (delta) {
+        if (delta.type === 'text_delta' && typeof delta.text === 'string') {
+          block.type = 'text';
+          block.text = String(block.text ?? '') + delta.text;
+        } else if (
+          delta.type === 'thinking_delta' &&
+          typeof delta.thinking === 'string'
+        ) {
+          block.type = 'thinking';
+          block.thinking = String(block.thinking ?? '') + delta.thinking;
+        } else if (
+          delta.type === 'input_json_delta' &&
+          typeof delta.partial_json === 'string'
+        ) {
+          toolBuffers.set(
+            idx,
+            (toolBuffers.get(idx) ?? '') + delta.partial_json
+          );
+        } else if (
+          delta.type === 'signature_delta' &&
+          typeof delta.signature === 'string'
+        ) {
+          block.signature = delta.signature;
+        }
+      }
+      blocks.set(idx, block);
+    } else if (t === 'message_delta' && event.delta) {
+      const d = event.delta as Record<string, unknown>;
+      if (typeof d.stop_reason === 'string') stopReason = d.stop_reason;
+      if (event.usage && typeof event.usage === 'object') {
+        usage = {
+          ...(usage ?? {}),
+          ...(event.usage as Record<string, unknown>),
+        };
+      }
+    }
+  }
+
+  // Finalise tool-use blocks — parse the buffered partial_json into
+  // `input` (or leave it as a string if parsing fails so the user
+  // still sees the raw bytes).
+  for (const [idx, partial] of toolBuffers) {
+    const block = blocks.get(idx);
+    if (!block) continue;
+    if (block.type === 'tool_use') {
+      try {
+        block.input = JSON.parse(partial);
+      } catch {
+        block.input = partial;
+      }
+    }
+    blocks.set(idx, block);
+  }
+
+  const content = Array.from(blocks.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([, v]) => v);
+  if (content.length === 0) return arr;
+  return {
+    role: role ?? 'assistant',
+    model,
+    content,
+    stop_reason: stopReason,
+    usage,
+  };
 }
 
 // ─── Visual pieces ───────────────────────────────────────────────────────
@@ -443,6 +678,7 @@ const ROLE_COLORS: Record<
   system: 'default',
   user: 'primary',
   assistant: 'success',
+  reasoning: 'info',
   tool: 'warning',
   message: 'info',
 };

@@ -1,289 +1,205 @@
-# AI Provider Architecture
+# AI providers — architecture & "how to add one"
 
-How VM-X routes a completion request through to a model provider, and where the
-format conversion lives.
+Canonical internal guide for adding or modifying a provider. Sibling read:
+[`conversion-matrix.md`](./conversion-matrix.md) (what survives each
+input-format → wire conversion). For per-cell behaviour detail, read
+the converter under `packages/api/src/ai-provider/<provider>/`
+alongside its `*.spec.ts` neighbour and the matching live spec in
+`packages/api/src/__integration__/providers/<provider>.spec.ts`.
 
-## TL;DR
+## The hard architectural rule — passthrough fidelity
 
-- Three input formats: **OpenAI Chat Completions**, **OpenAI Responses**, and
-  **Anthropic Messages**. Each gets its own controller + service.
-- Every provider implements a 3-method `CompletionProvider` interface:
-  `openAICompletion`, `openAIResponse`, `anthropicMessages`. The output format
-  always matches the input format (no format switching mid-pipeline).
-- Each provider lives in a per-provider folder with 4 files: one per input
-  format plus an `index.ts` composer. New providers follow the same template.
-- The audit row stores **both** payloads: `requestPayload` (what the client
-  sent) and `providerRequestPayload` (what the upstream SDK saw).
+> **The gateway preserves the upstream wire format verbatim.** Each
+> provider class in `packages/api/src/ai-provider/<provider>/` MUST
+> return the response in the **same** input format the caller used.
+> No format switching mid-pipeline.
 
-## Three input formats, three controllers, three services
+Three input surfaces are exposed at the HTTP edge:
 
-```
-packages/api/src/gateway/
-  completion.controller.ts          ← POST /chat/completions  → CompletionService
-  responses/responses.controller.ts ← POST /responses         → ResponsesService
-  anthropic/anthropic.controller.ts ← POST /anthropic/messages → AnthropicMessagesService
-  completion.service.ts             ← shared orchestrator (routing, gating, audit)
-  responses/responses.service.ts    ← thin per-format adapter
-  anthropic/anthropic.service.ts    ← thin per-format adapter
-  routing.service.ts                ← cross-format routing rules
-  gate.service.ts                   ← cross-format rate/capacity gate
-  cost/                             ← cost calculation (OpenAI-Usage shape)
-```
+| Surface                 | Controller                                                | Service                                                      |
+| ----------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| OpenAI Chat Completions | `gateway/chat-completions/chat-completions.controller.ts` | `chat-completions.service.ts` → `GatewayOrchestratorService` |
+| OpenAI Responses        | `gateway/responses/responses.controller.ts`               | `responses.service.ts` → `GatewayOrchestratorService`        |
+| Anthropic Messages      | `gateway/anthropic/anthropic.controller.ts`               | `anthropic.service.ts` → `GatewayOrchestratorService`        |
 
-Each controller injects exactly one service. The two non-OpenAI services are
-thin adapters that delegate to `CompletionService.complete({format, body})` for
-now — they exist to give the controller a per-format shape. The full Phase E
-goal (each service owns its own pipeline end-to-end) is a follow-up.
+A request hits its surface's controller, the per-surface service strips
+the gateway's `vmx` envelope + folds in `vmx.providerArgs`, and the
+shared `GatewayOrchestratorService` (`gateway/gateway-orchestrator.service.ts`)
+runs routing/gating/audit and dispatches to **one** of the three
+`CompletionProvider` methods. The provider returns the native wire
+shape; the orchestrator writes the audit row and forwards to the
+client.
+
+Provider-specific client-side quirks (e.g. response-shape massaging a
+particular SDK expects) belong in the **BFF / SDK adapter** — never in
+`ai-provider/<provider>/`. Anything inside `ai-provider/` either
+passes the body through verbatim or runs a cross-format converter
+(see "Where conversion lives" below).
 
 ## The `CompletionProvider` interface
 
-Every provider class exposes three methods, one per input format. Each method
-returns a response in the **same** format. No internal pivot format leaks into
-the public contract.
+`packages/api/src/ai-provider/ai-provider.types.ts`:
 
 ```ts
 interface CompletionProvider {
   provider: AIProviderDto;
 
-  openAICompletion(request: ChatCompletionCreateParams, connection: AIConnectionEntity, model: AIResourceModelConfigEntity, options?: CompletionRequestOptions): Promise<OpenAICompletionResponse>;
-
-  openAIResponse(request: ResponseCreateParams, connection: AIConnectionEntity, model: AIResourceModelConfigEntity, options?: CompletionRequestOptions): Promise<OpenAIResponseResponse>;
-
-  anthropicMessages(request: AnthropicMessagesRequest, connection: AIConnectionEntity, model: AIResourceModelConfigEntity, options?: CompletionRequestOptions): Promise<AnthropicMessagesResponse>;
+  openAICompletion(req: ChatCompletionCreateParams, conn, model, options?): Promise<OpenAICompletionResponse>;
+  openAIResponse(req: ResponseCreateParams, conn, model, options?): Promise<OpenAIResponseResponse>;
+  anthropicMessages(req: AnthropicMessagesRequest, conn, model, options?): Promise<AnthropicMessagesResponse>;
 }
 ```
 
 Each method:
 
-- Receives the client body in that format (with the gateway's `vmx` envelope
-  stripped — the service does that before dispatch).
-- Decides internally whether to passthrough (provider's wire format matches
-  the input) or convert.
-- Captures `providerRequestPayload` (the wire body) on every success/error
-  path including mid-stream errors.
-- Returns the response in the input format.
+- Receives the body in its native input format with the `vmx` envelope
+  already stripped by the per-surface service.
+- Decides internally whether to passthrough (provider's wire shape ==
+  input shape) or convert.
+- Captures `providerRequestPayload` (the exact body the upstream SDK
+  saw) on every success + error path, including mid-stream errors.
+- Returns the response in the **same** format. No internal pivot
+  format leaks out.
 
-**Per-provider passthrough/convert matrix:**
+### Per-provider passthrough/convert matrix
 
-| Provider                                                 | `openAICompletion`                       | `openAIResponse`               | `anthropicMessages`              |
-| -------------------------------------------------------- | ---------------------------------------- | ------------------------------ | -------------------------------- |
-| `OpenAIProvider`                                         | passthrough                              | convert via Chat Completions\* | convert via Chat Completions\*   |
-| `GeminiProvider` / `GroqProvider` / `PerplexityProvider` | passthrough (OpenAI-compat)              | convert via Chat Completions   | convert via Chat Completions     |
-| `AnthropicProvider`                                      | convert ↔ Anthropic                      | convert via Chat Completions\* | passthrough                      |
-| `AWSBedrockInvokeProvider` (Anthropic on the wire)       | convert ↔ Anthropic + Bedrock-wire shape | convert via Chat Completions\* | passthrough (Bedrock-wire shape) |
-| `AWSBedrockProvider` (Converse)                          | convert ↔ Converse                       | convert via Chat Completions\* | convert via Chat Completions\*   |
+| Provider                                           | `openAICompletion`          | `openAIResponse`            | `anthropicMessages`        |
+| -------------------------------------------------- | --------------------------- | --------------------------- | -------------------------- |
+| `OpenAIProvider`                                   | passthrough                 | passthrough                 | convert via Responses      |
+| `GroqProvider` / `PerplexityProvider`              | passthrough (OpenAI-compat) | passthrough (OpenAI-compat) | convert via Responses      |
+| `GeminiProvider`                                   | convert ↔ `@google/genai`   | convert ↔ `@google/genai`   | convert ↔ `@google/genai`  |
+| `AnthropicProvider`                                | convert ↔ Anthropic         | convert ↔ Anthropic         | passthrough                |
+| `AWSBedrockInvokeProvider` (Anthropic on the wire) | convert ↔ Anthropic + AWS   | convert ↔ Anthropic + AWS   | passthrough (Bedrock wire) |
+| `AWSBedrockProvider` (Converse)                    | convert ↔ Converse          | convert ↔ Converse          | convert ↔ Converse         |
 
-`*` = transitional. The Phase B goal is direct per-pair converters
-(Responses↔Anthropic, Anthropic↔Converse, Responses↔Converse,
-`client.responses.create` native passthrough on OpenAI). When those land,
-`format-dispatch.helpers.ts` and the legacy `responses-converter.ts` /
-`anthropic-converter.ts` can be deleted.
+Anthropic-Messages on the three OpenAI-compat providers pivots through
+the **Responses** surface (`openai/anthropic-via-responses.ts`),
+not Chat Completions — typed reasoning / refusal / multimodal
+function-call output survive that path. See
+[`conversion-matrix.md`](./conversion-matrix.md) for what each cell
+preserves.
 
-## Per-provider folder structure
+## Per-provider folder layout
 
-Every provider lives in its own folder under `packages/api/src/ai-provider/`:
+Every provider lives under `packages/api/src/ai-provider/<provider>/`
+with this canonical 4-to-5-file layout:
 
 ```
 ai-provider/
   openai/
-    shared.ts                          ← OpenAIConnectionConfig, createOpenAIClient, parseDuration, header helpers
-    openai-chat-completion.provider.ts ← OpenAIChatCompletionProvider — owns the SDK call + error mapping
-    openai-response.provider.ts        ← OpenAIResponseProvider — converts Responses → Chat Completions, dispatches
-    anthropic-messages.provider.ts     ← OpenAIAnthropicMessagesProvider — converts Anthropic → Chat Completions, dispatches
-    index.ts                           ← OpenAIProvider composer — implements CompletionProvider by delegating
+    shared.ts                          OpenAIConnectionConfig, createOpenAIClient, header helpers
+    openai-chat-completion.provider.ts OpenAIChatCompletionProvider  (passthrough)
+    openai-response.provider.ts        OpenAIResponseProvider        (passthrough)
+    anthropic-messages.provider.ts     OpenAIAnthropicMessagesProvider (Anthropic ↔ Responses)
+    anthropic-via-responses.ts         shared Anthropic↔Responses dispatcher (reused by Groq/Perplexity)
+    index.ts                           OpenAIProvider composer + DTO + connection-form JSON schema
 
-  gemini/                              ← extends OpenAI's classes; only createClient differs (Gemini's baseURL)
-    openai-chat-completion.provider.ts ← GeminiChatCompletionProvider extends OpenAIChatCompletionProvider
-    openai-response.provider.ts        ← GeminiResponseProvider extends OpenAIResponseProvider
-    anthropic-messages.provider.ts     ← GeminiAnthropicMessagesProvider extends OpenAIAnthropicMessagesProvider
-    index.ts                           ← GeminiProvider composer
-
-  groq/        ← same shape, baseURL = api.groq.com/openai/v1
-  perplexity/  ← same shape, baseURL = api.perplexity.ai
+  gemini/   uses @google/genai natively via GeminiDispatcher (NOT OpenAI subclasses)
+  groq/     OpenAI-compat — extends OpenAI classes with createClient override (baseURL = api.groq.com/openai/v1)
+  perplexity/ OpenAI-compat — two base URLs (chat-completions vs /v1/responses), see perplexity/shared.ts
 
   anthropic/
-    shared.ts                          ← AnthropicConnectionConfig, createAnthropicClient, filterAnthropicHeaders, handleAnthropicError, AnthropicDispatcher (the @Injectable that owns the SDK call), stripGatewayEnvelopes
-    openai-chat-completion.provider.ts ← AnthropicOpenAICompletionProvider — converts Chat Completions → Anthropic, dispatches
-    openai-response.provider.ts        ← AnthropicOpenAIResponseProvider — Responses → Chat Completions → Anthropic
-    anthropic-messages.provider.ts     ← AnthropicMessagesProvider — strips vmx + dispatches verbatim
-    index.ts                           ← AnthropicProvider composer
+    shared.ts                          AnthropicDispatcher (@Injectable, owns the SDK call), stripGatewayEnvelopes
+    openai-chat-completion.provider.ts AnthropicOpenAICompletionProvider
+    openai-response.provider.ts        AnthropicOpenAIResponseProvider
+    anthropic-messages.provider.ts     AnthropicMessagesProvider (passthrough)
+    index.ts                           AnthropicProvider composer
 
-  aws-bedrock-invoke/                  ← Anthropic on the wire + AWS transport
-    shared.ts                          ← AWSBedrockInvokeDispatcher (extends AWSBedrockBaseProvider) — owns InvokeModel command, AWS event-stream parser, AWS exception mapping
-    shared.spec.ts                     ← Unit tests for the AWS event-stream parser + exception mapping
-    openai-chat-completion.provider.ts ← Chat Completions → Anthropic → Bedrock-Invoke wire
-    openai-response.provider.ts        ← Responses → Chat Completions → Anthropic → Bedrock-Invoke wire
-    anthropic-messages.provider.ts     ← Anthropic → Bedrock-Invoke wire (native passthrough)
-    index.ts                           ← AWSBedrockInvokeProvider composer
+  aws-bedrock-invoke/  Anthropic on the wire + AWS transport (extends AWSBedrockBaseProvider)
+  aws-bedrock-converse/ AWS Converse wire shape (extends AWSBedrockBaseProvider)
 
-  aws-bedrock-converse/                ← AWS Converse wire shape (distinct from both OpenAI and Anthropic)
-    shared.ts                          ← AWSBedrockConverseDispatcher (extends AWSBedrockBaseProvider) — owns AWS Converse Command + Chat Completions ↔ Converse conversion + streaming + error mapping
-    openai-chat-completion.provider.ts ← Delegates to dispatcher.completion()
-    openai-response.provider.ts        ← Responses → Chat Completions → Converse
-    anthropic-messages.provider.ts     ← Anthropic → Chat Completions → Converse
-    index.ts                           ← AWSBedrockProvider composer (DTO + uiComponents)
-
-  providers/
-    aws-bedrock-base.provider.ts       ← Abstract base for AWS providers (cached STS-credential createClient)
+  aws-bedrock-base.ts                  Abstract base for AWS providers (cached STS-credential client builder)
 
   adapters/
-    anthropic-messages.adapter.ts      ← Canonical OpenAI ↔ Anthropic converter (used by both Anthropic and Bedrock-Invoke)
+    anthropic-messages.adapter.ts      OpenAI Chat Completions ↔ Anthropic cross-format converter
+    anthropic-reasoning.ts             reasoning_effort ↔ thinkingBudget mapping
+    anthropic-server-tools.ts          server-side tool (web search / code exec) normalisation
 
-  format-dispatch.helpers.ts           ← Transitional bridge: takes a ChatCompletion-shape dispatcher and produces openAIResponse / anthropicMessages handlers via the existing converters. Deleted once direct per-pair converters land.
+  passthrough.helpers.ts               stripPassthroughEnvelope, parsePassthroughBody
+  response-shape.helpers.ts            detectStreamChunkShape + StreamUsageAccumulator
+  url-safety.ts                        assertSafeOutboundUrl (SSRF guard for image/document fetches)
 ```
 
-**Composer pattern.** Every `index.ts` is a thin `@Injectable` class that
-implements the 3-method `CompletionProvider` interface by delegating to the
-three sibling format-specific classes. Example for OpenAI:
+**Composer pattern.** Every `index.ts` is a thin `@Injectable` class
+that implements `CompletionProvider` by delegating each method to its
+sibling per-surface class. It also owns the `AIProviderDto` —
+`id`, `name`, `defaultModel`, `config.logo`, and the
+`config.connection.form` JSON Schema the UI renders verbatim.
 
-```ts
-@Injectable()
-export class OpenAIProvider implements CompletionProvider {
-  provider: AIProviderDto;
+**Shared dispatcher pattern.** Anthropic, Bedrock-Invoke,
+Bedrock-Converse and Gemini each ship an `@Injectable` dispatcher
+class in `shared.ts` that owns the SDK call + error mapping + stream
+wrapping. The three per-surface files inject the dispatcher and call
+`dispatch(...)` (or `completion(...)` for Converse). OpenAI / Groq /
+Perplexity skip the dispatcher because the OpenAI SDK call already
+lives in `OpenAIChatCompletionProvider`.
 
-  constructor(private readonly chatCompletionProvider: OpenAIChatCompletionProvider, private readonly responseProvider: OpenAIResponseProvider, private readonly anthropicMessagesProvider: OpenAIAnthropicMessagesProvider) {
-    this.provider = {
-      /* DTO */
-    };
-  }
+## Audit row invariant
 
-  openAICompletion(req, conn, model, options) {
-    return this.chatCompletionProvider.handle(req, conn, model, options);
-  }
-  openAIResponse(req, conn, model, options) {
-    return this.responseProvider.handle(req, conn, model, options);
-  }
-  anthropicMessages(req, conn, model, options) {
-    return this.anthropicMessagesProvider.handle(req, conn, model, options);
-  }
-}
-```
+Every dispatch writes one audit row with these JSONB columns:
 
-**Subclassing for OpenAI-compat providers.** Gemini/Groq/Perplexity extend
-OpenAI's format-specific classes via NestJS DI:
+| Column                   | Source                                                                     |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `requestPayload`         | Body the **client** sent (post-`vmx`-strip, pre-conversion).               |
+| `providerRequestPayload` | Body the **upstream SDK** saw on the wire.                                 |
+| `responseData`           | Native wire response (or chunk array for streams) in the provider's shape. |
+| `responseHeaders`        | Filtered to `x-*` headers.                                                 |
+| `cost`                   | Per-request cost breakdown (input / output / cached / reasoning / total).  |
+| `events`                 | Routing / fallback events fired during dispatch.                           |
 
-```ts
-@Injectable()
-export class GeminiChatCompletionProvider extends OpenAIChatCompletionProvider {
-  protected override createClient(connection) {
-    return createOpenAIClient(connection, 'https://generativelanguage.googleapis.com/v1beta/openai');
-  }
-}
-
-@Injectable()
-export class GeminiResponseProvider extends OpenAIResponseProvider {
-  constructor(geminiChat: GeminiChatCompletionProvider) {
-    super(geminiChat); // The parent injects whichever ChatCompletion class is passed.
-  }
-}
-```
-
-**Shared dispatcher.** Anthropic / Bedrock-Invoke / Bedrock-Converse all have a
-`shared.ts` containing an `@Injectable` dispatcher class that owns the SDK call.
-The three format-specific files inject the dispatcher and call its `dispatch()`
-method (or in Converse's case, `completion()`).
-
-## Audit observability invariant
-
-Every completion call writes one audit row with these JSONB columns:
-
-| Column                   | Source                                                                                                                       |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `requestPayload`         | Body the **client** sent — preserved through any conversion the gateway does.                                                |
-| `providerRequestPayload` | Body the **upstream SDK** saw on the wire — captured pre-flight by the provider.                                             |
-| `responseData`           | Response (or chunk array for streaming) — currently OpenAI ChatCompletion shape (Phase C will widen this to the wire shape). |
-| `responseHeaders`        | Filtered to `x-*` headers only.                                                                                              |
-| `cost`                   | Per-request cost breakdown (input, output, cached, reasoning, total).                                                        |
-| `events`                 | Routing / fallback events fired during dispatch.                                                                             |
-
-The `providerRequestPayload` invariant holds on every code path:
-
-```mermaid
-flowchart LR
-    subgraph SuccessPaths["Success paths"]
-      A1["Non-streaming response"]
-      A2["Streaming response\n(set on stream wrapper)"]
-    end
-
-    subgraph ErrorPaths["Error paths (CompletionError.data.providerRequestPayload)"]
-      B1["Non-streaming SDK throw"]
-      B2["Streaming pre-flight throw"]
-      B3["Mid-stream error event\n(throttling, model-stream,\nvalidation)"]
-    end
-
-    A1 --> Captured["providerRequestPayload set"]
-    A2 --> Captured
-    B1 --> Captured
-    B2 --> Captured
-    B3 --> Captured
-```
-
-Mid-stream errors are caught by per-provider stream wrappers that re-throw a
-`CompletionError` with the wire body attached. The Anthropic dispatcher's
-`iterateSdkStream` and the Bedrock-Invoke dispatcher's `parseBedrockEventStream`
-both follow this pattern. Bedrock-Converse's `convertStream` similarly captures
-the wire body via the `requestBody` parameter threaded into the generator.
+`providerRequestPayload` MUST be set on every code path — non-streaming
+success, streaming success (on the wrapper before yield), pre-flight
+throw, and mid-stream error. The reference patterns are
+`AnthropicDispatcher.iterateSdkStream` (`anthropic/shared.ts`) and
+`AWSBedrockInvokeDispatcher.parseBedrockEventStream`
+(`aws-bedrock-invoke/shared.ts`). Bedrock-Converse threads the wire
+body into its stream generator via the `requestBody` parameter.
 
 ## Where conversion lives
 
-Every conversion is co-located with its provider's format-specific file. There
-is no central `adapters/` shelf for everything — only `adapters/anthropic-messages.adapter.ts`
-exists today (the canonical OpenAI ↔ Anthropic converter, used by both
-Anthropic and Bedrock-Invoke).
+Cross-format conversion is co-located with the provider that needs it:
 
-```mermaid
-flowchart TD
-    Req["Client request\n(format-tagged)"]
-
-    Req --> Service["Per-format service\n(strips vmx, looks up provider)"]
-    Service --> ProviderMethod["provider.openAICompletion()\nor openAIResponse()\nor anthropicMessages()"]
-    ProviderMethod --> CheckFormat{"Native passthrough?"}
-
-    CheckFormat -- "yes" --> WireBody["Wire body = request.body"]
-    CheckFormat -- "no" --> Convert["Convert to wire shape\n(adapter or format-dispatch.helpers)"]
-
-    WireBody --> SDK["SDK call (OpenAI / Anthropic /\nBedrock InvokeModel / Bedrock Converse)"]
-    Convert --> SDK
-
-    SDK --> Response["Wire response"]
-    Response --> ConvertOut["Convert to input format\n(only when not native passthrough)"]
-    Response --> NativeOut["Forward verbatim\n(native passthrough)"]
-
-    ConvertOut --> Client["Response in input format"]
-    NativeOut --> Client
 ```
+openai/anthropic-messages.provider.ts        Anthropic ↔ Responses (canonical dispatcher in openai/anthropic-via-responses.ts)
+openai/anthropic-via-responses.ts            shared by openai/groq/perplexity
+adapters/anthropic-messages.adapter.ts       OpenAI Chat Completions ↔ Anthropic (used by Anthropic + Bedrock-Invoke + Bedrock-Converse)
+gateway/responses/from-anthropic.ts          Anthropic Messages → Responses request adapter
+gateway/responses/from-chat-completions.ts   Chat Completions → Responses request adapter
+gateway/responses/responses-converter.ts     output adapter back to Responses
+aws-bedrock-converse/shared.ts               OpenAI Chat Completions ↔ Converse (~1100 LOC)
+gemini/shared.ts + per-surface .provider.ts  OpenAI/Anthropic ↔ @google/genai
+```
+
+Cross-format converters are pure functions (or `@Injectable` classes
+with no transport dependency). The transport — SDK call, retries,
+streaming, error mapping — lives in the dispatcher or the per-surface
+provider class.
 
 ---
 
-# Adding a new AI provider
-
-Practical "I want to add provider X" walkthrough. Pick the right starting
-point based on what wire shape the upstream speaks, then follow the per-step
-recipe.
+# Adding a new provider
 
 ## Decision tree
 
 ```
-What does provider X speak on the wire?
+What does the upstream speak on the wire?
 
-1. OpenAI Chat Completions–compatible endpoint (Gemini, Groq, Perplexity, etc.)
-   → Template A — extend OpenAI's classes, override createClient
+1. OpenAI Chat Completions–compatible endpoint (Groq / Perplexity pattern)
+   → Template A: extend OpenAI's per-surface classes, override createClient.
 
 2. Anthropic Messages on the wire (most "Claude on Y" services)
-   → Template B — model after AnthropicProvider or AWSBedrockInvokeProvider
+   → Template B: model after AnthropicProvider or AWSBedrockInvokeProvider.
 
-3. Custom wire shape (Vertex AI native, Bedrock Converse, proprietary RPC)
-   → Template C — model after AWSBedrockProvider (Converse) — write all 3 conversions
+3. Custom wire shape (Vertex native, Bedrock Converse, proprietary RPC)
+   → Template C: model after AWSBedrockProvider or GeminiProvider — write
+     all three conversions and own a native dispatcher.
 ```
 
-## Template A: OpenAI-compat upstream (Gemini/Groq/Perplexity pattern)
+## Template A — OpenAI-compat upstream
 
-**Effort:** ~5 small files, ~150 LOC total.
+Effort: ~5 small files, ~150 LOC. Reference: `groq/`.
 
-Create the folder `packages/api/src/ai-provider/<provider-id>/` with these
-files:
-
-### `<provider-id>/openai-chat-completion.provider.ts`
+`<provider>/openai-chat-completion.provider.ts`:
 
 ```ts
 import { Injectable } from '@nestjs/common';
@@ -302,41 +218,17 @@ export class FooBarChatCompletionProvider extends OpenAIChatCompletionProvider {
 }
 ```
 
-### `<provider-id>/openai-response.provider.ts`
+`<provider>/openai-response.provider.ts` and
+`<provider>/anthropic-messages.provider.ts` follow the same pattern —
+extend the OpenAI parent, override `createClient`. The Anthropic-Messages
+class injects your `FooBarResponseProvider` so the
+Anthropic→Responses pivot routes to your `baseURL`.
+
+`<provider>/index.ts`:
 
 ```ts
 import { Injectable } from '@nestjs/common';
-import { OpenAIResponseProvider } from '../openai/openai-response.provider';
-import { FooBarChatCompletionProvider } from './openai-chat-completion.provider';
-
-@Injectable()
-export class FooBarResponseProvider extends OpenAIResponseProvider {
-  constructor(foobarChat: FooBarChatCompletionProvider) {
-    super(foobarChat);
-  }
-}
-```
-
-### `<provider-id>/anthropic-messages.provider.ts`
-
-```ts
-import { Injectable } from '@nestjs/common';
-import { OpenAIAnthropicMessagesProvider } from '../openai/anthropic-messages.provider';
-import { FooBarChatCompletionProvider } from './openai-chat-completion.provider';
-
-@Injectable()
-export class FooBarAnthropicMessagesProvider extends OpenAIAnthropicMessagesProvider {
-  constructor(foobarChat: FooBarChatCompletionProvider) {
-    super(foobarChat);
-  }
-}
-```
-
-### `<provider-id>/index.ts`
-
-```ts
-import { Injectable } from '@nestjs/common';
-import { CompletionProvider /* response types */ } from '../ai-provider.types';
+import { CompletionProvider } from '../ai-provider.types';
 import { AIProviderDto } from '../dto/ai-provider.dto';
 import { FooBarChatCompletionProvider } from './openai-chat-completion.provider';
 import { FooBarResponseProvider } from './openai-response.provider';
@@ -377,21 +269,21 @@ export class FooBarProvider implements CompletionProvider {
     };
   }
 
-  openAICompletion(req, conn, model, options) {
-    return this.chatCompletionProvider.handle(req, conn, model, options);
+  openAICompletion(req, conn, model, opts) {
+    return this.chatCompletionProvider.handle(req, conn, model, opts);
   }
-  openAIResponse(req, conn, model, options) {
-    return this.responseProvider.handle(req, conn, model, options);
+  openAIResponse(req, conn, model, opts) {
+    return this.responseProvider.handle(req, conn, model, opts);
   }
-  anthropicMessages(req, conn, model, options) {
-    return this.anthropicMessagesProvider.handle(req, conn, model, options);
+  anthropicMessages(req, conn, model, opts) {
+    return this.anthropicMessagesProvider.handle(req, conn, model, opts);
   }
 }
 ```
 
-### Wire into DI
+### DI registration
 
-In `packages/api/src/ai-provider/ai-provider.module.ts`:
+`packages/api/src/ai-provider/ai-provider.module.ts`:
 
 ```ts
 import { FooBarProvider } from './foobar';
@@ -401,7 +293,7 @@ import { FooBarAnthropicMessagesProvider } from './foobar/anthropic-messages.pro
 
 @Module({
   providers: [
-    /* existing providers */
+    /* existing */
     FooBarProvider,
     FooBarChatCompletionProvider,
     FooBarResponseProvider,
@@ -411,8 +303,7 @@ import { FooBarAnthropicMessagesProvider } from './foobar/anthropic-messages.pro
 })
 ```
 
-In `packages/api/src/ai-provider/ai-provider.service.ts`, register the
-provider in the constructor:
+`packages/api/src/ai-provider/ai-provider.service.ts`:
 
 ```ts
 constructor(
@@ -424,100 +315,129 @@ constructor(
 }
 ```
 
+### Logo asset
+
+Add `packages/api/assets/logos/<provider-id>.png` (square, ≤ 200 KB).
+
 ### Test factory
 
-In `packages/api/src/__integration__/helpers/factories.ts`:
+`packages/api/src/__integration__/helpers/factories.ts`:
 
 ```ts
 export const buildFooBarProvider = () => {
   const logger = makeStubLogger();
   const chat = new FooBarChatCompletionProvider(logger);
-  return new FooBarProvider(chat, new FooBarResponseProvider(chat), new FooBarAnthropicMessagesProvider(chat));
+  const responses = new FooBarResponseProvider(logger);
+  return new FooBarProvider(chat, responses, new FooBarAnthropicMessagesProvider(responses));
 };
 ```
 
-### Logo asset
+Then add the provider entry to `LIVE_PROVIDERS` in
+`packages/api/src/__integration__/helpers/live-flow.ts` (env-key gate
 
-Add `packages/api/assets/logos/<provider-id>.png` (square, ≤ 200KB).
+- `buildConnection` + `buildModel` + `supportsTools`). The
+  parametrised live-flow specs (`completion.spec.ts`,
+  `responses.spec.ts`, `anthropic-messages.spec.ts`) pick it up
+  automatically.
 
-That's it. The `__integration__/live-flow/` matrix and the
-`__integration__/providers/<provider-id>.spec.ts` files pick the new provider
-up via the `live-flow.ts` registration table.
+## Template B — Anthropic on the wire
 
-## Template B: Anthropic-on-the-wire upstream
+Effort: ~7 files. Reference: `aws-bedrock-invoke/` (Anthropic + AWS
+transport) or `anthropic/` (native Anthropic SDK).
 
-**Effort:** ~7 files, similar shape to `aws-bedrock-invoke/`. Use that folder
-as the canonical reference. The key files:
+- `<provider>/shared.ts` — the SDK client + `@Injectable` dispatcher
+  with the SDK call, stream wrapper, error mapping. Extend
+  `AWSBedrockBaseProvider` (in `ai-provider/aws-bedrock-base.ts`) if
+  the transport is AWS.
+- `<provider>/openai-chat-completion.provider.ts` — call
+  `openAIRequestToAnthropic` from `adapters/anthropic-messages.adapter.ts`,
+  then `dispatcher.dispatch(...)`.
+- `<provider>/openai-response.provider.ts` — for now route through
+  `responses/from-anthropic.ts` or the OpenAI Responses Anthropic
+  adapter, then dispatch.
+- `<provider>/anthropic-messages.provider.ts` — call
+  `stripGatewayEnvelopes(...)` (re-exported from `anthropic/shared.ts`
+  → ultimately `passthrough.helpers.ts`) and dispatch verbatim.
+- `<provider>/index.ts` — composer + DTO.
 
-- `<provider-id>/shared.ts` — the SDK client, the dispatcher class with the
-  SDK call + error mapping. Extends the abstract base if there is one (the
-  AWS providers extend `AWSBedrockBaseProvider`).
-- `<provider-id>/openai-chat-completion.provider.ts` — converts OpenAI body
-  using `openAIRequestToAnthropic` from
-  `adapters/anthropic-messages.adapter.ts`, then dispatches.
-- `<provider-id>/openai-response.provider.ts` — Responses → Chat Completions
-  via `format-dispatch.helpers.ts` for now. Direct Responses↔Anthropic adapter
-  is a Phase B follow-up.
-- `<provider-id>/anthropic-messages.provider.ts` — passthrough; just strips
-  the gateway's `vmx` envelope and dispatches.
-- `<provider-id>/index.ts` — composer with the DTO.
+Two pitfalls every Anthropic-on-the-wire provider hits:
 
-The shared dispatcher returns `CompletionResponse` (ChatCompletion shape) so
-the gateway's audit/streaming/cost pipeline keeps working unchanged. Native
-Anthropic-shape output is the Phase C follow-up.
+1. **Strip the gateway envelope.** Anthropic's API rejects unknown
+   top-level fields with `400: vmx — Extra inputs are not permitted`.
+   `stripPassthroughEnvelope` (alias `stripGatewayEnvelopes`) in
+   `ai-provider/passthrough.helpers.ts` is the canonical strip.
+2. **Capture `providerRequestPayload`** on every path. See
+   `iterateSdkStream` / `parseBedrockEventStream` for the mid-stream
+   capture pattern.
 
-**Two pitfalls every Anthropic-on-the-wire provider hits:**
+## Template C — Custom wire shape
 
-1. **Strip the `vmx` field before the wire call.** Anthropic's API rejects
-   unknown top-level fields with `400: vmx — Extra inputs are not permitted`.
-   The shared `stripGatewayEnvelopes` helper in `anthropic/shared.ts` is the
-   reference.
-2. **Capture `providerRequestPayload`.** Set it on every success and error
-   path — see the `iterateSdkStream` / `parseBedrockEventStream` pattern in
-   the Anthropic and Bedrock-Invoke shared files.
+Effort: largest. Reference: `aws-bedrock-converse/shared.ts` (~1100 LOC of
+OpenAI ↔ Converse conversion) or `gemini/shared.ts` (~620 LOC + per-surface
+converters in the three `.provider.ts` files).
 
-## Template C: Custom wire shape (Bedrock Converse pattern)
+You write:
 
-**Effort:** the largest. `aws-bedrock-converse/shared.ts` is ~1100 LOC of
-OpenAI ↔ Converse conversion. Use that folder as the canonical reference.
+- `<provider>/shared.ts` — `@Injectable` dispatcher with full
+  conversion-helper toolbox + SDK call + streaming wrapper + error
+  mapping.
+- Three per-surface `.provider.ts` files — each owns the cross-format
+  conversion _for its input surface_ (e.g. Gemini's
+  `openai-response.provider.ts` does Responses ↔ `@google/genai`
+  directly, not via Chat Completions).
+- `<provider>/index.ts` — composer with the rich DTO + connection JSON
+  Schema (`oneOf` discriminators + `connection.uiComponents` are
+  available — see `aws-bedrock-converse/index.ts`).
 
-What you'll write:
+## What the gateway gives you for free
 
-- `<provider-id>/shared.ts` — the dispatcher with all conversion logic +
-  SDK call + error mapping.
-- `<provider-id>/openai-chat-completion.provider.ts` — thin wrapper that
-  delegates to `dispatcher.completion()`.
-- `<provider-id>/openai-response.provider.ts` — uses the Responses → Chat
-  Completions helper, then delegates.
-- `<provider-id>/anthropic-messages.provider.ts` — uses the Anthropic → Chat
-  Completions helper, then delegates.
-- `<provider-id>/index.ts` — composer with the rich DTO.
+Handled by `GatewayOrchestratorService` + the per-surface service
+**before** dispatch — your provider never sees them:
 
-Direct per-pair converters (Anthropic ↔ Converse, Responses ↔ Converse) are
-the Phase B follow-up. The structural split means landing them edits only the
-matching format-specific file + (optionally) `shared.ts` for new helpers.
+- **`vmx` envelope** stripped (`vmx.*` keys lifted off the body).
+- **`vmx.providerArgs`** spread onto the parsed body after
+  `defaultArgs`. Native provider knobs (`top_k`, `safetySettings`,
+  `search_recency_filter`, etc.) just appear on `request` — converters
+  can read or forward them.
+- **`options.signal`** — controller's `aborted` signal. Forward to
+  the SDK call so cancellation frees upstream tokens.
+- **`options.timeoutMs`** — composed min of `vmx.timeoutMs` and per-model
+  `timeoutMs` (capped at 10 min). Hand to the SDK's native `timeout`
+  primitive (OpenAI / Anthropic) or compose via `composeAbortSignal`
+  (Bedrock, Gemini).
+- **`options.maxRetries`** — resolved per-model retry budget.
+- **`options.forwardHeaders`** — allow-listed caller headers (only
+  `authorization`, `openai-organization`, `openai-project`,
+  `openai-beta`, `anthropic-version`, `anthropic-beta`,
+  `x-goog-user-project` flow through). Attach to the SDK's
+  `defaultHeaders` / `extraHeaders`.
 
-## Provider-specific args & per-model tuning
+## Tests
 
-Every provider gets these for free — they're handled by the per-format service
-**before** dispatch:
+- **Unit specs** — sibling `.spec.ts` per `.provider.ts`. Mock the
+  SDK; cover conversion edge cases.
+- **Integration specs** — `packages/api/src/__integration__/providers/<provider>.spec.ts`.
+  Live; `describe.skipIf(!hasKeys(...))` gates on the matching
+  `*_API_KEY` env var. Use the `buildFooBarProvider` factory.
+- **Parametrised live-flow specs** —
+  `packages/api/src/__integration__/live-flow/{completion,responses,anthropic-messages}.spec.ts`.
+  Hit every entry in `LIVE_PROVIDERS` (`helpers/live-flow.ts`).
 
-- **`vmx.providerArgs`** — caller-supplied object that's spread on top of the
-  parsed body (after `defaultArgs`). Lets users inject native fields the
-  gateway shape doesn't model (`search_recency_filter` for Perplexity, `top_k`
-  for Anthropic, `safetySettings` for Gemini).
-- **Per-model `maxRetries`** — set on the resource's `AIResourceModelConfigEntity`.
-  Threaded into `CompletionRequestOptions.maxRetries`. The OpenAI Chat
-  Completion provider (and its subclasses) forward it to the SDK; other
-  dispatchers should honour it explicitly.
-- **Per-model `timeoutMs`** — composed with `vmx.timeoutMs` into a shared
-  `AbortSignal`. Providers must forward `options.signal` to their SDK call so
-  cancellation actually frees up upstream tokens.
+Commands (run from the workspace root):
+
+```bash
+pnpm exec nx run api:test:unit          # unit specs (no network)
+pnpm exec nx run api:test:integration   # mocked-DI orchestrator + features
+pnpm exec nx run api:test:live          # live calls — needs *_API_KEY in .env.local
+pnpm exec nx run api:test:all           # unit + integration + live
+pnpm exec nx run api:lint
+pnpm exec nx run api:typecheck
+```
 
 ## Connection form schema
 
-The `provider.config.connection.form` field is a JSON Schema fragment the UI
-renders verbatim via `react-jsonschema-form`. Common patterns:
+The `provider.config.connection.form` field is a JSON Schema fragment
+the UI renders verbatim via `react-jsonschema-form`. Common patterns:
 
 | Field type            | JSON Schema                                                             | UI widget               |
 | --------------------- | ----------------------------------------------------------------------- | ----------------------- |
@@ -525,71 +445,51 @@ renders verbatim via `react-jsonschema-form`. Common patterns:
 | URL                   | `{ type: 'string', format: 'uri', title, placeholder }`                 | Plain text input        |
 | Enum                  | `{ type: 'string', enum: ['a','b','c'], title }`                        | Dropdown                |
 | Optional bool         | `{ type: 'boolean', title, default: false }`                            | Switch                  |
-| AWS-style multi-field | nested `properties`, `oneOf` for "static keys vs. role-based" branches  | Conditional sub-form    |
+| Branching multi-field | nested `properties` + `oneOf` discriminator                             | Conditional sub-form    |
 
-`description` accepts Markdown and is rendered as helper text — use it to link
-to the provider's API-key creation page. `errorMessage.required` lets you
-customise the per-field "required" message.
-
-If a provider needs more complex auth (OAuth, AWS role assumption, …), see
-[`aws-bedrock-converse/index.ts`](../packages/api/src/ai-provider/aws-bedrock-converse/index.ts)
+`description` accepts Markdown (rendered as helper text). For complex
+auth (OAuth, AWS role assumption) see `aws-bedrock-converse/index.ts`
 for a worked example with `oneOf` discriminator + extra
-`connection.uiComponents` (link buttons, accordion explanations).
+`connection.uiComponents`.
 
 ## Common gotchas
 
-- **Stripping `vmx` / `__vmx_passthrough`**. Strict OpenAI-compat upstreams
-  (Groq, Anthropic native) reject unknown top-level fields with a 400. The
-  base `OpenAIChatCompletionProvider` calls `stripPassthroughEnvelope()` for
-  you; non-OpenAI dispatchers must strip both manually before sending. See
+- **Strip `vmx` and `__vmx_passthrough`** before any wire call against
+  a strict OpenAI-compat upstream (Groq, native Anthropic) — they 400
+  on unknown top-level fields. `OpenAIChatCompletionProvider` calls
+  `stripPassthroughEnvelope` for you; non-OpenAI dispatchers MUST
+  strip both manually. See
   [`passthrough.helpers.ts`](../packages/api/src/ai-provider/passthrough.helpers.ts).
-- **Tool-schema field omission**. Some upstreams reject `null` on optional
-  fields (Groq rejects `tools[].function.strict: null`). Always _omit_ fields
-  when unset, don't pass `null`.
-- **Image fetches need SSRF guards**. If your provider's request format
-  carries `image_url` / `document.source.url` and you fetch them server-side,
-  call `assertSafeOutboundUrl()` first
-  ([`url-safety.ts`](../packages/api/src/ai-provider/url-safety.ts)) — blocks
-  RFC1918, AWS IMDS, loopback, and IPv6 link-local hosts.
-- **Usage capture for streaming**. The gateway only counts the **first**
-  chunk that carries `usage`. Make sure your stream-converter forwards the
-  upstream's final usage event onto a chunk; otherwise audit cost rows record
-  `null` for that request.
-- **`audit.cron flush` errors that look like ORM problems**. If you add a new
-  audit-row column and the migration uses snake_case with underscores around
-  digits (`cache_creation_ephemeral_5m_tokens`), Kysely's CamelCasePlugin will
-  look for a different mapped name (`cache_creation_ephemeral5m_tokens`) and
-  every flush silently fails. Match the migration to the entity field — see
-  [`migrations/10-request-audit-table.ts`](../packages/api/src/migrations/10-request-audit-table.ts).
+- **Tool-schema field omission.** Some upstreams reject `null` on
+  optional fields (Groq rejects `tools[].function.strict: null`).
+  Always _omit_ unset fields rather than passing `null`.
+- **Image fetches need SSRF guards.** If your converter fetches
+  `image_url` / `document.source.url` server-side, call
+  `assertSafeOutboundUrl()` first — blocks RFC1918, AWS IMDS,
+  loopback, IPv6 link-local. See
+  [`url-safety.ts`](../packages/api/src/ai-provider/url-safety.ts).
+- **Streaming-usage capture.** The orchestrator only counts the first
+  chunk carrying `usage`. Your stream converter MUST forward the
+  upstream's final usage event onto a chunk; otherwise the audit row
+  records `null` cost.
+- **CamelCase column collisions.** When adding an audit-row column,
+  match the migration's snake_case to Kysely's `CamelCasePlugin`
+  expectation — `cache_creation_ephemeral_5m_tokens` maps to
+  `cacheCreationEphemeral5mTokens` (digit-adjacent underscore is
+  dropped). Mis-match makes every audit flush fail silently.
 
 ## Reference: where to look
 
-- 3-method `CompletionProvider` interface → `packages/api/src/ai-provider/ai-provider.types.ts`
+- 3-method interface → `packages/api/src/ai-provider/ai-provider.types.ts`
 - Per-provider folders → `packages/api/src/ai-provider/{openai,gemini,groq,perplexity,anthropic,aws-bedrock-invoke,aws-bedrock-converse}/`
-- DI module → `packages/api/src/ai-provider/ai-provider.module.ts`
-- Per-format gateway services → `packages/api/src/gateway/{completion.service,responses/responses.service,anthropic/anthropic.service}.ts`
-- Three controllers → `packages/api/src/gateway/{completion.controller,responses/responses.controller,anthropic/anthropic.controller}.ts`
-- Canonical OpenAI ↔ Anthropic adapter → `packages/api/src/ai-provider/adapters/anthropic-messages.adapter.ts`
-- Format-dispatch helpers (transitional) → `packages/api/src/ai-provider/format-dispatch.helpers.ts`
-- Live-flow tests → `packages/api/src/__integration__/live-flow/{completion,responses,anthropic-messages}.spec.ts`
-- Per-provider live tests → `packages/api/src/__integration__/providers/<provider-id>.spec.ts`
-
-## Open follow-ups
-
-- **Direct per-pair converters** — Responses↔Anthropic, Anthropic↔Converse,
-  Responses↔Converse, OpenAI Responses native passthrough
-  (`client.responses.create`). Once these land, `format-dispatch.helpers.ts`
-  and the legacy `responses-converter.ts` / `anthropic-converter.ts` can be
-  deleted.
-- **Streaming envelope wired through `CompletionService.createDataStream`** —
-  the gateway's streaming wrapper still types streams as
-  `AsyncIterable<ChatCompletionChunk>`. Phase C teaches it three native chunk
-  shapes (OpenAI Chat Completion / OpenAI Responses event / Anthropic SSE
-  event) and adds per-format `extractUsage` helpers.
-- **Independent per-format services** — each of the three gateway services
-  currently delegates to `CompletionService.complete()`. The full Phase E
-  goal is for each service to own its own routing/gating/audit pipeline with
-  cross-format helpers (`RoutingService` etc.) injected, not delegated.
-- **Routing / gate generalisation** — `RoutingService.evaluate` and
-  `GateService.shouldAllow` still assume OpenAI-shape body; the planned
-  `RoutingContext` carries the input format + per-format token counters.
+- DI module / registration → `packages/api/src/ai-provider/ai-provider.module.ts`, `ai-provider.service.ts`
+- AWS base → `packages/api/src/ai-provider/aws-bedrock-base.ts`
+- Cross-format adapters → `packages/api/src/ai-provider/adapters/`,
+  `packages/api/src/ai-provider/openai/anthropic-via-responses.ts`,
+  `packages/api/src/gateway/responses/from-{anthropic,chat-completions}.ts`
+- Orchestrator → `packages/api/src/gateway/gateway-orchestrator.service.ts`
+- Per-surface services → `packages/api/src/gateway/{chat-completions/chat-completions,responses/responses,anthropic/anthropic}.service.ts`
+- Controllers → `packages/api/src/gateway/{chat-completions/chat-completions,responses/responses,anthropic/anthropic}.controller.ts`
+- Live-flow specs → `packages/api/src/__integration__/live-flow/{completion,responses,anthropic-messages}.spec.ts`
+- Per-provider live specs → `packages/api/src/__integration__/providers/<provider>.spec.ts`
+- Cross-format support matrix → [`conversion-matrix.md`](./conversion-matrix.md)

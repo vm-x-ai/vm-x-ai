@@ -3,14 +3,15 @@ sidebar_position: 1
 slug: /api
 ---
 
-# API Endpoints
+# API surfaces
 
-VM-X exposes **three completion endpoints** under each
-workspace/environment. All three feed the same routing /
-fallback / capacity / audit pipeline — so you get the same
-guarantees regardless of which API shape your client speaks.
+VM-X is a **multi-surface gateway**: it exposes three top-level
+completion surfaces under each workspace/environment, and every surface
+feeds the same routing / fallback / capacity / audit pipeline. Pick the
+surface that matches the SDK your application already speaks — every
+upstream provider VM-X supports is reachable from every surface.
 
-| Endpoint                           | Path                                                                   | Request shape           | Native client       |
+| Surface                            | Path                                                                   | Request shape           | Native client       |
 | ---------------------------------- | ---------------------------------------------------------------------- | ----------------------- | ------------------- |
 | **Chat Completions** (most common) | `POST /v1/completion/{workspaceId}/{environmentId}/chat/completions`   | OpenAI Chat Completions | `openai` SDK        |
 | **Anthropic Messages**             | `POST /v1/completion/{workspaceId}/{environmentId}/anthropic/messages` | Anthropic Messages      | `@anthropic-ai/sdk` |
@@ -52,31 +53,53 @@ VM-X accepts all three on the wire so you can integrate without
 rewriting the call site, and routes the request through the same
 gateway pipeline regardless of the format.
 
-## Format passthrough — what survives end-to-end
+## Surface × provider conversion matrix
 
-When the request format matches the upstream provider's native shape,
-VM-X sends the body **verbatim** with no conversion. Anthropic-only
-features that have no OpenAI equivalent (`cache_control`, extended
-`thinking`, `top_k`, server tools, `service_tier`, …) round-trip
-losslessly:
+Each provider package exposes one **converter class per surface**
+(`openai-chat-completion.provider.ts`, `openai-response.provider.ts`,
+`anthropic-messages.provider.ts`). The orchestrator dispatches the
+incoming wire body to the matching method on the resolved provider —
+`provider.openAICompletion(...)`, `provider.openAIResponse(...)`, or
+`provider.anthropicMessages(...)` — and the converter is responsible for
+mapping the surface body to whatever the upstream actually accepts.
 
-| Endpoint           | Native passthrough providers                                       |
-| ------------------ | ------------------------------------------------------------------ |
-| Chat Completions   | OpenAI, Anthropic-via-OpenAI-compat, Gemini, Groq, Perplexity      |
-| Anthropic Messages | **Anthropic** (native SDK), **AWS Bedrock-Invoke** (Claude on AWS) |
-| Responses          | OpenAI                                                             |
+When the wire format matches the upstream's native shape, the converter
+sends the body **verbatim** — Anthropic-only features that have no
+OpenAI equivalent (`cache_control`, extended `thinking`, `top_k`, server
+tools, `service_tier`, …) round-trip losslessly. When they don't match,
+the converter rewrites the request, dispatches in the upstream's native
+form, and converts the response back on the way out. Fields the
+conversion can't express are stowed on a private `__vmx_passthrough`
+envelope so a fallback to a native-format provider later in the chain
+can re-attach them; provider-specific fields with no analogue are
+dropped (logged), never silently corrupted.
 
-When the request format does **not** match the upstream's native shape
-(e.g., an Anthropic Messages request routed to Gemini), the gateway
-converts to OpenAI Chat Completions internally for dispatch and
-converts the response back on the way out. Fields the conversion can't
-express (cache markers, server tools, …) are stowed on a private
-`__vmx_passthrough` envelope so a fallback to a native-format provider
-later in the chain can re-attach them; fields that are strictly
-OpenAI-specific are dropped (logged), never silently corrupted.
+Every cell in the matrix below is supported — the gateway routes any of
+the three surfaces to any provider:
 
-See the [AI provider architecture](https://github.com/vm-x-ai/vm-x-ai/blob/main/contributing-docs/ai-providers.md)
-contributor doc for the full conversion matrix.
+| Surface ↓ / Provider → | OpenAI | Anthropic | Bedrock-Converse | Bedrock-Invoke | Gemini | Groq | Perplexity |
+| ---------------------- | :----: | :-------: | :--------------: | :------------: | :----: | :--: | :--------: |
+| **Chat Completions**   |  yes   |    yes    |       yes        |      yes       |  yes   | yes  |    yes     |
+| **Responses**          |  yes   |    yes    |       yes        |      yes       |  yes   | yes  |    yes     |
+| **Anthropic Messages** |  yes   |    yes    |       yes        |      yes       |  yes   | yes  |    yes     |
+
+For per-cell fidelity detail (which exact fields drop, which translate,
+which round-trip) read the converter under
+[`packages/api/src/ai-provider/<provider>/`](https://github.com/vm-x-ai/vm-x-ai/tree/main/packages/api/src/ai-provider)
+alongside its live spec at
+[`__integration__/providers/<provider>.spec.ts`](https://github.com/vm-x-ai/vm-x-ai/tree/main/packages/api/src/__integration__/providers).
+The [AI provider architecture](https://github.com/vm-x-ai/vm-x-ai/blob/main/contributing-docs/ai-providers.md)
+contributor doc covers the converter pattern itself.
+
+## The VMX envelope
+
+Each surface body accepts an opt-in `vmx` object (clients that can't
+modify the typed SDK body can use a top-level `__vmx_passthrough`
+instead) carrying VM-X-specific fields the provider SDKs don't know
+about — resource overrides, audit metadata, request timeouts, and
+`providerArgs` for upstream-native fields the surface shape can't
+express. The envelope is identical across all three surfaces. See the
+[VM-X envelope](./vmx-envelope.md) page for the full field reference.
 
 ## Authentication
 

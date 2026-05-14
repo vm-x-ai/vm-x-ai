@@ -18,18 +18,21 @@ you send and the citation field you read back.
 
 ## Provider × Endpoint matrix
 
-| Provider       | Chat Completions                                                      | Responses                             | Anthropic Messages                                             |
-| -------------- | --------------------------------------------------------------------- | ------------------------------------- | -------------------------------------------------------------- |
-| **OpenAI**     | `gpt-*-search-preview` model + `web_search_options`                   | `tools: [{ type: "web_search" }]`     | n/a (route via Responses or use Anthropic provider)            |
-| **Anthropic**  | `tools: [{ type: "web_search_20250305", name: "web_search" }]`        | (converts via Responses-side adapter) | `tools: [{ type: "web_search_20250305", name: "web_search" }]` |
-| **Gemini**     | `tools: [{ googleSearch: {} }]` (auto-routes to native @google/genai) | (converts via Chat Completions)       | (converts via Chat Completions)                                |
-| **Perplexity** | built-in (every Perplexity model) — no tool descriptor needed         | (converts via Chat Completions)       | (converts via Chat Completions)                                |
+| Provider       | Chat Completions                                                                                      | Responses                                                                                                                                                                            | Anthropic Messages                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| **OpenAI**     | `gpt-*-search-*` model (search baked in) + optional `web_search_options`                              | `tools: [{ type: "web_search" }]` (canonical; `web_search_preview` still accepted)                                                                                                   | n/a — pick a non-search OpenAI model; the converter routes through Responses         |
+| **Anthropic**  | (converts via Anthropic Messages adapter)                                                             | `tools: [{ type: "web_search" }]` — adapter maps `web_search_20250305 → web_search` for the Responses-via-Anthropic path                                                             | `tools: [{ type: "web_search_20250305", name: "web_search" }]`                       |
+| **Gemini**     | `tools: [{ googleSearch: {} }]` _or_ `web_search_options` (both auto-route to native `@google/genai`) | `tools: [{ type: "web_search" }]` → mapped to `{googleSearch:{}}`; `filters.search_recency_filter` → `googleSearch.timeRangeFilter`                                                  | `tools: [{ type: "web_search_20250305", name: "web_search" }]` → `{googleSearch:{}}` |
+| **Perplexity** | built-in on every model — no tool descriptor needed; tune via top-level `search_*_filter` fields      | `tools: [{ type: "web_search", filters: { search_recency_filter, search_domain_filter } }]` — the adapter renames `web_search_preview → web_search` and preserves `filters` verbatim | (converts via Chat Completions)                                                      |
 
-> **Streaming + Gemini googleSearch:** the native @google/genai path
-> doesn't yet wire streaming for googleSearch requests. VM-X returns a
-> clean `400` (`gemini_native_streaming_unsupported`) if you set
-> `stream: true` together with a `googleSearch` tool — drop streaming
-> on those calls until the native path covers it.
+> **OpenAI Chat-Completions-only search models are blocked on Responses + Anthropic.** > `gpt-5-search-api`, `gpt-4o-search-preview`, and
+> `gpt-4o-mini-search-preview` have web search baked into the model and
+> only work on Chat Completions. The playground's `/api/responses` and
+> `/api/anthropic` BFF routes hard-stop these with HTTP `400` > `{ error: { code: "model_endpoint_mismatch" } }` (see
+> `packages/ui/src/app/api/_lib/openai-model-quirks.ts`). Direct API
+> callers driving the gateway from outside the playground get the raw
+> upstream error — pick a non-search model and add
+> `tools: [{ type: "web_search" }]` instead.
 
 ## Where citations land
 
@@ -87,7 +90,7 @@ for (const ann of response.choices[0].message.annotations ?? []) {
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -103,11 +106,14 @@ curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completi
 ## OpenAI — Responses
 
 On the Responses endpoint, web search is a **hosted tool**. Add
-`{ type: 'web_search' }` to `tools[]`. Pin the resource to a
-search-capable Responses model (OpenAI lists which models support the
-tool); routes that resolve to OpenAI-compat upstreams without hosted
-tool support (Gemini / Groq / Perplexity) get a clean
-`400 responses_unsupported_tool_type` from the per-provider dispatch.
+`{ type: 'web_search' }` to `tools[]` — the current canonical name.
+The legacy `web_search_preview` still works, but new integrations
+should use `web_search`. Pin the resource to a search-capable
+non-search-only model (e.g. `gpt-5`, `gpt-4.1`); the three
+search-baked-in models (`gpt-5-search-api`, `gpt-4o-search-preview`,
+`gpt-4o-mini-search-preview`) are **Chat-Completions-only** and the
+BFF rejects them upfront with `model_endpoint_mismatch` rather than
+letting OpenAI return its less-helpful upstream error.
 
 <Tabs>
   <TabItem value="python" label="Python">
@@ -155,7 +161,7 @@ for (const item of response.output) {
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/responses \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/responses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -182,7 +188,7 @@ import anthropic
 
 client = anthropic.Anthropic(
     api_key="<vmx-api-key>",
-    base_url="http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic",
+    base_url="http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic",
 )
 
 message = client.messages.create(
@@ -214,7 +220,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({
   apiKey: '<vmx-api-key>',
-  baseURL: 'http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic',
+  baseURL: 'http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic',
 });
 
 const message = await client.messages.create({
@@ -243,7 +249,7 @@ for (const block of message.content) {
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/anthropic/messages \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/anthropic/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -304,13 +310,33 @@ passthrough plumbing.
 Gemini's `googleSearch` is a **Gemini-only tool** that Google's
 OpenAI-compat endpoint rejects. VM-X auto-routes any request carrying
 a `googleSearch`/`googleSearchRetrieval`/`urlContext`/`codeExecution`/`fileSearch`
-tool to Google's native `@google/genai` SDK, then maps the response
-back to the OpenAI Chat Completions / Responses / Anthropic Messages
-shape your client expects.
+tool — or the portable `web_search_options` knob — to Google's native
+`@google/genai` SDK, then maps the response back to the OpenAI Chat
+Completions / Responses / Anthropic Messages shape your client expects.
+
+What the per-format adapters map onto `googleSearch` for you:
+
+| Surface            | Input tool descriptor                                          | Mapped to                                                                                                                                         |
+| ------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat Completions   | `tools: [{ googleSearch: {} }]` or `web_search_options: {}`    | `{googleSearch: {}}` (native)                                                                                                                     |
+| Responses          | `tools: [{ type: 'web_search' \| 'web_search_preview' }]`      | `{googleSearch: {}}`; `filters.search_recency_filter` (`hour`/`day`/`week`/`month`/`year`) lifts to `googleSearch.timeRangeFilter`                |
+| Anthropic Messages | `tools: [{ type: 'web_search_20250305', name: 'web_search' }]` | `{googleSearch: {}}` (Anthropic's `user_location` / `allowed_domains` / `blocked_domains` / `max_uses` have no Gemini equivalent and are dropped) |
+
+The rest of the OpenAI web-search subfields don't have a Gemini-API
+equivalent and are silently dropped: `user_location`,
+`filters.allowed_domains`, `filters.blocked_domains`, and
+`filters.search_domain_filter`. `excludeDomains` exists on Google's
+`GoogleSearch` interface but is Vertex-AI-only, and `GeminiConnectionConfig`
+only supports the Gemini API today.
+
+If you need any of those native knobs, see [Gemini-native passthrough](#gemini-native-passthrough)
+below.
 
 Grounding metadata lands on `vertex_ai_grounding_metadata` (top-level
 on the response object **and** mirrored on the message object for
-clients that read either).
+clients that read either) plus `grounding_metadata` with the verbatim
+camelCase fields (`searchEntryPoint`, `groundingChunks[]`,
+`groundingSupports[]`) forwarded from `@google/genai`.
 
 <Tabs>
   <TabItem value="python" label="Python (OpenAI SDK)">
@@ -374,7 +400,7 @@ for (const chunk of grounding?.groundingChunks ?? []) {
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -387,18 +413,62 @@ curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completi
   </TabItem>
 </Tabs>
 
+### Gemini-native passthrough
+
+Anything in `tools[]` whose object key matches a Gemini-native tool
+(`googleSearch`, `googleSearchRetrieval`, `urlContext`,
+`codeExecution`, `fileSearch`, `computerUse`, `mcpServer`,
+`googleMaps`, `retrieval`, `functionDeclarations`) is detected by
+`isGeminiNativeTool` and forwarded **verbatim** to `@google/genai` —
+the cross-format mapping above is skipped entirely. Use this when you
+need a Gemini-API knob the OpenAI-shape adapter can't express (e.g.
+an explicit `timeRangeFilter` start/end window):
+
+```python
+response = client.responses.create(
+    model="my-gemini-resource",
+    input="What changed in TypeScript last month?",
+    extra_body={
+        "vmx": {
+            "providerArgs": {
+                "tools": [
+                    {
+                        "googleSearch": {
+                            "timeRangeFilter": {
+                                "startTime": "2026-04-14T00:00:00Z",
+                                "endTime":   "2026-05-14T00:00:00Z",
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    },
+)
+```
+
+The orchestrator merges `vmx.providerArgs` into the top-level wire
+body before per-format dispatch (`providerArgs` wins over both
+`defaultArgs` and the raw request body), so this works on Chat
+Completions, Responses, and Anthropic Messages alike — the native
+entry survives the converter and the rest of `tools[]` is dropped or
+preserved based on whether the converter recognises it.
+
 > **Native path quirks:** the Gemini native dispatch drops a few
 > features the OpenAI-compat path supports (multi-modal parts,
 > function-tool round-trips, `responseSchema`). Keep `googleSearch`
 > calls free of those features, or call without `googleSearch` first
-> and re-issue with it. See [`gemini/native.helpers.ts`](https://github.com/vm-x-ai/vm-x-ai/blob/main/packages/api/src/ai-provider/gemini/native.helpers.ts)
-> for the full supported subset.
+> and re-issue with it.
 
 ## Perplexity — built-in
 
-Perplexity searches the web on every request — there's no tool
-descriptor to send. Cited sources land on the top-level `citations[]`
-array; tune the search via `vmx.providerArgs`:
+Perplexity searches the web on every request — on **Chat Completions**
+there's no tool descriptor to send; on **Responses** you do attach
+`tools: [{ type: 'web_search' }]` (Perplexity's wire shape) and can
+nest per-tool knobs under `filters`. Cited sources land on the
+top-level `citations[]` array either way.
+
+### Chat Completions — tune via `vmx.providerArgs`
 
 | `vmx.providerArgs` field    | Effect                                                                    |
 | --------------------------- | ------------------------------------------------------------------------- |
@@ -406,6 +476,30 @@ array; tune the search via `vmx.providerArgs`:
 | `search_domain_filter`      | `string[]` — allow-list of domains                                        |
 | `search_after_date_filter`  | `'YYYY-MM-DD'` — only retrieve sources after this date                    |
 | `search_before_date_filter` | `'YYYY-MM-DD'` — only retrieve sources before this date                   |
+
+### Responses — `tools[].filters`
+
+On Perplexity's Responses-compatible endpoint, the same knobs nest
+under each search-tool entry's `filters` object. The
+`PerplexityResponseProvider` rewrites OpenAI-canonical
+`web_search_preview` → Perplexity-canonical `web_search` and preserves
+the entire `filters` block verbatim:
+
+```python
+response = client.responses.create(
+    model="my-perplexity-resource",
+    input="Latest TypeScript release?",
+    tools=[
+        {
+            "type": "web_search",
+            "filters": {
+                "search_domain_filter": ["github.com", "typescriptlang.org"],
+                "search_recency_filter": "week",
+            },
+        }
+    ],
+)
+```
 
 <Tabs>
   <TabItem value="python" label="Python">
@@ -454,7 +548,7 @@ for (const url of (response as unknown as { citations?: string[] }).citations ??
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -487,9 +581,10 @@ curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completi
 4. **Streaming.** OpenAI Chat-Completions search-preview models stream
    the same as any other Chat Completions request. Anthropic streams
    web-search tool use as `content_block_start` / `content_block_delta`
-   events on `web_search_tool_result` blocks. Gemini's googleSearch
-   path is non-streaming today (T5 — clean 400 if you set
-   `stream: true`).
+   events on `web_search_tool_result` blocks. Gemini's `googleSearch`
+   now streams natively via `generateContentStream` — both the
+   OpenAI-compat path and the Responses path emit SSE chunks the same
+   way as a non-search request.
 5. **vmx audit.** Search-driven calls show up in the Audit page like
    any other call; the resolved provider/model is on
    `x-vmx-provider` / `x-vmx-model`, and per-call recency / domain

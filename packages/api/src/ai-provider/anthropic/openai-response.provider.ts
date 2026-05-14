@@ -13,7 +13,6 @@ import type {
   Message as AnthropicMessage,
   MessageParam as AnthropicMessageParam,
   RawMessageStreamEvent,
-  TextBlockParam,
 } from '@anthropic-ai/sdk/resources/messages';
 import { v4 as uuidv4 } from 'uuid';
 import { AIConnectionEntity } from '../../ai-connection/entities/ai-connection.entity';
@@ -26,13 +25,34 @@ import type {
   AnthropicMessagesRequest,
   AnthropicTool,
 } from '../../gateway/anthropic/anthropic.types';
+import { HttpStatus } from '@nestjs/common';
+import { CompletionError } from '../../gateway/completion.types';
 import { AnthropicConnectionConfig, AnthropicDispatcher } from './shared';
 import {
   applyPassthrough,
   applyStructuredOutputFromSchema,
 } from '../adapters/anthropic-messages.adapter';
+import { reasoningEffortToBudget } from '../adapters/anthropic-reasoning';
 import { takePassthroughEnvelope } from '../passthrough.helpers';
 import type { TextBlockParam as AnthropicTextBlockParam } from '@anthropic-ai/sdk/resources/messages';
+
+/**
+ * Options recognised by `requestResponsesToAnthropic`. Mirrors the
+ * `OpenAIToAnthropicOptions` on the Chat-Completion converter — callers
+ * targeting a wire format that can't fetch external image URLs
+ * (Bedrock InvokeModel) flip `rejectExternalImageUrls: true` so the
+ * gateway 400s with a clean error instead of round-tripping a noisy
+ * upstream failure.
+ */
+export type ResponsesToAnthropicOptions = {
+  /**
+   * Reject external image URLs (anything that isn't a `data:` base64
+   * URL). Bedrock Invoke can't fetch URLs server-side; native
+   * Anthropic accepts `{type:'url', url}` so leave this `false` for
+   * the native AnthropicProvider and `true` for AWSBedrockInvokeProvider.
+   */
+  rejectExternalImageUrls?: boolean;
+};
 
 /**
  * Anthropic's OpenAI-Responses input handler — direct one-pair
@@ -93,7 +113,8 @@ import type { TextBlockParam as AnthropicTextBlockParam } from '@anthropic-ai/sd
 // ─── Request side ──────────────────────────────────────────────────
 
 export function requestResponsesToAnthropic(
-  req: ResponseCreateParams
+  req: ResponseCreateParams,
+  options: ResponsesToAnthropicOptions = {}
 ): AnthropicMessagesRequest {
   // Lift the `__vmx_passthrough.anthropic` envelope so we can re-apply
   // Anthropic-only fields the converter would otherwise drop on the
@@ -103,6 +124,17 @@ export function requestResponsesToAnthropic(
   const { body: cleanReq, anthropic: passthrough } =
     takePassthroughEnvelope(req);
   const messages: AnthropicMessageParam[] = [];
+
+  // Build `systemParts` first so any role:`system`/`developer` items
+  // emitted by `appendInputItem` below can append to it instead of
+  // being folded into a synthetic user message.
+  const systemParts: AnthropicTextBlockParam[] = [];
+  if (
+    typeof cleanReq.instructions === 'string' &&
+    cleanReq.instructions.length > 0
+  ) {
+    systemParts.push({ type: 'text', text: cleanReq.instructions });
+  }
 
   const inputItems: ResponseInputItem[] = Array.isArray(cleanReq.input)
     ? cleanReq.input
@@ -115,15 +147,7 @@ export function requestResponsesToAnthropic(
       ];
 
   for (const item of inputItems) {
-    appendInputItem(messages, item);
-  }
-
-  const systemParts: AnthropicTextBlockParam[] = [];
-  if (
-    typeof cleanReq.instructions === 'string' &&
-    cleanReq.instructions.length > 0
-  ) {
-    systemParts.push({ type: 'text', text: cleanReq.instructions });
+    appendInputItem(messages, systemParts, item, options);
   }
 
   const out: AnthropicMessagesRequest = {
@@ -150,26 +174,69 @@ export function requestResponsesToAnthropic(
 
   const tools = mapTools(cleanReq.tools ?? null);
   if (tools && tools.length > 0) {
-    out.tools = tools as never;
-    if (cleanReq.tool_choice) {
-      const tc = mapToolChoice(cleanReq.tool_choice);
-      if (tc) out.tool_choice = tc;
+    out.tools = tools;
+  }
+  // `tool_choice` is meaningful even without `tools` for the `'none'`
+  // case (forbid tool use even though tools may have been registered
+  // earlier in a multi-turn conversation). Map regardless of tool count.
+  if (cleanReq.tool_choice !== undefined && cleanReq.tool_choice !== null) {
+    const tc = mapToolChoice(cleanReq.tool_choice);
+    if (tc) out.tool_choice = tc;
+  }
+  // Responses-side `parallel_tool_calls: false` ↔ Anthropic's
+  // `disable_parallel_tool_use: true`. The flag lives on the
+  // tool_choice variants (`auto` / `any` / `tool`), so populate a
+  // default `{ type: 'auto' }` when the caller asked to disable
+  // parallelism without otherwise pinning a choice.
+  if (cleanReq.parallel_tool_calls === false) {
+    const existing = out.tool_choice;
+    if (!existing) {
+      out.tool_choice = { type: 'auto', disable_parallel_tool_use: true };
+    } else if (
+      existing.type === 'auto' ||
+      existing.type === 'any' ||
+      existing.type === 'tool'
+    ) {
+      (
+        existing as { disable_parallel_tool_use?: boolean }
+      ).disable_parallel_tool_use = true;
     }
   }
 
   // `reasoning.effort` mapping → Anthropic thinking config.
-  // The Responses API uses `effort: 'low'|'medium'|'high'`; Anthropic's
-  // thinking config takes a `budget_tokens` integer. Apply a coarse
-  // budget tier — callers needing fine-grained control should use the
-  // Anthropic Messages endpoint directly with `thinking.budget_tokens`.
+  // The Responses API uses `effort: 'minimal'|'low'|'medium'|'high'|'xhigh'`;
+  // Anthropic's thinking config takes a `budget_tokens` integer. The
+  // shared helper maps low/medium/high → 1024/4096/16384 and returns
+  // `null` for unsupported tiers (`minimal`/`none`). Treat `'xhigh'`
+  // as `'high'` since Anthropic's max thinking budget is bounded by
+  // `max_tokens` anyway. Pass `max_output_tokens` so the clamp keeps
+  // `budget_tokens < max_tokens` (Anthropic rejects budgets ≥ max_tokens).
   if (cleanReq.reasoning?.effort) {
-    const budget = effortToBudget(cleanReq.reasoning.effort);
+    const effort =
+      cleanReq.reasoning.effort === 'xhigh'
+        ? 'high'
+        : cleanReq.reasoning.effort;
+    const budget = reasoningEffortToBudget(
+      effort,
+      typeof cleanReq.max_output_tokens === 'number'
+        ? cleanReq.max_output_tokens
+        : undefined
+    );
     if (budget != null) {
       (
         out as AnthropicMessagesRequest & {
           thinking?: { type: 'enabled'; budget_tokens: number };
         }
       ).thinking = { type: 'enabled', budget_tokens: budget };
+      // Anthropic rejects `temperature !== 1` when thinking is
+      // enabled, and requires `max_tokens > thinking.budget_tokens`.
+      // Drop the caller's `temperature` (Responses callers can't know
+      // about Anthropic's constraint) and bump `max_tokens` if the
+      // budget would consume the entire generation cap.
+      delete (out as { temperature?: number }).temperature;
+      if (typeof out.max_tokens === 'number' && out.max_tokens <= budget) {
+        out.max_tokens = budget + 256;
+      }
     }
   }
 
@@ -211,7 +278,9 @@ export function requestResponsesToAnthropic(
 
 function appendInputItem(
   messages: AnthropicMessageParam[],
-  item: ResponseInputItem
+  systemParts: AnthropicTextBlockParam[],
+  item: ResponseInputItem,
+  options: ResponsesToAnthropicOptions = {}
 ): void {
   const type = (item as { type?: string }).type;
 
@@ -221,26 +290,28 @@ function appendInputItem(
       { type?: 'message'; role: 'user' | 'system' | 'developer' | 'assistant' }
     >;
     if (msg.role === 'system' || msg.role === 'developer') {
-      // Only the first system goes into `req.system`; subsequent
-      // system entries get folded onto the previous user message as
-      // text — Anthropic disallows multiple system messages on the
-      // wire, but we want callers to be able to mid-conversation
-      // re-prompt without a 400.
+      // Promote system/developer-role items into `req.system` rather
+      // than folding them onto a synthetic user message — Anthropic's
+      // `system` field accepts a `TextBlockParam[]`, so multiple
+      // entries (e.g. top-level `instructions` plus mid-conversation
+      // re-prompts) compose naturally. The wire-rejection that the
+      // older `[system]` fold was avoiding only applies to system
+      // turns inside `messages[]`, which we still don't emit.
       const text = stringifyContent(msg.content);
       if (text) {
-        messages.push({ role: 'user', content: `[system] ${text}` });
+        systemParts.push({ type: 'text', text });
       }
       return;
     }
     if (msg.role === 'user') {
       messages.push({
         role: 'user',
-        content: mapInputContentToBlocks(msg.content),
+        content: mapInputContentToBlocks(msg.content, options),
       } as AnthropicMessageParam);
       return;
     }
     if (msg.role === 'assistant') {
-      const blocks = mapInputContentToBlocks(msg.content);
+      const blocks = mapInputContentToBlocks(msg.content, options);
       messages.push({
         role: 'assistant',
         content: blocks,
@@ -277,19 +348,21 @@ function appendInputItem(
       ResponseInputItem,
       { type: 'function_call_output' }
     >;
-    const text =
-      typeof out.output === 'string'
-        ? out.output
-        : Array.isArray(out.output)
-        ? flattenFunctionCallOutputContent(
-            out.output as Array<{ type?: string; text?: string }>
-          )
-        : '';
+    // Responses' `function_call_output.output` is `string` OR an array
+    // of `input_text` / `input_image` / `input_file` content items.
+    // Anthropic's `tool_result.content` accepts string OR an array of
+    // text / image / document blocks — preserve the array shape when
+    // there's any non-text part so multimodal tool outputs survive
+    // the conversion.
+    const content = mapFunctionCallOutputToToolResultContent(
+      out.output,
+      options
+    );
     const block: AnthropicContentBlockParam = {
       type: 'tool_result',
       tool_use_id: out.call_id,
-      content: text,
-    };
+      content,
+    } as AnthropicContentBlockParam;
     const last = messages[messages.length - 1];
     if (last && last.role === 'user' && Array.isArray(last.content)) {
       (last.content as AnthropicContentBlockParam[]).push(block);
@@ -339,45 +412,132 @@ function appendInputItem(
   // 400 if the resulting body is invalid, which surfaces the gap.
 }
 
+/**
+ * Map a single Responses-shape content part to its Anthropic
+ * counterpart. Returns `null` for parts we can't represent (audio,
+ * unknown types) so callers can drop them.
+ *
+ * Covered today:
+ *   - `input_text` / `output_text` → `TextBlockParam`
+ *   - `input_image`                → `ImageBlockParam` (base64 data URL
+ *                                    or external URL)
+ *   - `input_file`                 → `DocumentBlockParam`
+ *                                    (PDF base64 / URL / plain text)
+ *
+ * `input_audio` has no Anthropic standard equivalent — dropped.
+ */
+function inputContentPartToAnthropicBlock(
+  part: unknown,
+  options: ResponsesToAnthropicOptions = {}
+): AnthropicContentBlockParam | null {
+  const t = (part as { type?: string }).type;
+  if (t === 'input_text' || t === 'output_text') {
+    return { type: 'text', text: (part as { text: string }).text };
+  }
+  if (t === 'refusal') {
+    // `ResponseOutputRefusal` blocks come from prior assistant turns
+    // when the model refused. Anthropic has no `refusal` ContentBlock,
+    // but dropping the block silently strips conversation context the
+    // model relies on for follow-up turns. Surface as a plain text
+    // block — the refusal text is the only payload anyway.
+    const refusal = (part as { refusal?: string }).refusal ?? '';
+    if (!refusal) return null;
+    return { type: 'text', text: refusal };
+  }
+  if (t === 'input_image') {
+    const img = part as { image_url?: string };
+    if (!img.image_url) return null;
+    // Data URLs go to base64 source; HTTPS URLs to url source.
+    if (img.image_url.startsWith('data:')) {
+      const match = img.image_url.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) return null;
+      return {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: match[1] as 'image/jpeg',
+          data: match[2],
+        },
+      } as AnthropicContentBlockParam;
+    }
+    if (options.rejectExternalImageUrls) {
+      // Bedrock InvokeModel can't fetch external URLs; fail fast at the
+      // gateway boundary with a clean 400 instead of round-tripping a
+      // noisy upstream error. Matches the Chat-Completion converter's
+      // behaviour for the same wire surface.
+      throw new CompletionError({
+        message:
+          'AWS Bedrock Invoke (Anthropic) requires base64 data URLs for images, not external URLs',
+        rate: false,
+        retryable: false,
+        statusCode: HttpStatus.BAD_REQUEST,
+        failureReason:
+          'Anthropic Messages API does not accept external image URLs',
+        openAICompatibleError: {
+          code: 'aws_bedrock_invoke_image_url_unsupported',
+        },
+      });
+    }
+    return {
+      type: 'image',
+      source: { type: 'url', url: img.image_url },
+    } as AnthropicContentBlockParam;
+  }
+  if (t === 'input_file') {
+    const f = part as {
+      file_data?: string | null;
+      file_url?: string | null;
+      filename?: string | null;
+    };
+    // Prefer file_url (Anthropic's `url` PDF source); otherwise an
+    // inline base64 blob. `file_data` is an OpenAI base64 payload —
+    // it can be a bare base64 string or a `data:...;base64,...` URL.
+    if (f.file_url) {
+      return {
+        type: 'document',
+        source: { type: 'url', url: f.file_url },
+        ...(f.filename ? { title: f.filename } : {}),
+      } as AnthropicContentBlockParam;
+    }
+    if (f.file_data) {
+      const dataUrlMatch = f.file_data.match(/^data:([^;]+);base64,(.+)$/);
+      const mediaType = (dataUrlMatch?.[1] ?? 'application/pdf') as
+        | 'application/pdf'
+        | 'text/plain';
+      const data = dataUrlMatch?.[2] ?? f.file_data;
+      const source =
+        mediaType === 'text/plain'
+          ? { type: 'text' as const, media_type: 'text/plain' as const, data }
+          : {
+              type: 'base64' as const,
+              media_type: 'application/pdf' as const,
+              data,
+            };
+      return {
+        type: 'document',
+        source,
+        ...(f.filename ? { title: f.filename } : {}),
+      } as AnthropicContentBlockParam;
+    }
+    return null;
+  }
+  return null;
+}
+
 function mapInputContentToBlocks(
-  content: string | ResponseInputContent[] | unknown
+  content: string | ResponseInputContent[] | unknown,
+  options: ResponsesToAnthropicOptions = {}
 ): string | AnthropicContentBlockParam[] {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
 
   const blocks: AnthropicContentBlockParam[] = [];
   for (const part of content as ResponseInputContent[]) {
-    const t = (part as { type?: string }).type;
-    if (t === 'input_text' || t === 'output_text') {
-      blocks.push({ type: 'text', text: (part as { text: string }).text });
-    } else if (t === 'input_image') {
-      const img = part as { image_url?: string };
-      if (img.image_url) {
-        // Data URLs go to base64 source; HTTPS URLs to url source.
-        if (img.image_url.startsWith('data:')) {
-          const match = img.image_url.match(/^data:([^;]+);base64,(.+)$/);
-          if (match) {
-            blocks.push({
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: match[1] as 'image/jpeg',
-                data: match[2],
-              },
-            } as AnthropicContentBlockParam);
-          }
-        } else {
-          blocks.push({
-            type: 'image',
-            source: { type: 'url', url: img.image_url },
-          } as AnthropicContentBlockParam);
-        }
-      }
-    }
+    const block = inputContentPartToAnthropicBlock(part, options);
+    if (block) blocks.push(block);
   }
   return blocks;
 }
-
 function stringifyContent(
   content: string | ResponseInputContent[] | unknown
 ): string {
@@ -395,13 +555,33 @@ function stringifyContent(
     .join('\n');
 }
 
-function flattenFunctionCallOutputContent(
-  parts: Array<{ type?: string; text?: string }>
-): string {
-  return parts
-    .filter((p) => p.type === 'input_text' || p.type === 'output_text')
-    .map((p) => p.text ?? '')
-    .join('');
+/**
+ * Convert a Responses `function_call_output.output` (string | array of
+ * `input_text`/`input_image`/`input_file`) into an Anthropic
+ * `tool_result.content` value. Folds to a string when there's nothing
+ * but text, otherwise emits an array so non-text parts (images,
+ * documents) survive.
+ */
+function mapFunctionCallOutputToToolResultContent(
+  output: unknown,
+  options: ResponsesToAnthropicOptions = {}
+): string | AnthropicContentBlockParam[] {
+  if (typeof output === 'string') return output;
+  if (!Array.isArray(output)) return '';
+  const blocks: AnthropicContentBlockParam[] = [];
+  let hasNonText = false;
+  for (const part of output) {
+    const block = inputContentPartToAnthropicBlock(part, options);
+    if (!block) continue;
+    if (block.type !== 'text') hasNonText = true;
+    blocks.push(block);
+  }
+  if (!hasNonText) {
+    return blocks
+      .map((b) => (b.type === 'text' ? (b as { text: string }).text : ''))
+      .join('');
+  }
+  return blocks;
 }
 
 function mapTools(tools: ResponsesTool[] | null): AnthropicTool[] | undefined {
@@ -409,12 +589,21 @@ function mapTools(tools: ResponsesTool[] | null): AnthropicTool[] | undefined {
   const out: AnthropicTool[] = [];
   for (const tool of tools) {
     if (tool.type === 'function') {
-      const fn = tool as Extract<ResponsesTool, { type: 'function' }>;
-      out.push({
+      const fn = tool as Extract<ResponsesTool, { type: 'function' }> & {
+        strict?: boolean | null;
+        defer_loading?: boolean;
+      };
+      // Responses' `FunctionTool` and Anthropic's `Tool` agree on
+      // `name`, `description`, `strict`, and `defer_loading` — forward
+      // them verbatim instead of dropping. `parameters` ↔ `input_schema`.
+      const mapped: AnthropicTool = {
         name: fn.name,
         description: fn.description ?? undefined,
-        input_schema: (fn.parameters ?? {}) as Record<string, unknown>,
-      } as unknown as AnthropicTool);
+        input_schema: (fn.parameters ?? {}) as AnthropicTool['input_schema'],
+      };
+      if (fn.strict != null) mapped.strict = fn.strict;
+      if (fn.defer_loading != null) mapped.defer_loading = fn.defer_loading;
+      out.push(mapped);
     }
     // Hosted tools (web_search, file_search, code_interpreter, MCP,
     // computer use, image_gen, shell, apply_patch) have no Anthropic
@@ -431,7 +620,10 @@ function mapToolChoice(
 ): AnthropicMessagesRequest['tool_choice'] | undefined {
   if (!choice) return undefined;
   if (choice === 'auto') return { type: 'auto' };
-  if (choice === 'none') return undefined;
+  // Anthropic exposes an explicit `{ type: 'none' }` variant — keep
+  // the semantic distinction between "no tool_choice set" (auto) and
+  // "callers told us to forbid tool use" (none).
+  if (choice === 'none') return { type: 'none' };
   if (choice === 'required') return { type: 'any' };
   if (
     typeof choice === 'object' &&
@@ -440,23 +632,12 @@ function mapToolChoice(
     const c = choice as { type: 'function'; name: string };
     return { type: 'tool', name: c.name };
   }
+  // Responses-side `tool_choice` also accepts an `{ type: 'allowed_tools' }`
+  // / `{ type: 'custom' }` / hosted-tool variants. Anthropic has no
+  // direct equivalent so we fall through silently — callers needing
+  // those routes can stow the original Anthropic `tool_choice` in the
+  // passthrough envelope (see `applyPassthrough`).
   return undefined;
-}
-
-function effortToBudget(
-  effort: 'minimal' | 'low' | 'medium' | 'high' | string | null | undefined
-): number | null {
-  switch (effort) {
-    case 'minimal':
-    case 'low':
-      return 1024;
-    case 'medium':
-      return 4096;
-    case 'high':
-      return 16384;
-    default:
-      return null;
-  }
 }
 
 // ─── Response side (non-streaming) ─────────────────────────────────
@@ -473,22 +654,22 @@ export function responseAnthropicToResponses(
 
   for (const block of message.content) {
     if (block.type === 'thinking') {
+      // Preserve the Anthropic signature on the way out so a Responses
+      // client that round-trips this item back through the gateway
+      // re-emits a signed thinking block (T2).
       output.push({
         type: 'reasoning',
         id: `rs_${message.id}_${outputIndex++}`,
         summary: [{ type: 'summary_text', text: block.thinking ?? '' }],
-        // Preserve the Anthropic signature on the way out so a Responses
-        // client that round-trips this item back through the gateway
-        // re-emits a signed thinking block (T2).
         ...(block.signature ? { encrypted_content: block.signature } : {}),
-      } as unknown as ResponseOutputItem);
+      });
     } else if (block.type === 'redacted_thinking') {
       output.push({
         type: 'reasoning',
         id: `rs_${message.id}_${outputIndex++}`,
         summary: [],
         encrypted_content: `__vmx_redacted__:${block.data}`,
-      } as unknown as ResponseOutputItem);
+      });
     } else if (block.type === 'text') {
       output.push({
         type: 'message',
@@ -503,7 +684,7 @@ export function responseAnthropicToResponses(
             logprobs: [],
           },
         ],
-      } as unknown as ResponseOutputItem);
+      });
     } else if (block.type === 'tool_use') {
       output.push({
         type: 'function_call',
@@ -512,7 +693,7 @@ export function responseAnthropicToResponses(
         name: block.name,
         arguments: JSON.stringify(block.input ?? {}),
         status: 'completed',
-      } as unknown as ResponseOutputItem);
+      });
     }
     // Server-tool blocks (server_tool_use, web_search_tool_result,
     // code_execution_tool_result, container_upload) lack Responses-API
@@ -533,15 +714,15 @@ export function responseAnthropicToResponses(
     created_at: createdAt,
     status,
     error: null,
-    incomplete_details: null,
+    incomplete_details: buildIncompleteDetails(message.stop_reason),
     instructions: originalReq?.instructions ?? null,
     max_output_tokens: originalReq?.max_output_tokens ?? null,
     model,
     output,
+    output_text: joinOutputText(output),
     parallel_tool_calls: originalReq?.parallel_tool_calls ?? true,
     previous_response_id: originalReq?.previous_response_id ?? null,
     reasoning: originalReq?.reasoning ?? null,
-    store: originalReq?.store ?? false,
     temperature: originalReq?.temperature ?? null,
     text: originalReq?.text ?? { format: { type: 'text' } },
     tool_choice: originalReq?.tool_choice ?? 'auto',
@@ -549,9 +730,28 @@ export function responseAnthropicToResponses(
     top_p: originalReq?.top_p ?? null,
     truncation: originalReq?.truncation ?? 'disabled',
     usage,
-    user: null,
     metadata: originalReq?.metadata ?? null,
-  } as unknown as OpenAIResponse;
+  };
+}
+
+/**
+ * Concatenate the `output_text` content parts from the response's
+ * `output[]` — the SDK's `Response.output_text` convenience field is
+ * non-optional, so every `Response` we synthesise has to populate it.
+ */
+function joinOutputText(items: ResponseOutputItem[]): string {
+  const parts: string[] = [];
+  for (const item of items) {
+    if (item.type !== 'message') continue;
+    for (const c of (
+      item as { content?: Array<{ type?: string; text?: string }> }
+    ).content ?? []) {
+      if (c.type === 'output_text' && typeof c.text === 'string') {
+        parts.push(c.text);
+      }
+    }
+  }
+  return parts.join('');
 }
 
 function buildResponsesUsage(
@@ -590,10 +790,29 @@ function mapStopReasonToStatus(
     case 'pause_turn':
       return 'incomplete';
     case 'refusal':
-      return 'completed';
+      // A streaming refusal is the closest Anthropic analogue to
+      // OpenAI's `content_filter` interruption — propagate as
+      // `incomplete` so strict consumers reading `incomplete_details`
+      // recognise the safety stop.
+      return 'incomplete';
     default:
       return 'completed';
   }
+}
+
+/**
+ * Build the `incomplete_details` field on a non-streaming or final
+ * streaming Response from Anthropic's `stop_reason`. Anthropic's
+ * `max_tokens` → `'max_output_tokens'` and `refusal` → `'content_filter'`
+ * are the only two cases the Responses spec recognises today;
+ * everything else stays `null`.
+ */
+function buildIncompleteDetails(
+  reason: AnthropicMessage['stop_reason']
+): { reason: 'max_output_tokens' | 'content_filter' } | null {
+  if (reason === 'max_tokens') return { reason: 'max_output_tokens' };
+  if (reason === 'refusal') return { reason: 'content_filter' };
+  return null;
 }
 
 // ─── Stream side ───────────────────────────────────────────────────
@@ -651,12 +870,12 @@ export async function* streamAnthropicToResponses(
     type: 'response.created',
     response: initialResponse,
     sequence_number: sequence++,
-  } as unknown as ResponseStreamEvent;
+  };
   yield {
     type: 'response.in_progress',
     response: initialResponse,
     sequence_number: sequence++,
-  } as unknown as ResponseStreamEvent;
+  };
 
   for await (const event of source) {
     switch (event.type) {
@@ -693,7 +912,7 @@ export async function* streamAnthropicToResponses(
               content: [],
             },
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
           yield {
             type: 'response.content_part.added',
             item_id: itemId,
@@ -706,7 +925,7 @@ export async function* streamAnthropicToResponses(
               logprobs: [],
             },
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
           outputIndex++;
         } else if (block.type === 'tool_use') {
           const itemId = `fc_${block.id}`;
@@ -730,7 +949,7 @@ export async function* streamAnthropicToResponses(
               status: 'in_progress',
             },
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
           outputIndex++;
         } else if (block.type === 'thinking') {
           const itemId = `rs_${messageId}_${outputIndex}`;
@@ -749,7 +968,7 @@ export async function* streamAnthropicToResponses(
               summary: [],
             },
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
           outputIndex++;
         } else {
           // Server-tool / unknown blocks — track to drop the matching
@@ -766,12 +985,9 @@ export async function* streamAnthropicToResponses(
         const idx = event.index;
         const state = blockState.get(idx);
         if (!state) break;
-        const delta = event.delta as unknown as { type?: string } & Record<
-          string,
-          unknown
-        >;
+        const delta = event.delta;
         if (state.kind === 'text' && delta.type === 'text_delta') {
-          const text = (delta as { text?: string }).text ?? '';
+          const text = delta.text ?? '';
           state.textAccum = (state.textAccum ?? '') + text;
           yield {
             type: 'response.output_text.delta',
@@ -779,14 +995,14 @@ export async function* streamAnthropicToResponses(
             output_index: state.outputIndex,
             content_index: 0,
             delta: text,
+            logprobs: [],
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
         } else if (
           state.kind === 'tool_use' &&
           delta.type === 'input_json_delta'
         ) {
-          const partial =
-            (delta as { partial_json?: string }).partial_json ?? '';
+          const partial = delta.partial_json ?? '';
           state.argumentsAccum = (state.argumentsAccum ?? '') + partial;
           yield {
             type: 'response.function_call_arguments.delta',
@@ -794,12 +1010,12 @@ export async function* streamAnthropicToResponses(
             output_index: state.outputIndex,
             delta: partial,
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
         } else if (
           state.kind === 'thinking' &&
           delta.type === 'thinking_delta'
         ) {
-          const text = (delta as { thinking?: string }).thinking ?? '';
+          const text = delta.thinking ?? '';
           state.thinkingAccum = (state.thinkingAccum ?? '') + text;
           yield {
             type: 'response.reasoning_summary_text.delta',
@@ -808,7 +1024,7 @@ export async function* streamAnthropicToResponses(
             summary_index: 0,
             delta: text,
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
         } else if (
           state.kind === 'thinking' &&
           delta.type === 'signature_delta'
@@ -816,8 +1032,7 @@ export async function* streamAnthropicToResponses(
           // Accumulate the signature; emit it on the final reasoning
           // item below so the Responses-shape `encrypted_content` field
           // carries it for multi-turn signed-thinking continuity.
-          const sig = (delta as { signature?: string }).signature ?? '';
-          state.signatureAccum = (state.signatureAccum ?? '') + sig;
+          state.signatureAccum = (state.signatureAccum ?? '') + delta.signature;
         }
         break;
       }
@@ -826,14 +1041,16 @@ export async function* streamAnthropicToResponses(
         const state = blockState.get(idx);
         if (!state) break;
         if (state.kind === 'text') {
+          const text = state.textAccum ?? '';
           yield {
             type: 'response.output_text.done',
             item_id: state.itemId,
             output_index: state.outputIndex,
             content_index: 0,
-            text: state.textAccum ?? '',
+            text,
+            logprobs: [],
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
           yield {
             type: 'response.content_part.done',
             item_id: state.itemId,
@@ -841,13 +1058,13 @@ export async function* streamAnthropicToResponses(
             content_index: 0,
             part: {
               type: 'output_text',
-              text: state.textAccum ?? '',
+              text,
               annotations: [],
               logprobs: [],
             },
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
-          const messageItem = {
+          };
+          const messageItem: ResponseOutputItem = {
             type: 'message',
             id: state.itemId,
             status: 'completed',
@@ -855,42 +1072,43 @@ export async function* streamAnthropicToResponses(
             content: [
               {
                 type: 'output_text',
-                text: state.textAccum ?? '',
+                text,
                 annotations: [],
                 logprobs: [],
               },
             ],
-          } as unknown as ResponseOutputItem;
+          };
           accumulatedItems.push(messageItem);
           yield {
             type: 'response.output_item.done',
             output_index: state.outputIndex,
             item: messageItem,
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
         } else if (state.kind === 'tool_use') {
           yield {
             type: 'response.function_call_arguments.done',
             item_id: state.itemId,
             output_index: state.outputIndex,
             arguments: state.argumentsAccum ?? '',
+            name: state.name ?? '',
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
-          const functionCallItem = {
+          };
+          const functionCallItem: ResponseOutputItem = {
             type: 'function_call',
             id: state.itemId,
             call_id: state.callId ?? '',
             name: state.name ?? '',
             arguments: state.argumentsAccum ?? '',
             status: 'completed',
-          } as unknown as ResponseOutputItem;
+          };
           accumulatedItems.push(functionCallItem);
           yield {
             type: 'response.output_item.done',
             output_index: state.outputIndex,
             item: functionCallItem,
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
         } else if (state.kind === 'thinking') {
           yield {
             type: 'response.reasoning_summary_text.done',
@@ -899,34 +1117,39 @@ export async function* streamAnthropicToResponses(
             summary_index: 0,
             text: state.thinkingAccum ?? '',
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
-          const reasoningItem = {
+          };
+          // Surface the accumulated Anthropic signature on the
+          // Responses item so a downstream caller can round-trip
+          // it back through the gateway with multi-turn signed-
+          // thinking continuity intact (T2).
+          const reasoningItem: ResponseOutputItem = {
             type: 'reasoning',
             id: state.itemId,
             summary: [
               { type: 'summary_text', text: state.thinkingAccum ?? '' },
             ],
-            // Surface the accumulated Anthropic signature on the
-            // Responses item so a downstream caller can round-trip
-            // it back through the gateway with multi-turn signed-
-            // thinking continuity intact (T2).
             ...(state.signatureAccum
               ? { encrypted_content: state.signatureAccum }
               : {}),
-          } as unknown as ResponseOutputItem;
+          };
           accumulatedItems.push(reasoningItem);
           yield {
             type: 'response.output_item.done',
             output_index: state.outputIndex,
             item: reasoningItem,
             sequence_number: sequence++,
-          } as unknown as ResponseStreamEvent;
+          };
         }
         blockState.delete(idx);
         break;
       }
       case 'message_delta': {
-        const u = event.usage as AnthropicMessage['usage'] | undefined;
+        const u = event.usage as
+          | (AnthropicMessage['usage'] & {
+              cache_read_input_tokens?: number | null;
+              cache_creation_input_tokens?: number | null;
+            })
+          | undefined;
         if (u) {
           // Anthropic emits cumulative-last-wins on message_delta.
           if (typeof u.output_tokens === 'number') {
@@ -934,6 +1157,15 @@ export async function* streamAnthropicToResponses(
           }
           if (typeof u.input_tokens === 'number') {
             inputTokens = u.input_tokens;
+          }
+          // `message_delta.usage` also carries cumulative cache-token
+          // counters per the SDK's `MessageDeltaUsage` shape — propagate
+          // so the final `response.completed` usage reflects them.
+          if (typeof u.cache_read_input_tokens === 'number') {
+            cacheReadInput = u.cache_read_input_tokens;
+          }
+          if (typeof u.cache_creation_input_tokens === 'number') {
+            cacheCreationInput = u.cache_creation_input_tokens;
           }
         }
         if (event.delta.stop_reason) {
@@ -960,7 +1192,7 @@ export async function* streamAnthropicToResponses(
           type: 'response.completed',
           response: finalResponse,
           sequence_number: sequence++,
-        } as unknown as ResponseStreamEvent;
+        };
         break;
       }
       // Server-tool start / stop / delta and citation events fall
@@ -988,20 +1220,18 @@ function makeStreamingShellResponse(
     max_output_tokens: originalReq?.max_output_tokens ?? null,
     model,
     output: [],
+    output_text: '',
     parallel_tool_calls: originalReq?.parallel_tool_calls ?? true,
     previous_response_id: originalReq?.previous_response_id ?? null,
     reasoning: originalReq?.reasoning ?? null,
-    store: originalReq?.store ?? false,
     temperature: originalReq?.temperature ?? null,
     text: originalReq?.text ?? { format: { type: 'text' } },
     tool_choice: originalReq?.tool_choice ?? 'auto',
     tools: originalReq?.tools ?? [],
     top_p: originalReq?.top_p ?? null,
     truncation: originalReq?.truncation ?? 'disabled',
-    usage: undefined,
-    user: null,
     metadata: originalReq?.metadata ?? null,
-  } as unknown as OpenAIResponse;
+  };
 }
 
 function makeFinalResponse(args: {
@@ -1024,15 +1254,15 @@ function makeFinalResponse(args: {
     created_at: args.createdAt,
     status: mapStopReasonToStatus(args.stopReason),
     error: null,
-    incomplete_details: null,
+    incomplete_details: buildIncompleteDetails(args.stopReason),
     instructions: args.originalReq?.instructions ?? null,
     max_output_tokens: args.originalReq?.max_output_tokens ?? null,
     model: args.model,
     output: args.outputItems,
+    output_text: joinOutputText(args.outputItems),
     parallel_tool_calls: args.originalReq?.parallel_tool_calls ?? true,
     previous_response_id: args.originalReq?.previous_response_id ?? null,
     reasoning: args.originalReq?.reasoning ?? null,
-    store: args.originalReq?.store ?? false,
     temperature: args.originalReq?.temperature ?? null,
     text: args.originalReq?.text ?? { format: { type: 'text' } },
     tool_choice: args.originalReq?.tool_choice ?? 'auto',
@@ -1053,15 +1283,10 @@ function makeFinalResponse(args: {
           : {}),
       },
       output_tokens_details: { reasoning_tokens: 0 },
-    } as OpenAIResponse['usage'],
-    user: null,
+    },
     metadata: args.originalReq?.metadata ?? null,
-  } as unknown as OpenAIResponse;
+  };
 }
-
-// Suppress unused import — kept for future cache_control work that
-// re-attaches breakpoints to system blocks via TextBlockParam shape.
-void (null as unknown as TextBlockParam);
 
 // ─── Provider class ────────────────────────────────────────────────
 

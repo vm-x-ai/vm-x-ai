@@ -21,22 +21,34 @@ const SHOULD_RUN = hasKeys('AWS_BEDROCK_ROLE_ARN', 'AWS_REGION');
 const TEST_MODEL =
   process.env.BEDROCK_TEST_MODEL ??
   'us.anthropic.claude-haiku-4-5-20251001-v1:0';
+// L1 specifically needs a model whose Bedrock listing includes
+// prompt-caching support. Claude Haiku 4.5 on Bedrock does not (yet)
+// honour `cachePoint` markers — Bedrock silently returns 0 for both
+// cache_creation_input_tokens and cache_read_input_tokens. Sonnet 4.5
+// is the closest current-gen model that consistently caches, so the
+// caching regression test pins to it while the other tests in this
+// file keep the cheaper default model.
+const CACHE_TEST_MODEL =
+  process.env.BEDROCK_CACHE_TEST_MODEL ??
+  'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
 const TIMEOUT = 60_000;
 
 /**
- * A long-enough system prompt to clear Anthropic's 1024-token cache
- * minimum. Generated as repeated text rather than fetched from a
- * fixture so the test is self-contained.
+ * A long-enough system prompt to clear Bedrock's per-model cache
+ * minimum. Claude Haiku on Bedrock requires ≥ 2048 tokens of
+ * cacheable prefix before it will commit a cache write; Sonnet/Opus
+ * allow as little as 1024. We aim for ~3000 tokens so the threshold
+ * is cleared with margin regardless of which model the test runs
+ * against. Generated as repeated structured prose so the fixture is
+ * self-contained.
  */
 function longSystemPrompt(): string {
-  // ~1500 tokens of structured prose. Bedrock caches per-block, so
-  // the entire string ends up under a single cachePoint marker.
   const base =
     'You are a senior systems engineer writing a comprehensive design ' +
     'document about a distributed inference gateway. Provide thorough, ' +
     'thoughtful answers that account for failure modes, latency, cost, ' +
     'and operational complexity. Always cite trade-offs explicitly. ';
-  return base.repeat(40);
+  return base.repeat(80);
 }
 
 describe.skipIf(!SHOULD_RUN)('Bedrock-Converse fixes (live)', () => {
@@ -52,8 +64,9 @@ describe.skipIf(!SHOULD_RUN)('Bedrock-Converse fixes (live)', () => {
     'L1: prompt caching produces non-zero cache_read on second call',
     async () => {
       const sys = longSystemPrompt();
+      const cacheModel = makeModel('aws-bedrock', CACHE_TEST_MODEL);
       const body: AnthropicMessagesRequest = {
-        model: TEST_MODEL,
+        model: CACHE_TEST_MODEL,
         max_tokens: 16,
         system: [
           {
@@ -66,7 +79,11 @@ describe.skipIf(!SHOULD_RUN)('Bedrock-Converse fixes (live)', () => {
       } as AnthropicMessagesRequest;
 
       // Warm cache — first call writes.
-      const first = await provider.anthropicMessages(body, connection, model);
+      const first = await provider.anthropicMessages(
+        body,
+        connection,
+        cacheModel
+      );
       const firstUsage = (first.data as { usage?: Record<string, unknown> })
         .usage;
       expect(firstUsage).toBeDefined();
@@ -77,7 +94,11 @@ describe.skipIf(!SHOULD_RUN)('Bedrock-Converse fixes (live)', () => {
       // below allows for either an immediate hit or a measurable
       // cache_creation on the first call.
       await new Promise((r) => setTimeout(r, 1500));
-      const second = await provider.anthropicMessages(body, connection, model);
+      const second = await provider.anthropicMessages(
+        body,
+        connection,
+        cacheModel
+      );
       const secondUsage = (second.data as { usage?: Record<string, unknown> })
         .usage as
         | {

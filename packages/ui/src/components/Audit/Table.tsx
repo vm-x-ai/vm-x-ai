@@ -27,6 +27,7 @@ import Link from 'next/link';
 import { useQueryState, parseAsInteger, parseAsString } from 'nuqs';
 import { useEffect, useMemo, useState } from 'react';
 import AuditDetail from './AuditDetails';
+import { EndpointBadge } from './EndpointBadge';
 import AuditHeader from './Header';
 import {
   AiConnectionEntity,
@@ -38,6 +39,7 @@ import {
 } from '@/clients/api';
 import { getReasonPhrase } from 'http-status-codes';
 import { formatCurrency } from '@/utils/number';
+import { formatLatency } from '@/utils/time';
 
 type CostBreakdown = {
   inputCost?: number | null;
@@ -47,6 +49,10 @@ type CostBreakdown = {
   totalCost?: number | null;
   currency?: string | null;
 };
+
+const isStreamRequest = (row: RequestAuditEntity): boolean =>
+  (row.requestPayload as { stream?: boolean } | null | undefined)?.stream ===
+  true;
 
 export type AuditTableProps = {
   workspaceId?: string;
@@ -246,6 +252,30 @@ export default function AuditTable({
         },
       },
       {
+        id: 'format',
+        accessorKey: 'format',
+        header: 'Endpoint',
+        size: 180,
+        Cell: ({ row: { original: row } }) =>
+          row.format ? (
+            <EndpointBadge format={row.format} />
+          ) : (
+            <Typography variant="body2">—</Typography>
+          ),
+      },
+      {
+        id: 'stream',
+        header: 'Stream',
+        size: 100,
+        accessorFn: (row) => isStreamRequest(row),
+        Cell: ({ row: { original: row } }) =>
+          isStreamRequest(row) ? (
+            <Chip label="Stream" size="small" color="info" variant="outlined" />
+          ) : (
+            <Typography variant="body2">—</Typography>
+          ),
+      },
+      {
         accessorKey: 'correlationId',
         header: 'Correlation ID',
       },
@@ -290,7 +320,16 @@ export default function AuditTable({
       },
       {
         accessorKey: 'duration',
-        header: 'Duration (ms)',
+        header: 'Duration',
+        size: 120,
+        Cell: ({ row: { original: row } }) => (
+          <Typography
+            variant="body2"
+            sx={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {formatLatency(row.duration)}
+          </Typography>
+        ),
       },
       {
         id: 'cost.totalCost',

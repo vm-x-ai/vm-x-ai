@@ -1,9 +1,13 @@
 import {
+  AccessDeniedException,
   InvokeModelCommand,
   InvokeModelWithResponseStreamCommand,
   InvokeModelWithResponseStreamCommandOutput,
   InternalServerException,
   ModelStreamErrorException,
+  ModelTimeoutException,
+  ResourceNotFoundException,
+  ServiceQuotaExceededException,
   ServiceUnavailableException,
   ThrottlingException,
   ValidationException,
@@ -17,7 +21,6 @@ import { AIResourceModelConfigEntity } from '../../ai-resource/common/model.enti
 import {
   AnthropicMessagesResponse as AnthropicMessagesProviderResponse,
   CompletionRequestOptions,
-  CompletionResponse,
   composeAbortSignal,
 } from '../ai-provider.types';
 import { CompletionError } from '../../gateway/completion.types';
@@ -27,8 +30,6 @@ import {
 } from '../aws-bedrock-base';
 import type { AnthropicMessagesResponse } from '../../gateway/anthropic/anthropic.types';
 import {
-  anthropicResponseToChatCompletion,
-  anthropicStreamToChatCompletionChunks,
   assertClaudeModel,
   type BedrockInvokeWireBody,
 } from '../adapters/anthropic-messages.adapter';
@@ -76,7 +77,18 @@ export class AWSBedrockInvokeDispatcher extends AWSBedrockBaseProvider {
     model: AIResourceModelConfigEntity,
     options?: CompletionRequestOptions
   ): Promise<AnthropicMessagesProviderResponse> {
-    assertClaudeModel(model.model);
+    try {
+      assertClaudeModel(model.model);
+    } catch (error) {
+      // Re-throw with `providerRequestPayload` attached so the audit row
+      // sees the wire body even when the request never reached AWS.
+      if (error instanceof CompletionError) {
+        if (error.data.providerRequestPayload === undefined) {
+          error.data.providerRequestPayload = body;
+        }
+      }
+      throw error;
+    }
     const client = await this.createClient(connection);
     this.logger.info({ body }, 'Bedrock Invoke request body');
 
@@ -159,53 +171,6 @@ export class AWSBedrockInvokeDispatcher extends AWSBedrockBaseProvider {
   }
 
   /**
-   * Converting dispatch — calls `dispatchNative` then runs the
-   * canonical Anthropic↔OpenAI converter so the response comes out in
-   * ChatCompletion shape. Used by `AWSBedrockInvokeOpenAICompletionProvider`.
-   */
-  async dispatch(
-    body: BedrockInvokeWireBody,
-    streaming: boolean,
-    connection: AIConnectionEntity<AWSBedrockAIConnectionConfig>,
-    model: AIResourceModelConfigEntity,
-    options?: CompletionRequestOptions
-  ): Promise<CompletionResponse> {
-    const native = await this.dispatchNative(
-      body,
-      streaming,
-      connection,
-      model,
-      options
-    );
-    if (
-      native.data != null &&
-      typeof (native.data as AsyncIterable<RawMessageStreamEvent>)[
-        Symbol.asyncIterator
-      ] === 'function'
-    ) {
-      return {
-        data: anthropicStreamToChatCompletionChunks(
-          native.data as AsyncIterable<RawMessageStreamEvent>,
-          {
-            requestId: native.headers['x-request-id'],
-            model: model.model,
-          }
-        ),
-        headers: native.headers,
-        providerRequestPayload: native.providerRequestPayload,
-      };
-    }
-    return {
-      data: anthropicResponseToChatCompletion(
-        native.data as AnthropicMessagesResponse,
-        model
-      ),
-      headers: native.headers,
-      providerRequestPayload: native.providerRequestPayload,
-    };
-  }
-
-  /**
    * Parse AWS event-stream items into Anthropic `RawMessageStreamEvent`s,
    * mapping AWS-specific exception items to `CompletionError` with the
    * wire body attached so the audit row sees `providerRequestPayload`
@@ -227,6 +192,12 @@ export class AWSBedrockInvokeDispatcher extends AWSBedrockBaseProvider {
       if (item.throttlingException || item.validationException) {
         this.handleError(
           item.throttlingException ?? item.validationException,
+          requestBody
+        );
+      }
+      if (item.modelTimeoutException || item.serviceUnavailableException) {
+        this.handleError(
+          item.modelTimeoutException ?? item.serviceUnavailableException,
           requestBody
         );
       }
@@ -315,6 +286,65 @@ export class AWSBedrockInvokeDispatcher extends AWSBedrockBaseProvider {
         failureReason: 'Throttling error',
         openAICompatibleError: {
           code: 'aws_bedrock_invoke_throttling_error',
+        },
+        providerRequestPayload,
+      });
+    }
+    if (error instanceof ServiceQuotaExceededException) {
+      // Quota exhaustion at the account level — retryable in the sense
+      // that the caller can back off until the window resets, but not
+      // "rate-limit"-retryable the way ThrottlingException is.
+      throw new CompletionError({
+        message: `AWS Bedrock Invoke service quota exceeded: ${error.message}`,
+        rate: true,
+        retryable: true,
+        headers: { 'x-request-id': error.$metadata.requestId },
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        failureReason: 'Service quota exceeded',
+        openAICompatibleError: {
+          code: 'aws_bedrock_invoke_service_quota_exceeded',
+        },
+        providerRequestPayload,
+      });
+    }
+    if (error instanceof AccessDeniedException) {
+      throw new CompletionError({
+        message: `AWS Bedrock Invoke access denied: ${error.message}`,
+        rate: false,
+        retryable: false,
+        headers: { 'x-request-id': error.$metadata.requestId },
+        statusCode: HttpStatus.FORBIDDEN,
+        failureReason: 'Access denied',
+        openAICompatibleError: {
+          code: 'aws_bedrock_invoke_access_denied',
+        },
+        providerRequestPayload,
+      });
+    }
+    if (error instanceof ResourceNotFoundException) {
+      throw new CompletionError({
+        message: `AWS Bedrock Invoke resource not found: ${error.message}`,
+        rate: false,
+        retryable: false,
+        headers: { 'x-request-id': error.$metadata.requestId },
+        statusCode: HttpStatus.NOT_FOUND,
+        failureReason: 'Resource not found',
+        openAICompatibleError: {
+          code: 'aws_bedrock_invoke_resource_not_found',
+        },
+        providerRequestPayload,
+      });
+    }
+    if (error instanceof ModelTimeoutException) {
+      throw new CompletionError({
+        message: `AWS Bedrock Invoke model timeout: ${error.message}`,
+        rate: false,
+        retryable: true,
+        headers: { 'x-request-id': error.$metadata.requestId },
+        statusCode: HttpStatus.GATEWAY_TIMEOUT,
+        failureReason: 'Model timeout',
+        openAICompatibleError: {
+          code: 'aws_bedrock_invoke_model_timeout',
         },
         providerRequestPayload,
       });

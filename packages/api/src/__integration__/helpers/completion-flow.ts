@@ -33,7 +33,7 @@ import {
   chatCompletionStreamToResponseStream,
   chatCompletionToResponse,
 } from '../../gateway/responses/responses-converter';
-import { openAIResponseToAnthropic } from '../../gateway/anthropic/anthropic-converter';
+import { openAIResponseToAnthropic } from '../../ai-provider/anthropic/openai-chat-completion.provider';
 import { chatCompletionsToResponsesRequest } from '../../gateway/responses/from-chat-completions';
 import { anthropicToResponsesRequest } from '../../gateway/responses/from-anthropic';
 import { v4 as uuidv4 } from 'uuid';

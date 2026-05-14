@@ -214,4 +214,51 @@ describe('AnthropicOpenAIResponseProvider — class layer', () => {
       provider.handle(responsesRequest, makeConnection(), makeModel())
     ).rejects.toThrow('dispatch failed');
   });
+
+  it('propagates `parallel_tool_calls: false` as `disable_parallel_tool_use` on the dispatched body', async () => {
+    const dispatcher = makeDispatcherStub();
+    dispatcher.dispatchNative.mockResolvedValue({
+      data: fakeAnthropicMessage,
+      headers: {},
+      providerRequestPayload: {},
+    });
+    const provider = new AnthropicOpenAIResponseProvider(dispatcher);
+
+    await provider.handle(
+      {
+        ...responsesRequest,
+        parallel_tool_calls: false,
+        tools: [{ type: 'function', name: 't', parameters: {} }] as never,
+      },
+      makeConnection(),
+      makeModel()
+    );
+    const passedBody = dispatcher.dispatchNative.mock.calls[0][0];
+    expect(passedBody.tool_choice).toMatchObject({
+      type: 'auto',
+      disable_parallel_tool_use: true,
+    });
+  });
+
+  it('populates incomplete_details on max_tokens stop', async () => {
+    const dispatcher = makeDispatcherStub();
+    dispatcher.dispatchNative.mockResolvedValue({
+      data: {
+        ...fakeAnthropicMessage,
+        stop_reason: 'max_tokens',
+      },
+      headers: {},
+      providerRequestPayload: {},
+    });
+    const provider = new AnthropicOpenAIResponseProvider(dispatcher);
+
+    const result = await provider.handle(
+      responsesRequest,
+      makeConnection(),
+      makeModel()
+    );
+    const data = result.data as OpenAIResponse;
+    expect(data.status).toBe('incomplete');
+    expect(data.incomplete_details).toEqual({ reason: 'max_output_tokens' });
+  });
 });

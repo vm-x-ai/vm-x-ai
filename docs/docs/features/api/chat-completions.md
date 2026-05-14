@@ -33,8 +33,21 @@ Authorization: Bearer <vmx-api-key>
 ```
 
 Request shape: standard OpenAI Chat Completions body, plus an optional
-[`vmx`](./vmx-envelope.md) envelope. Use the **VM-X resource name** in
-`model`, not the upstream model id.
+[`vmx`](./vmx-envelope.md) envelope embedded as a top-level field. Use
+the **VM-X resource name** in `model`, not the upstream model id.
+
+The gateway preserves the OpenAI wire format verbatim — every caller-supplied
+field (including SDK-typed-and-not-typed extras like `service_tier`,
+`safety_identifier`, `prompt_cache_key`, `reasoning_effort`, custom
+tools, `metadata`, …) is forwarded into the upstream call when the route
+resolves to a provider that speaks Chat Completions natively. When the
+route resolves to a provider that doesn't (Anthropic, Bedrock-Converse,
+Bedrock-Invoke, Gemini), a per-provider converter in
+[`openai-chat-completion.provider.ts`](https://github.com/vm-x-ai/vm-x-ai/tree/main/packages/api/src/ai-provider)
+translates request and response. Fields that can't be expressed on the
+target are stowed on a private `__vmx_passthrough` envelope so a
+fallback to a native-format provider later in the chain can re-attach
+them.
 
 ## Quick start
 
@@ -46,7 +59,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="<vmx-api-key>",
-    base_url="http://localhost:3000/v1/completion/<workspace>/<environment>",
+    base_url="http://localhost:3030/api/v1/completion/<workspace>/<environment>",
 )
 
 response = client.chat.completions.create(
@@ -65,7 +78,7 @@ import OpenAI from 'openai';
 
 const client = new OpenAI({
   apiKey: '<vmx-api-key>',
-  baseURL: 'http://localhost:3000/v1/completion/<workspace>/<environment>',
+  baseURL: 'http://localhost:3030/api/v1/completion/<workspace>/<environment>',
 });
 
 const completion = await client.chat.completions.create({
@@ -80,7 +93,7 @@ console.log(completion.choices[0].message.content);
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -126,7 +139,7 @@ const completion = await client.chat.completions.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -192,7 +205,7 @@ const completion = await client.chat.completions.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -299,7 +312,7 @@ const final = await client.chat.completions.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -367,7 +380,7 @@ for await (const chunk of stream) {
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -N -d '{
@@ -439,7 +452,7 @@ const completion = await client.chat.completions.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -537,7 +550,7 @@ const completion = await client.chat.completions.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -614,7 +627,7 @@ const completion = await client.chat.completions.create({
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/<workspace>/<environment>/chat/completions \
+curl http://localhost:3030/api/v1/completion/<workspace>/<environment>/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <vmx-api-key>" \
   -d '{
@@ -640,21 +653,74 @@ See the full [vmx envelope reference](./vmx-envelope.md) for `providerArgs`,
 
 ## Provider compatibility
 
-| Provider             | Native passthrough? | Notes                                                                                                                                                                       |
-| -------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OpenAI               | ✅ Yes              | Direct dispatch via `client.chat.completions.create`.                                                                                                                       |
-| Anthropic            | ✅ Yes              | Anthropic accepts the OpenAI-compat shape natively. `cache_control` / `thinking` work via `vmx.providerArgs` or [`/anthropic/messages`](./anthropic-messages.md).           |
-| Gemini               | ✅ Yes              | Via Google's OpenAI-compat endpoint. Auto-routes to the native `@google/genai` SDK when the request carries `googleSearch`/`urlContext`/`codeExecution`/`fileSearch` tools. |
-| Groq                 | ✅ Yes              | Via Groq's OpenAI-compat endpoint.                                                                                                                                          |
-| Perplexity           | ✅ Yes              | Via Perplexity's OpenAI-compat endpoint. Web search is built into every model.                                                                                              |
-| AWS Bedrock-Converse | Convert             | Body converted to Converse shape; `cache_control` from the `__vmx_passthrough` envelope re-applied as `cachePoint` blocks.                                                  |
-| AWS Bedrock-Invoke   | Convert             | OpenAI → Anthropic → Bedrock-Invoke wire shape (Anthropic on AWS).                                                                                                          |
+| Provider             | Path        | Notes                                                                                                                                                                                                                                                                                                                                                    |
+| -------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenAI               | Passthrough | Direct dispatch via the OpenAI SDK's `client.chat.completions.create`. Every Chat Completions field is forwarded verbatim, including SDK-typed extras (`service_tier`, `metadata`, `safety_identifier`, `prompt_cache_key`, `reasoning_effort`, `web_search_options`, …).                                                                                |
+| Groq                 | Passthrough | OpenAI SDK pointed at `api.groq.com/openai/v1`. Groq-specific top-level fields (`reasoning_effort`, `reasoning_format`, `search_settings`, `service_tier`) ride through. Groq 400s on `logprobs`/`logit_bias`/`top_logprobs`/`messages[].name`/`n > 1` — VM-X surfaces the 400.                                                                          |
+| Perplexity           | Passthrough | OpenAI SDK pointed at `api.perplexity.ai`. Sonar-specific filter fields (`search_domain_filter`, `search_recency_filter`, `web_search_options`, `return_images`, `user_location`, …) ride through. Web search is built into every model; response carries `citations[]` + `search_results[]`.                                                            |
+| Anthropic            | Convert     | Converted to Anthropic Messages and dispatched against `api.anthropic.com`. `cache_control` / extended `thinking` / `top_k` / server tools work via [`vmx.providerArgs`](./vmx-envelope.md) or natively on [`/anthropic/messages`](./anthropic-messages.md). `n > 1` is rejected with `anthropic_n_unsupported`.                                         |
+| Gemini               | Convert     | Converted to Gemini's native `GenerateContentParameters` (`@google/genai`) — not the OpenAI-compat shim. Preserves `thoughtSignature`, grounding metadata, code-execution parts, per-modality usage. Native tools (`googleSearch`, `urlContext`, `codeExecution`, `fileSearch`, `googleMaps`, `computerUse`) forward verbatim when present on `tools[]`. |
+| AWS Bedrock-Converse | Convert     | Converted to the Converse API shape; `cache_control` from `__vmx_passthrough` re-applied as `cachePoint` blocks. `reasoning_effort` maps to `thinking.budget_tokens`. Image inputs must carry a parseable format.                                                                                                                                        |
+| AWS Bedrock-Invoke   | Convert     | Two-stage: OpenAI → Anthropic canonical → Bedrock-Invoke (Claude on AWS). External `image_url` URLs are rejected upstream with `aws_bedrock_invoke_image_url_unsupported`; use base64 `data:` URLs or route to Bedrock-Converse, which does fetch external URLs.                                                                                         |
 
-When the request format doesn't match the upstream's native shape, VM-X
-converts. Fields like `cache_control` and `thinking` ride on the
-private `__vmx_passthrough` envelope so a fallback can re-apply them
-end-to-end. See the [conversion matrix](https://github.com/vm-x-ai/vm-x-ai/blob/main/contributing-docs/conversion-matrix.md)
-for the per-pair details.
+See the [conversion matrix](https://github.com/vm-x-ai/vm-x-ai/blob/main/contributing-docs/conversion-matrix.md)
+for the full per-field details on each convert path.
+
+## Response shape
+
+The body is a standard OpenAI `ChatCompletion` (or stream of
+`ChatCompletionChunk`s). Provider-specific extension fields ride
+through unchanged — examples:
+
+- **OpenAI / OpenAI-compat:** `usage.prompt_tokens_details.cached_tokens`,
+  `usage.completion_tokens_details.reasoning_tokens`, `service_tier` (echoed),
+  refusal stop details.
+- **Anthropic (convert path):** `usage.prompt_tokens_details` surfaces
+  Anthropic cache stats (`cache_creation_input_tokens`, `cache_read_input_tokens`).
+- **Gemini (convert path):** `message.gemini_code_execution`, `vertex_ai_grounding_metadata`,
+  `url_context_metadata`, `prompt_feedback`.
+- **Groq (passthrough):** `message.reasoning` (when `reasoning_format`
+  is `parsed`) for GPT-OSS / Qwen3 / DeepSeek-R1.
+- **Perplexity (passthrough):** top-level `citations[]` and
+  `search_results[]`; per-token `usage.cost.*`.
+
+On top of the upstream shape, VM-X decorates the response with a
+top-level `vmx` object carrying gateway metrics:
+
+```jsonc
+{
+  "id": "chatcmpl-...",
+  "choices": [
+    /* ... */
+  ],
+  "usage": {
+    /* ... */
+  },
+  "vmx": {
+    "metrics": {
+      "gateDurationMs": 4,
+      "routingDurationMs": null,
+      "timeToFirstTokenMs": null,
+      "tokensPerSecond": null
+    },
+    "events": [
+      /* audit events for this request — gate, routing, fallback */
+    ]
+  }
+}
+```
+
+The same metrics are echoed onto the HTTP response headers
+(`x-vmx-model`, `x-vmx-provider`, `x-vmx-connection-id`,
+`x-vmx-gate-duration-ms`, `x-vmx-routing-duration-ms`,
+`x-vmx-event-count`, plus `x-vmx-metadata-<key>` for every
+[`vmx.metadata`](./vmx-envelope.md) entry). The full header list is
+in the [endpoint overview](./index.md#headers-vm-x-adds-to-every-response).
+
+When a request fails, VM-X attaches the exact `providerRequestPayload`
+that was sent upstream (or would have been, if the failure happened
+before dispatch) to the audit row, so you can replay or diff any
+gateway-side conversion against the wire body.
 
 ## Errors
 

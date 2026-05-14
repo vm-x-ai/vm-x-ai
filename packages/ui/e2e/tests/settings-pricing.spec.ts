@@ -41,14 +41,19 @@ test.describe('Settings — Pricing', () => {
 
     await expect(page.getByRole('textbox', { name: 'Provider' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Model' })).toBeVisible();
+    // The cost fields are rendered by `DecimalInput`, which uses
+    // `<input type="text" inputMode="decimal">` — see Form.tsx's
+    // comment for why `type="number"` is the wrong choice for raw
+    // per-token decimals. That gives them the `textbox` role, not
+    // `spinbutton`.
     await expect(
-      page.getByRole('spinbutton', {
+      page.getByRole('textbox', {
         name: 'Input cost per token',
         exact: true,
       })
     ).toBeVisible();
     await expect(
-      page.getByRole('spinbutton', {
+      page.getByRole('textbox', {
         name: 'Output cost per token',
         exact: true,
       })
@@ -71,10 +76,10 @@ test.describe.serial('Settings — Pricing CRUD', () => {
     await page.getByRole('textbox', { name: 'Provider' }).fill(provider);
     await page.getByRole('textbox', { name: 'Model' }).fill(model);
     await page
-      .getByRole('spinbutton', { name: 'Input cost per token', exact: true })
+      .getByRole('textbox', { name: 'Input cost per token', exact: true })
       .fill('0.000003');
     await page
-      .getByRole('spinbutton', { name: 'Output cost per token', exact: true })
+      .getByRole('textbox', { name: 'Output cost per token', exact: true })
       .fill('0.000012');
     await page.getByRole('button', { name: 'Save' }).click();
 

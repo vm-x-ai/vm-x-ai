@@ -7,31 +7,54 @@ import TabItem from '@theme/TabItem';
 
 # AI Resources
 
-AI Resources are logical endpoints that your applications use to make AI requests. They define which provider/model to use, routing rules, fallback behavior, and capacity allocation.
+An **AI Resource** is the logical endpoint your application calls — a
+stable name (passed in the request's `model` field) that decides which
+upstream provider, which model, what fallback chain, what routing rules,
+and what capacity limits apply to every request.
 
-## What is an AI Resource?
+You build apps against resource names. Operators rewire the underlying
+model strategy on the dashboard without touching client code.
 
-An AI Resource is the abstraction your applications interact with. It includes:
+## What an AI Resource owns
 
-- **Primary Model**: The default provider/model to use.
-- **Secondary Models**: Pinnable per-call alternatives selected via
-  `vmx.secondaryModelIndex` — useful for A/B tests and per-call model
-  overrides without leaving the resource API. See
-  [Secondary Models](#secondary-models).
-- **Fallback Models**: Alternative models tried automatically when
-  the primary (or routed) leg errors — including provider errors,
-  timeouts, and capacity-gate denials. See [Fallback](./fallback.md).
-- **Routing Rules**: Conditions for dynamically selecting different
-  models per-request. See [Dynamic Routing](./routing.md).
-- **Per-Model Tuning**: `maxRetries` and `timeoutMs` settable
-  individually on the primary, every fallback, and every routing
-  destination. See
-  [Per-Model Tuning](#per-model-tuning-retries-and-timeout).
-- **Capacity**: Resource-level capacity limits. See
-  [Capacity](./capacity.md).
-- **API Key Assignment**: Which API keys can access this resource.
-- **Default Args**: Provider-specific arguments merged into every
-  request. See [Default Args](#default-args).
+An AI Resource lives inside one workspace + environment (see
+[Workspaces and Environments](../workspaces-environments.md)) and
+composes the following selection knobs:
+
+| Knob                  | What it does                                                                                                                                              | Detail                                                    |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **Primary model**     | Default provider + connection + model used when no rule overrides it.                                                                                     | This page                                                 |
+| **Dynamic routing**   | Per-request rules (token count, tools, error rate, traffic split, `request.format`, native-body fields, …) that pick a different model before dispatch.   | [Routing](./routing.md)                                   |
+| **Fallback chain**    | Ordered list of alternates the gateway tries when the chosen leg errors — provider 4xx/5xx, timeouts, capacity-gate denials, network failures.            | [Fallback](./fallback.md)                                 |
+| **Capacity**          | Resource-scoped RPM/TPM caps across `minute`/`hour`/`day`/`week`/`month`/`lifetime` windows, optionally per-source-IP. Composes with connection capacity. | [Capacity](./capacity.md)                                 |
+| **Prioritization**    | When the workspace/environment has a pool definition, the resource's pool gates the request after capacity. Adaptive token-scaling redistributes share.   | [Prioritization](../prioritization.md)                    |
+| **Secondary models**  | Caller-pinnable alternates selected per-call via `vmx.secondaryModelIndex`. Routing is skipped; fallback chain still applies.                             | [Secondary Models](#secondary-models)                     |
+| **Per-model tuning**  | `maxRetries` and `timeoutMs` settable on the primary, every fallback, and every routing destination — different legs can fail fast independently.         | [Per-Model Tuning](#per-model-tuning-retries-and-timeout) |
+| **Default args**      | Provider-knob defaults (e.g. `reasoning_effort`, `temperature`, `service_tier`) deep-merged into every request — caller fields win.                       | [Default Args](#default-args)                             |
+| **API key allowlist** | Which API keys are permitted to address this resource (empty = all keys in the environment).                                                              | [API Key Assignment](#api-key-assignment)                 |
+
+## Multi-surface routing
+
+The same AI Resource serves all three completion endpoints:
+
+- `POST /v1/completion/{workspaceId}/{environmentId}/chat/completions` — OpenAI Chat Completions shape
+- `POST /v1/completion/{workspaceId}/{environmentId}/responses` — OpenAI Responses shape
+- `POST /v1/completion/{workspaceId}/{environmentId}/anthropic/messages` — Anthropic Messages shape
+
+A request hitting any of the three resolves to the same resource record,
+runs the same routing / fallback / capacity / prioritization pipeline,
+and is recorded in the same audit log. When the request format matches
+the chosen upstream's native shape, the body is forwarded **verbatim**;
+when it doesn't, the gateway converts internally and re-attaches
+provider-only fields (cache markers, server tools, …) via the
+`__vmx_passthrough` envelope so a later fallback leg to a native-format
+provider can still use them. See the [API Endpoints overview](../api/index.md)
+for the full passthrough matrix.
+
+Routing rules can branch on the entry format via `request.format`
+(`"openai"` / `"responses"` / `"anthropic"`) and read native fields
+through `request.nativeBody` — useful when one resource serves clients
+that speak different SDKs.
 
 ## Creating an AI Resource
 
@@ -97,7 +120,7 @@ resource_name = "your-resource-name"  # The name of your AI Resource
 
 client = OpenAI(
     api_key="your-vmx-api-key",
-    base_url=f"http://localhost:3000/v1/completion/{workspace_id}/{environment_id}"
+    base_url=f"http://localhost:3030/api/v1/completion/{workspace_id}/{environment_id}"
 )
 
 # Use the resource name as the model
@@ -121,7 +144,7 @@ const resourceName = 'your-resource-name'; // The name of your AI Resource
 
 const openai = new OpenAI({
   apiKey: 'your-vmx-api-key',
-  baseURL: `http://localhost:3000/v1/completion/${workspaceId}/${environmentId}`,
+  baseURL: `http://localhost:3030/api/v1/completion/${workspaceId}/${environmentId}`,
 });
 
 const completion = await openai.chat.completions.create({
@@ -136,7 +159,7 @@ console.log(completion.choices[0].message.content);
   <TabItem value="curl" label="cURL">
 
 ```bash
-curl http://localhost:3000/v1/completion/{workspaceId}/{environmentId}/chat/completions \
+curl http://localhost:3030/api/v1/completion/{workspaceId}/{environmentId}/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-vmx-api-key" \
   -d '{

@@ -22,10 +22,17 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { ChatMessage } from './types';
 import Button from '@mui/material/Button';
-import { useResponsesStream } from './useResponsesStream';
-import { useAnthropicStream } from './useAnthropicStream';
 
 export type ChatEndpointMode = 'chat-completions' | 'responses' | 'anthropic';
+
+/**
+ * OpenAI reasoning_effort tiers. `undefined` means "don't override" —
+ * the model uses its built-in default. The BFF translates this to
+ * `providerOptions.openai.reasoningEffort` on the chat-completions
+ * path, `reasoning.effort` on Responses, and `thinking.budget_tokens`
+ * on Anthropic.
+ */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high';
 
 export type ChatProps = {
   resource: AiResourceEntity;
@@ -35,19 +42,32 @@ export type ChatProps = {
   height?: number | string;
   stream?: boolean;
   /**
-   * Which gateway endpoint to drive. `chat-completions` (default) goes
-   * through `/api/chat` + the Vercel AI SDK; `responses` goes through the
-   * new `/api/responses` BFF and the `useResponsesStream` hook.
+   * Which gateway endpoint to drive. All three modes use the AI
+   * SDK's `useChat` against a per-mode BFF route (`/api/chat`,
+   * `/api/responses`, `/api/anthropic`). The routes share a gateway
+   * `fetch` helper that injects the `vmx` envelope and captures the
+   * VM-X response headers.
    */
   endpointMode?: ChatEndpointMode;
   /**
    * Enable web-search passthrough on the gateway. The BFF translates this
    * to the right shape per endpoint:
    *   - Chat Completions: `web_search_options: {}` (OpenAI/Perplexity)
-   *   - Responses API: `tools: [{ type: 'web_search_preview' }]`
+   *   - Responses API: `tools: [{ type: 'web_search' }]`
    * Providers that don't recognize the field ignore it.
    */
   webSearch?: boolean;
+  /**
+   * When set, the BFF asks the upstream to enable reasoning at the
+   * given tier. Forwarded per endpoint as the right field shape:
+   *   - Chat Completions: `reasoning_effort` body field (Vercel AI
+   *     SDK's `providerOptions.openai.reasoningEffort`).
+   *   - Responses: `reasoning: { effort, summary: 'auto' }`.
+   *   - Anthropic: `thinking: { type: 'enabled', budget_tokens: ... }`
+   *     with the tier mapped to a token budget.
+   * Models that don't support reasoning ignore the field.
+   */
+  reasoningEffort?: ReasoningEffort;
   padding?: number;
   elevation?: number;
   /**
@@ -104,6 +124,7 @@ export default function Chat({
   stream = true,
   endpointMode = 'chat-completions',
   webSearch = false,
+  reasoningEffort,
   padding = 2,
   elevation = 3,
   correlationId,
@@ -121,39 +142,55 @@ export default function Chat({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Always call both hooks (rule of hooks); only the active branch's
-  // sendMessage gets driven from the form. Inactive hook is essentially
-  // idle — no network traffic until something calls its sendMessage.
+  // One `useChat` per endpoint mode. Each transport hits its own BFF
+  // route, but all three resolve to AI-SDK UIMessageStream responses
+  // — so the chat panel reads `messages` / `status` / `error`
+  // uniformly regardless of which tab is active. The unused hooks
+  // stay idle (no network traffic until their `sendMessage` fires),
+  // and keeping per-mode history lets the user swap tabs without
+  // losing the prior conversation.
+  const prepareSendMessagesRequest = ({
+    messages,
+    body,
+  }: {
+    messages: ChatMessage[];
+    body?: unknown;
+  }) => ({
+    body: {
+      messages,
+      workspaceId,
+      environmentId,
+      ...(body as Record<string, unknown> | undefined),
+    },
+  });
   const chatCompletions = useChat<ChatMessage>({
     transport: new DefaultChatTransport({
       api: '/api/chat',
-      prepareSendMessagesRequest: ({ messages, body }) => {
-        return {
-          body: {
-            messages: messages,
-            workspaceId,
-            environmentId,
-            ...body,
-          },
-        };
-      },
+      prepareSendMessagesRequest,
     }),
     experimental_throttle: 50,
   });
-  const responsesChat = useResponsesStream({ workspaceId, environmentId });
-  const anthropicChat = useAnthropicStream({ workspaceId, environmentId });
-
-  const { messages, error, setMessages, status } =
+  const responsesChat = useChat<ChatMessage>({
+    transport: new DefaultChatTransport({
+      api: '/api/responses',
+      prepareSendMessagesRequest,
+    }),
+    experimental_throttle: 50,
+  });
+  const anthropicChat = useChat<ChatMessage>({
+    transport: new DefaultChatTransport({
+      api: '/api/anthropic',
+      prepareSendMessagesRequest,
+    }),
+    experimental_throttle: 50,
+  });
+  const activeChat =
     endpointMode === 'responses'
       ? responsesChat
       : endpointMode === 'anthropic'
       ? anthropicChat
-      : {
-          messages: chatCompletions.messages,
-          setMessages: chatCompletions.setMessages,
-          status: chatCompletions.status,
-          error: chatCompletions.error,
-        };
+      : chatCompletions;
+  const { messages, error, setMessages, status } = activeChat;
   const { formRef, onKeyDown } = useEnterSubmit();
 
   const addFiles = useCallback((incoming: File[]) => {
@@ -210,55 +247,36 @@ export default function Chat({
         ...(correlationId ? { correlationId } : {}),
         ...(metadata && Object.keys(metadata).length > 0 ? { metadata } : {}),
       };
-      if (endpointMode === 'responses') {
-        await responsesChat.sendMessage(
-          { text },
-          {
-            body: {
-              resourceConfigOverrides: mergedOverrides,
-              webSearch,
-              ...envelope,
-            },
-          }
-        );
-      } else if (endpointMode === 'anthropic') {
-        await anthropicChat.sendMessage(
-          { text },
-          {
-            body: {
-              resourceConfigOverrides: mergedOverrides,
-              ...envelope,
-            },
-          }
-        );
-      } else if (filesToSend.length > 0) {
-        // The AI SDK accepts a `FileList`; we build one from the array
-        // using `DataTransfer` (a browser-only API — `Chat.tsx` is a
-        // client component, so it's safe).
-        const dt = new DataTransfer();
-        for (const f of filesToSend) dt.items.add(f);
-        await chatCompletions.sendMessage(
-          { text, files: dt.files },
-          {
-            body: {
-              resourceConfigOverrides: mergedOverrides,
-              webSearch,
-              ...envelope,
-            },
-          }
-        );
-      } else {
-        await chatCompletions.sendMessage(
-          { text },
-          {
-            body: {
-              resourceConfigOverrides: mergedOverrides,
-              webSearch,
-              ...envelope,
-            },
-          }
-        );
-      }
+      const reasoning = reasoningEffort ? { reasoningEffort } : {};
+      const sharedBody = {
+        resourceConfigOverrides: mergedOverrides,
+        // `webSearch` is a no-op for the Anthropic BFF (no Anthropic-
+        // shape web-search tool); the other two routes consume it.
+        webSearch,
+        // When false, the BFF switches to `generateText` and re-encodes
+        // the result as a one-burst UI message stream — the reply
+        // lands all at once instead of token-by-token. All three BFF
+        // routes accept this flag.
+        stream,
+        ...reasoning,
+        ...envelope,
+      };
+      // File attachments only flow through the chat-completions path
+      // today — the Responses + Anthropic BFFs ignore the `files`
+      // argument. The AI SDK accepts a `FileList`; build one from
+      // the array via `DataTransfer` (browser-only, safe here).
+      const filesArg =
+        endpointMode === 'chat-completions' && filesToSend.length > 0
+          ? (() => {
+              const dt = new DataTransfer();
+              for (const f of filesToSend) dt.items.add(f);
+              return dt.files;
+            })()
+          : undefined;
+      await activeChat.sendMessage(
+        filesArg ? { text, files: filesArg } : { text },
+        { body: sharedBody }
+      );
       // Clear attachments only on success — keep them on failure so the
       // user can retry without re-attaching.
       setAttachments([]);

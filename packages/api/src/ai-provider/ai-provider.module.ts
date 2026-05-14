@@ -16,6 +16,7 @@ import { GeminiProvider } from './gemini';
 import { GeminiChatCompletionProvider } from './gemini/openai-chat-completion.provider';
 import { GeminiResponseProvider } from './gemini/openai-response.provider';
 import { GeminiAnthropicMessagesProvider } from './gemini/anthropic-messages.provider';
+import { GeminiDispatcher } from './gemini/shared';
 
 import { GroqProvider } from './groq';
 import { GroqChatCompletionProvider } from './groq/openai-chat-completion.provider';
@@ -55,8 +56,9 @@ import { AWSBedrockConverseAnthropicMessagesProvider } from './aws-bedrock-conve
     OpenAIResponseProvider,
     OpenAIAnthropicMessagesProvider,
 
-    // Gemini — 4-file structure
+    // Gemini — 4-file structure (native @google/genai across all 3 inputs)
     GeminiProvider,
+    GeminiDispatcher,
     GeminiChatCompletionProvider,
     GeminiResponseProvider,
     GeminiAnthropicMessagesProvider,

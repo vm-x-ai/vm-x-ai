@@ -4,7 +4,11 @@ import type {
   ConverseStreamOutput,
 } from '@aws-sdk/client-bedrock-runtime';
 import type { Message as AnthropicMessage } from '@anthropic-ai/sdk/resources/messages';
-import { AWSBedrockConverseAnthropicMessagesProvider } from './anthropic-messages.provider';
+import {
+  AWSBedrockConverseAnthropicMessagesProvider,
+  requestAnthropicToConverse,
+} from './anthropic-messages.provider';
+import type { ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import type { AWSBedrockConverseDispatcher } from './shared';
 import type { AWSBedrockAIConnectionConfig } from './shared';
 import type { AIConnectionEntity } from '../../ai-connection/entities/ai-connection.entity';
@@ -300,5 +304,137 @@ describe('AWSBedrockConverseAnthropicMessagesProvider — class layer', () => {
     const options = { signal: ac.signal, maxRetries: 4 };
     await provider.handle(baseRequest, makeConnection(), makeModel(), options);
     expect(dispatcher.dispatchConverseRaw.mock.calls[0][3]).toBe(options);
+  });
+});
+
+describe('requestAnthropicToConverse — server tool fidelity', () => {
+  it.each([
+    ['web_search_20250305', 'web_search'],
+    ['web_fetch_20260309', 'web_fetch'],
+    ['code_execution_20260120', 'code_execution'],
+    ['bash_20250124', 'bash'],
+    ['text_editor_20250728', 'str_replace_based_edit_tool'],
+    ['memory_20250818', 'memory'],
+  ])(
+    'rejects %s with anthropic_server_tool_unsupported_on_bedrock_converse',
+    async (type, name) => {
+      await expect(
+        requestAnthropicToConverse(
+          {
+            model: 'm',
+            max_tokens: 8,
+            messages: [{ role: 'user', content: 'x' }],
+            tools: [{ type, name }] as never,
+          } as AnthropicMessagesRequest,
+          'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+        )
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            statusCode: 400,
+            retryable: false,
+            openAICompatibleError: expect.objectContaining({
+              code: 'anthropic_server_tool_unsupported_on_bedrock_converse',
+            }),
+          }),
+        })
+      );
+    }
+  );
+
+  it('still maps custom function tools (regression guard)', async () => {
+    const input = await requestAnthropicToConverse(
+      {
+        model: 'm',
+        max_tokens: 8,
+        messages: [{ role: 'user', content: 'x' }],
+        tools: [
+          {
+            name: 'get_weather',
+            description: 'd',
+            input_schema: {
+              type: 'object',
+              properties: { city: { type: 'string' } },
+            },
+          },
+        ] as never,
+      } as AnthropicMessagesRequest,
+      'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+    );
+    expect(input.toolConfig?.tools?.[0]).toMatchObject({
+      toolSpec: { name: 'get_weather' },
+    });
+  });
+
+  it('lifts web_search_tool_result history blocks into Converse text content', async () => {
+    const input = await requestAnthropicToConverse(
+      {
+        model: 'm',
+        max_tokens: 8,
+        messages: [
+          { role: 'user', content: 'go' },
+          {
+            role: 'assistant',
+            content: [
+              {
+                type: 'web_search_tool_result',
+                tool_use_id: 'srv_1',
+                content: [
+                  {
+                    type: 'web_search_result',
+                    title: 'Search Hit',
+                    url: 'https://example.test/x',
+                    encrypted_content: 'enc',
+                  },
+                ],
+              },
+            ] as never,
+          },
+        ],
+      } as AnthropicMessagesRequest,
+      'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+    );
+    const assistantMsg = input.messages?.find(
+      (m: { role?: string }) => m.role === 'assistant'
+    );
+    const text = (assistantMsg?.content ?? [])
+      .map((b: ContentBlock) => (b as { text?: string }).text ?? '')
+      .join('');
+    expect(text).toContain('[web_search_tool_result]');
+    expect(text).toContain('Search Hit');
+  });
+
+  it('lifts bash_code_execution_tool_result error blocks into a readable error tag', async () => {
+    const input = await requestAnthropicToConverse(
+      {
+        model: 'm',
+        max_tokens: 8,
+        messages: [
+          { role: 'user', content: 'go' },
+          {
+            role: 'assistant',
+            content: [
+              {
+                type: 'bash_code_execution_tool_result',
+                tool_use_id: 'srv_2',
+                content: {
+                  type: 'bash_code_execution_tool_result_error',
+                  error_code: 'execution_time_exceeded',
+                },
+              },
+            ] as never,
+          },
+        ],
+      } as AnthropicMessagesRequest,
+      'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+    );
+    const assistantMsg = input.messages?.find(
+      (m: { role?: string }) => m.role === 'assistant'
+    );
+    const text = (assistantMsg?.content ?? [])
+      .map((b: ContentBlock) => (b as { text?: string }).text ?? '')
+      .join('');
+    expect(text).toContain('[bash_code_execution_tool_result:error]');
+    expect(text).toContain('execution_time_exceeded');
   });
 });
