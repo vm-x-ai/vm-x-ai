@@ -1,3 +1,13 @@
+## 1.3.0 (2026-05-14)
+
+### 🚀 Features
+
+- direct Anthropic adapters, AI SDK BFF rewrite, audit endpoint/stream UI, docs refresh ([5783bb5](https://github.com/vm-x-ai/vm-x-ai/commit/5783bb5))
+
+### ❤️ Thank You
+
+- Lucas Vieira @lucasvieirasilva
+
 ## 1.2.0 (2026-05-11)
 
 ### 🚀 Features
