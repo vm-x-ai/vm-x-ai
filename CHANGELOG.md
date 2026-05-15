@@ -1,3 +1,13 @@
+## 1.4.0 (2026-05-15)
+
+### 🚀 Features
+
+- capacity-usage routing, metadata dimensions + rules, AI Connection sidebar unify ([71f5872](https://github.com/vm-x-ai/vm-x-ai/commit/71f5872))
+
+### ❤️ Thank You
+
+- Lucas Vieira @lucasvieirasilva
+
 ## 1.3.0 (2026-05-14)
 
 ### 🚀 Features
