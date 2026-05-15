@@ -26,6 +26,16 @@ export const capacityPeriod = $enum(CapacityPeriod).getValues();
 
 export enum CapacityDimension {
   SOURCE_IP = 'source-ip',
+  /**
+   * Bucket by a value pulled from `payload.vmx.metadata[<dimensionField>]`.
+   * Use this to rate-limit by tenant, user, team, etc. — anything the
+   * caller can stamp via the `vmx.metadata` envelope or
+   * `x-vmx-metadata-<key>` headers. Requires `dimensionField` to be set.
+   * Requests missing the configured field share an "unknown" bucket
+   * (same conservative behaviour as `SOURCE_IP` when the IP is
+   * unresolvable) so anonymous traffic still gets gated.
+   */
+  METADATA = 'metadata',
 }
 
 export const capacityDimension = $enum(CapacityDimension).getValues();
@@ -85,6 +95,20 @@ export class CapacityEntity {
   @IsEnum(CapacityDimension)
   @IsOptional()
   dimension?: CapacityDimension | null;
+
+  @ApiProperty({
+    required: false,
+    type: 'string',
+    nullable: true,
+    description:
+      'When dimension is METADATA, the metadata field name to bucket by ' +
+      '(e.g. "userId", "tenantId"). Resolved from `payload.vmx.metadata`. ' +
+      'Ignored for other dimension types.',
+    example: 'userId',
+  })
+  @IsString()
+  @IsOptional()
+  dimensionField?: string | null;
 }
 
 export class DiscoveredCapacityEntry {

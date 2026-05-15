@@ -380,7 +380,10 @@ export class GatewayOrchestratorService {
               environmentId,
               routingInput,
               requestTokens,
-              aiResource
+              aiResource,
+              apiKey,
+              request,
+              payload.vmx?.metadata ?? undefined
             );
           if (routingResult) {
             auditEvents.push({
@@ -501,7 +504,8 @@ export class GatewayOrchestratorService {
               aiConnection,
               apiKey,
               request,
-              batch
+              batch,
+              payload.vmx?.metadata ?? undefined
             );
           } catch (error) {
             this.logger.error(

@@ -39,6 +39,7 @@ export type RouteCardProps = {
   onDelete?: (route: AiRoutingConditionGroup) => void;
   initialExpanded?: boolean;
   moveRow?: (dragIndex: number, hoverIndex: number) => void;
+  metadataKeys?: string[];
 };
 
 type DragObject = { route: AiRoutingConditionGroup; index: number };
@@ -56,6 +57,7 @@ export default function RouteCard({
   onDelete,
   moveRow,
   initialExpanded = false,
+  metadataKeys,
 }: RouteCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(initialExpanded);
@@ -290,6 +292,9 @@ export default function RouteCard({
                       moveRow={moveConditionRow}
                       condition={condition as AiResourceRoutingCondition}
                       switchOperator={handleOperatorClick}
+                      workspaceId={workspaceId}
+                      environmentId={environmentId}
+                      metadataKeys={metadataKeys}
                       onDelete={() => {
                         const newConditions = [...route.conditions];
                         newConditions.splice(index, 1);

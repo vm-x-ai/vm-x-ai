@@ -5,6 +5,7 @@ import { submitForm } from './actions';
 import { getAiResourceById } from '@/clients/api';
 import { getAiConnections } from '@/clients/api';
 import { getAiProviders } from '@/clients/api';
+import { getRequestAuditMetadataKeys } from '@/clients/api';
 
 export const metadata = {
   title: 'VM-X AI Console - Edit AI Resource - Routing',
@@ -21,7 +22,7 @@ export type PageProps = {
 
 export default async function Page({ params }: PageProps) {
   const { workspaceId, environmentId, resourceId } = await params;
-  const [resource, connections, providers] = await Promise.all([
+  const [resource, connections, providers, metadataKeys] = await Promise.all([
     getAiResourceById({
       path: {
         workspaceId,
@@ -36,6 +37,12 @@ export default async function Page({ params }: PageProps) {
       },
     }),
     getAiProviders(),
+    getRequestAuditMetadataKeys({
+      path: {
+        workspaceId,
+        environmentId,
+      },
+    }),
   ]);
   if (resource.error) {
     return (
@@ -80,6 +87,7 @@ export default async function Page({ params }: PageProps) {
       connections={connections.data}
       data={resource.data}
       providersMap={mapProviders(providers.data)}
+      metadataKeys={metadataKeys.data ?? []}
     />
   );
 }

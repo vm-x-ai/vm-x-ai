@@ -1,6 +1,6 @@
 import { RoutingComparator, RoutingConditionType } from '@/clients/api';
 
-type RuleOption = {
+export type RuleOption = {
   id: string;
   expression: string;
   label: string;
@@ -11,7 +11,43 @@ type RuleOption = {
     value?: unknown;
     readOnly?: boolean;
   };
+  /**
+   * When set, the rule's LHS is a metadata field lookup
+   * (`request.metadata[<field>]`). The ConditionCard renders a
+   * field-picker (autocompleted from observed metadata keys) and a
+   * value-picker (autocompleted from observed values for the chosen
+   * field) instead of the single static value input that the other
+   * presets use. The chosen field is encoded into `expression` so
+   * the routing engine can dereference it at request time.
+   */
+  metadataField?: boolean;
 };
+
+/**
+ * Build the routing-engine path for a metadata-field rule. Uses the
+ * top-level `metadata` namespace (alias of `request.metadata` in the
+ * template variables) for the shortest readable path. `lodash.get`
+ * handles missing keys safely, so no optional chaining is needed.
+ */
+export function buildMetadataExpression(field: string): string {
+  return `metadata['${field}']`;
+}
+
+/**
+ * Recover the metadata field name from a stored expression. Returns
+ * `null` when the expression doesn't match the metadata-rule shape
+ * (e.g. user switched the rule type, or hand-edited the template).
+ *
+ * Tolerates the old `request.metadata?.['<field>']` shape persisted
+ * by earlier versions of the rule editor — `?.` was the original
+ * defensive default but doesn't survive `lodash.get` path parsing,
+ * so newer saves use `metadata['<field>']`. Both round-trip the same
+ * field name out.
+ */
+export function parseMetadataField(expression: string): string | null {
+  const match = expression.match(/^(?:request\.)?metadata\??\.?\['([^']*)'\]$/);
+  return match?.[1] ?? null;
+}
 
 export const DefaultRulesOptions: RuleOption[] = [
   {
@@ -117,6 +153,67 @@ export const DefaultRulesOptions: RuleOption[] = [
       label: 'Error Rate (%)',
       value: 0,
     },
+  },
+  {
+    id: 'capacity_tokens_usage_minute_greater_than',
+    expression:
+      '<% return (await capacityUsage("minute"))?.tokensUsagePercent %>',
+    label: 'Token usage (last minute) is greater than ...',
+    comparator: RoutingComparator.GREATER_THAN,
+    value: {
+      type: RoutingConditionType.NUMBER,
+      label: 'Usage (%)',
+      value: 0,
+    },
+  },
+  {
+    id: 'capacity_requests_usage_minute_greater_than',
+    expression:
+      '<% return (await capacityUsage("minute"))?.requestsUsagePercent %>',
+    label: 'Request usage (last minute) is greater than ...',
+    comparator: RoutingComparator.GREATER_THAN,
+    value: {
+      type: RoutingConditionType.NUMBER,
+      label: 'Usage (%)',
+      value: 0,
+    },
+  },
+  {
+    id: 'capacity_remaining_tokens_minute_less_than',
+    expression: '<% return (await capacityUsage("minute"))?.remainingTokens %>',
+    label: 'Remaining tokens (this minute) less than ...',
+    comparator: RoutingComparator.LESS_THAN,
+    value: {
+      type: RoutingConditionType.NUMBER,
+      label: 'tokens',
+    },
+  },
+  {
+    id: 'capacity_remaining_requests_minute_less_than',
+    expression:
+      '<% return (await capacityUsage("minute"))?.remainingRequests %>',
+    label: 'Remaining requests (this minute) less than ...',
+    comparator: RoutingComparator.LESS_THAN,
+    value: {
+      type: RoutingConditionType.NUMBER,
+      label: 'requests',
+    },
+  },
+  {
+    // Parametrised — the ConditionCard renders a field picker
+    // (autocompleted from the metadata keys observed on recent
+    // audits) plus a value picker (autocompleted from values
+    // observed for the chosen field). The chosen field is encoded
+    // into the stored expression via `buildMetadataExpression`.
+    id: 'metadata_equals',
+    expression: buildMetadataExpression(''),
+    label: 'Metadata field equals ...',
+    comparator: RoutingComparator.EQUAL,
+    value: {
+      type: RoutingConditionType.STRING,
+      label: 'value',
+    },
+    metadataField: true,
   },
 ];
 

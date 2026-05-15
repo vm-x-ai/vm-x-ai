@@ -1,6 +1,6 @@
 import Alert from '@mui/material/Alert';
 import AIResourceCapacityEditForm from '@/components/AIResources/Form/Edit/Capacity';
-import { getAiResourceById } from '@/clients/api';
+import { getAiResourceById, getRequestAuditMetadataKeys } from '@/clients/api';
 import { submitForm } from './actions';
 
 export const metadata = {
@@ -18,13 +18,21 @@ export type PageProps = {
 
 export default async function Page({ params }: PageProps) {
   const { workspaceId, environmentId, resourceId } = await params;
-  const resource = await getAiResourceById({
-    path: {
-      workspaceId,
-      environmentId,
-      resourceId,
-    },
-  });
+  const [resource, metadataKeys] = await Promise.all([
+    getAiResourceById({
+      path: {
+        workspaceId,
+        environmentId,
+        resourceId,
+      },
+    }),
+    getRequestAuditMetadataKeys({
+      path: {
+        workspaceId,
+        environmentId,
+      },
+    }),
+  ]);
   if (resource.error) {
     return (
       <Alert variant="filled" severity="error">
@@ -39,6 +47,7 @@ export default async function Page({ params }: PageProps) {
       data={resource.data}
       workspaceId={workspaceId}
       environmentId={environmentId}
+      metadataKeys={metadataKeys.data ?? []}
     />
   );
 }

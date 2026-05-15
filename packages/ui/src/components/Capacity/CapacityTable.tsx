@@ -4,10 +4,12 @@ import {
   CapacityPeriod,
 } from '@/clients/api';
 import DeleteIcon from '@mui/icons-material/Delete';
+import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Switch from '@mui/material/Switch';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import {
   MaterialReactTable,
@@ -23,6 +25,10 @@ const dimentionOptions = [
   {
     value: CapacityDimension.SOURCE_IP,
     label: 'Source IP',
+  },
+  {
+    value: CapacityDimension.METADATA,
+    label: 'Metadata',
   },
 ];
 
@@ -58,9 +64,21 @@ const validateRequired = (value: string) => !!value.length;
 export type CapacityTableProps = {
   data: CapacityTableRow[];
   onChange: (data: CapacityTableRow[]) => void;
+  /**
+   * Distinct metadata keys observed on recent completion audits — used
+   * to populate the Dimension Field autocomplete when the user picks
+   * the METADATA dimension. Same source as the audit / usage pages so
+   * the suggestion list stays consistent. Defaults to empty (input
+   * still accepts free text via `freeSolo`).
+   */
+  metadataKeys?: string[];
 };
 
-export default function CapacityTable({ data, onChange }: CapacityTableProps) {
+export default function CapacityTable({
+  data,
+  onChange,
+  metadataKeys = [],
+}: CapacityTableProps) {
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string | undefined>
   >({});
@@ -148,9 +166,78 @@ export default function CapacityTable({ data, onChange }: CapacityTableProps) {
             });
 
             row.dimension = selectedValue as CapacityDimension;
+            // Clearing the field name keeps the row consistent when
+            // the user switches from METADATA back to SOURCE_IP / none.
+            if (selectedValue !== CapacityDimension.METADATA) {
+              row.dimensionField = null;
+            }
             onChange(data);
           },
         }),
+      },
+      {
+        accessorKey: 'dimensionField',
+        header: 'Dimension Field',
+        Cell: ({ row: { original: row } }) =>
+          row.dimension === CapacityDimension.METADATA
+            ? row.dimensionField ?? ''
+            : '',
+        // Custom edit renderer so we can drop in MUI's `Autocomplete`
+        // (with `freeSolo` so unknown keys can still be typed). The
+        // suggestion list is the same `metadataKeys` source the audit
+        // and usage pages use — distinct metadata keys observed on
+        // recent completion audits. Disabled when dimension isn't
+        // METADATA so the value never leaks onto a SOURCE_IP cap.
+        Edit: ({ cell, row: { original: row, index } }) => {
+          const disabled =
+            (index >= 0 && index < 5) ||
+            row.dimension !== CapacityDimension.METADATA;
+          return (
+            <Autocomplete
+              freeSolo
+              fullWidth
+              size="small"
+              disabled={disabled}
+              options={metadataKeys}
+              value={row.dimensionField ?? ''}
+              onInputChange={(_, newValue) => {
+                const trimmed = newValue.trim();
+                row.dimensionField = trimmed || null;
+                onChange(data);
+                if (row.dimension === CapacityDimension.METADATA && !trimmed) {
+                  setValidationErrors((prev) => ({
+                    ...prev,
+                    [cell.id]: 'Required for Metadata dimension',
+                  }));
+                } else if (validationErrors?.[cell.id]) {
+                  setValidationErrors((prev) => ({
+                    ...prev,
+                    [cell.id]: undefined,
+                  }));
+                }
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  // Match the other table cells, which inherit MRT's
+                  // default `standard` (underline) variant via
+                  // `muiEditTextFieldProps`. Using `outlined` here
+                  // would give the Autocomplete a boxed border that
+                  // visually doesn't line up with the rest of the row.
+                  variant="standard"
+                  placeholder="e.g. userId"
+                  error={!!validationErrors?.[cell.id]}
+                  helperText={
+                    validationErrors?.[cell.id] ??
+                    (row.dimension === CapacityDimension.METADATA
+                      ? 'Metadata key to bucket by'
+                      : undefined)
+                  }
+                />
+              )}
+            />
+          );
+        },
       },
       {
         accessorKey: 'enabled',
@@ -171,7 +258,7 @@ export default function CapacityTable({ data, onChange }: CapacityTableProps) {
         ),
       },
     ],
-    [data, onChange, validationErrors]
+    [data, onChange, validationErrors, metadataKeys]
   );
 
   const mrtThemeProps = useMrtTheme();
@@ -243,7 +330,13 @@ export default function CapacityTable({ data, onChange }: CapacityTableProps) {
         (column) => column.accessorKey as keyof CapacityEntity
       );
       fields.forEach((key) => {
-        if (!row[key]) {
+        // `dimensionField` is only required when the dimension is
+        // METADATA — for SOURCE_IP and the un-dimensioned case the
+        // column stays empty by design.
+        const optional =
+          key === 'dimensionField' &&
+          row.dimension !== CapacityDimension.METADATA;
+        if (!row[key] && !optional) {
           setValidationErrors((prev) => ({
             ...prev,
             [key]: 'Required',

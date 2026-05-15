@@ -22,6 +22,7 @@ export type AIResourceCapacityEditFormProps = {
   data: AiResourceEntity;
   workspaceId: string;
   environmentId: string;
+  metadataKeys?: string[];
   submitAction: (
     prevState: FormAction,
     data: FormSchema
@@ -33,6 +34,7 @@ export default function AIResourceCapacityEditForm({
   data,
   workspaceId,
   environmentId,
+  metadataKeys,
 }: AIResourceCapacityEditFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction] = useActionState(submitAction, {
@@ -129,6 +131,7 @@ export default function AIResourceCapacityEditForm({
                     <CapacityTable
                       data={watch('capacity') as CapacityEntity[]}
                       onChange={field.onChange}
+                      metadataKeys={metadataKeys}
                     />
                   )}
                 />

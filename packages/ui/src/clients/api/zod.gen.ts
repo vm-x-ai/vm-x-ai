@@ -667,7 +667,7 @@ export type CapacityPeriodZodType = z.infer<typeof zCapacityPeriod>;
  * The dimension of the capacity
  */
 export const zCapacityDimension = z
-  .enum(['source-ip'])
+  .enum(['source-ip', 'metadata'])
   .register(z.globalRegistry, {
     description: 'The dimension of the capacity',
   });
@@ -680,6 +680,7 @@ export const zCapacityEntity = z.object({
   tokens: z.number().nullish(),
   enabled: z.boolean().nullish(),
   dimension: zCapacityDimension.nullish(),
+  dimensionField: z.string().nullish(),
 });
 
 export type CapacityEntityZodType = z.infer<typeof zCapacityEntity>;

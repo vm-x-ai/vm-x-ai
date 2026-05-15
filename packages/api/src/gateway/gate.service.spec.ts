@@ -195,6 +195,31 @@ describe('GateService.checkRequestCapacity', () => {
     });
   });
 
+  describe('METADATA dimension', () => {
+    it('embeds the metadata field=value pair in the error message prefix', () => {
+      const check = getCheck(buildGate());
+      try {
+        check(
+          cap({
+            requests: 1,
+            dimension: CapacityDimension.METADATA,
+            dimensionField: 'userId',
+          } as CapacityEntity),
+          'connection',
+          5,
+          0,
+          1,
+          60,
+          'userId=u_42'
+        );
+        throw new Error('expected throw');
+      } catch (err) {
+        const ce = err as CompletionError;
+        expect(ce.data.message).toContain('Metadata userId=u_42');
+      }
+    });
+  });
+
   describe('error message includes period and source level', () => {
     it('embeds capacityResource (e.g. "connection") and capacity.period', () => {
       const check = getCheck(buildGate());

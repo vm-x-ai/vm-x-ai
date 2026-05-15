@@ -38,6 +38,7 @@ export type AIResourceRoutingEditFormProps = {
     data: FormSchema
   ) => Promise<FormAction>;
   refreshConnectionAction?: () => Promise<AiConnectionEntity[]>;
+  metadataKeys?: string[];
 };
 
 export default function AIResourceRoutingEditForm({
@@ -48,6 +49,7 @@ export default function AIResourceRoutingEditForm({
   connections,
   providersMap,
   refreshConnectionAction,
+  metadataKeys,
 }: AIResourceRoutingEditFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction] = useActionState(submitAction, {
@@ -176,6 +178,7 @@ export default function AIResourceRoutingEditForm({
                           connections={connections}
                           refreshConnectionAction={refreshConnectionAction}
                           providersMap={providersMap}
+                          metadataKeys={metadataKeys}
                           onChange={field.onChange}
                         />
                       )}

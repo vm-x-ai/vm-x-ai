@@ -28,6 +28,7 @@ type DynamicRoutingTreeProps = {
   providersMap: Record<string, AiProviderDto>;
   refreshConnectionAction?: () => Promise<AiConnectionEntity[]>;
   onChange?: (route: AiRoutingConditionGroup[]) => void;
+  metadataKeys?: string[];
 };
 
 export default function DynamicRoutingTree({
@@ -38,6 +39,7 @@ export default function DynamicRoutingTree({
   providersMap,
   refreshConnectionAction,
   onChange,
+  metadataKeys,
 }: DynamicRoutingTreeProps) {
   const [recentlyAdded, setRecentlyAdded] = useState<number | null>(null);
 
@@ -80,6 +82,7 @@ export default function DynamicRoutingTree({
                   workspaceId={workspaceId}
                   environmentId={environmentId}
                   providersMap={providersMap}
+                  metadataKeys={metadataKeys}
                   refreshConnectionAction={refreshConnectionAction}
                   onChange={(newRoute) => {
                     const newData = [...data];

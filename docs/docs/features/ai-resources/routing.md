@@ -70,6 +70,68 @@ Route requests that include function calling or tool usage to models that suppor
 
 ![Tools-Based Routing Configuration](/pages/ai-resource-dynamic-has-tools.png)
 
+## Routing Based on Metadata
+
+Route based on per-request metadata stamped by the caller. Useful for routing premium tenants to a different model, sending a specific team's traffic through a cheaper one, or isolating a noisy customer onto its own connection.
+
+**Use Case**: Per-tenant / per-user / per-team routing without forking the upstream caller code — just attach a `userId`, `team`, `tenantId` (or whatever you like) on the request and let the routing engine pick the right model.
+
+**How metadata reaches the gateway**:
+
+- Body envelope: `{ vmx: { metadata: { team: "growth" } }, … }`
+- Headers: `x-vmx-metadata-team: growth` (one header per key)
+- Header and body keys are unioned; body wins on collision.
+
+**How the rule works**: Pick the **"Metadata field equals ..."** preset in the rule selector. The editor renders two suggesting inputs — a **Field** picker (autocomplete sourced from metadata keys observed on recent audits) and a **Value** picker (autocomplete sourced from values observed for the chosen field). The chosen field is encoded into the saved rule as `metadata['<field>']`, so the engine reads `payload.vmx.metadata[<field>]` at request time.
+
+**Example template** (advanced mode, equivalent to the preset):
+
+```ejs
+metadata['team']
+```
+
+Comparator: `EQUAL`, value: `growth`. The rule fires when `request.vmx.metadata.team === 'growth'`. Both `metadata.team` and `request.metadata.team` resolve to the same value if you'd rather write the path manually.
+
+**Benefits**:
+
+- No upstream code change beyond stamping the metadata field once.
+- Field + value pickers learn from the audit history, so by the second send you no longer have to type from memory.
+- Works through every public endpoint (Chat Completions / Responses / Anthropic Messages) since the envelope rides on top of all three.
+
+## Routing Based on Capacity Usage
+
+Route away from a saturated connection **before** it 429s. The `capacityUsage()` helper exposes live request / token usage as a percentage of the tightest configured (or auto-discovered) limit, so a rule can flip traffic to a backup model when the primary is e.g. 80% full.
+
+**Use Case**: Smooth-out provider rate limits without leaning entirely on retries / fallback. Particularly useful when one provider's minute-bucket cap is materially lower than the alternative's, or when you have an OpenAI auto-discovered limit and a Gemini connection with massive headroom.
+
+**Four built-in presets** (pick whichever axis matters):
+
+- **Token usage (last minute) is greater than ...** — fires when `tokensUsagePercent > N`.
+- **Request usage (last minute) is greater than ...** — same for the request-count axis.
+- **Remaining tokens (this minute) less than ...** — absolute headroom on tokens.
+- **Remaining requests (this minute) less than ...** — absolute headroom on requests.
+
+**How it works**: The helper unions configured caps (Connection + Resource + API Key) with the connection's auto-discovered limits (refreshed off provider `x-ratelimit-limit-*` response headers, dropped if older than 7 days). It picks the cap closest to saturation on each axis and returns its `requestsUsagePercent` / `tokensUsagePercent` / `remainingRequests` / `remainingTokens`. Source-IP-dimensioned and metadata-dimensioned caps are read against their per-bucket counter, so per-caller usage drives the rule when the cap is configured per-caller.
+
+**Example template** (advanced mode):
+
+```ejs
+<% return (await capacityUsage("minute"))?.tokensUsagePercent %>
+```
+
+Comparator: `GREATER_THAN`, value: `80`. Fires when the connection's tightest token limit is at 80%+. The helper takes optional `(period, connectionId, model)` arguments — defaults to the resource's primary connection and the current minute.
+
+**Benefits**:
+
+- Proactive load shedding — route away from saturation **before** the 429.
+- Works with any cap you've configured (Connection / Resource / API Key) plus the provider's own auto-discovered rate limit.
+- Multi-axis rules ("if tokens > 80% OR requests > 80%") only pay one Redis read per probe — the engine memoises per `(period, connection, model)`.
+
+**Limitations**:
+
+- When no source defines a cap on an axis, the corresponding `*UsagePercent` is `null` — the rule's comparator drops to `false`, so an unlimited-axis check is naturally inert. If you rely on `capacityUsage`, make sure the underlying cap is configured.
+- `requestTokens` from the in-flight request is not folded in by default. If you want a rule to fire on the request that would push usage **over** the line (rather than the one after), pull `tokens.input` into the comparator: `<% return (await capacityUsage()).totalTokens + tokens.input %>` against a numeric threshold.
+
 ## Available Routing Fields and Expressions
 
 Routing conditions evaluate against a small set of request-shaped
@@ -141,6 +203,18 @@ These fields are evaluated through EJS, so they appear in advanced-
 mode routing expressions like
 `<%= request.format === 'anthropic' && request.nativeBody.thinking %>`.
 
+### Metadata Variables
+
+Per-request metadata stamped by the caller (via `vmx.metadata` body envelope or `x-vmx-metadata-<key>` headers) is exposed at two paths — same object reference, so they always agree:
+
+- **`metadata['<key>']`** (top-level) — matches the way `tokens.input` reads.
+- **`request.metadata['<key>']`** — matches the way `request.lastMessage` reads.
+
+Use bracket notation when the key may contain a dot or special character; plain dot syntax (`metadata.userId`) is fine when the key is a simple identifier. Saved rules from earlier versions that used optional chaining (`request.metadata?.['userId']`) keep working — the engine normalises `?.` to `.` before path lookup.
+
+- Example: Route premium tenants — `metadata['tier'] EQUAL "premium"`.
+- Example: Per-team routing — `metadata['team'] EQUAL "growth"`.
+
 ### Error-Rate Function
 
 - **`errorRate(windowMinutes)`** — async function returning the
@@ -150,6 +224,20 @@ mode routing expressions like
   comparators (`GREATER_THAN`, `LESS_THAN`, …).
   - Example: Switch providers when `errorRate(5) GREATER_THAN 10`
     (more than 10% errors in the last 5 minutes).
+
+### Capacity-Usage Function
+
+- **`capacityUsage(period, aiConnectionId?, model?)`** — async function returning a live snapshot of capacity usage for a `(connection, model, period)` triple. Defaults to the resource's primary connection/model and `"minute"` period. Returns an object with these fields (every derived field is `null` when the corresponding limit is unconfigured):
+  - `totalRequests`, `totalTokens` — absolute counts from the limiting cap's counter.
+  - `requestsLimit`, `tokensLimit` — the tightest applicable limit across configured (Connection + Resource + API Key) and auto-discovered sources.
+  - `requestsLimitSource`, `tokensLimitSource` — `'connection' | 'resource' | 'api-key' | 'discovered'` so advanced rules can special-case discovered limits.
+  - `remainingRequests`, `remainingTokens` — `limit − total`, never below 0.
+  - `requestsUsagePercent`, `tokensUsagePercent` — `0..100`, clamped.
+  - `remainingSeconds` — until the period rolls over.
+- Pair with the EJS template form, since the result is an object:
+  - `<% return (await capacityUsage("minute"))?.tokensUsagePercent %>` GREATER_THAN 80
+  - `<% return (await capacityUsage()).remainingRequests %>` LESS_THAN 5
+- Memoised per `(period, connection, model)` within a single request, so multi-group rules don't multiply Redis reads.
 
 ## Available Comparators
 
@@ -220,6 +308,8 @@ Begin with basic routing:
 - Token-based routing (small vs. large requests)
 - Tool-based routing (requests with/without tools)
 - Error rate-based routing (fallback when errors are high)
+- Metadata-based routing (per-tenant, per-team, per-user)
+- Capacity-usage routing (route away from saturated connections proactively)
 
 ### 2. Test Routing Conditions
 
@@ -263,8 +353,20 @@ Regularly review:
 3. **Review Traffic Splitting**: If using traffic splitting, verify the percentage is set correctly
 4. **Check Connection Availability**: Ensure the selected connection and model are available and configured correctly
 
+### Metadata Rule Never Fires
+
+1. **Verify the metadata reached the gateway**: Open the audit row for a recent request — the `metadata` column should contain your key. If it doesn't, the caller isn't stamping it.
+2. **Check the field name matches exactly**: Metadata keys are case-sensitive. `userId` and `user_id` are different keys.
+3. **Inspect the saved expression**: It should look like `metadata['<your-field>']` (or the legacy `request.metadata?.['<your-field>']`, which still works). Anything else and the rule probably got hand-edited; re-pick "Metadata field equals ..." from the rule selector.
+
+### Capacity-Usage Rule Never Fires
+
+1. **Confirm the underlying cap is configured**: `capacityUsage()` returns `null` percents when no cap is set on that axis. Add a request or token cap (Connection / Resource / API Key) or rely on the provider's auto-discovered limit (only populated after the first successful call).
+2. **Check the period**: The default is `"minute"`. If you're testing manually, you have ≤60 seconds before the bucket rolls over and resets the counter.
+3. **Inspect the limiting source**: `(await capacityUsage()).requestsLimitSource` tells you which cap the helper is reading. If it's `'discovered'` and you just changed the configured cap, the discovered limit is still tighter.
+
 ## Next Steps
 
 - [Fallback](./fallback.md) - Configure automatic fallback
-- [Capacity](./capacity.md) - Set resource-level capacity limits
+- [Capacity](./capacity.md) - Set resource-level capacity limits, including `source-ip` and `metadata` dimensions that drive per-caller / per-tenant rate limits
 - [AI Resources Overview](./index.md) - Return to AI Resources overview

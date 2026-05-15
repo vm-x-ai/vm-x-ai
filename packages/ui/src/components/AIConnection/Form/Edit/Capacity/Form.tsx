@@ -31,6 +31,7 @@ export type AIConnectionCapacityEditFormProps = {
   data: AiConnectionEntity;
   workspaceId: string;
   environmentId: string;
+  metadataKeys?: string[];
   submitAction: (
     prevState: FormAction,
     data: FormSchema
@@ -48,6 +49,7 @@ export default function AIConnectionCapacityEditForm({
   data,
   workspaceId,
   environmentId,
+  metadataKeys,
 }: AIConnectionCapacityEditFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction] = useActionState(submitAction, {
@@ -196,6 +198,7 @@ export default function AIConnectionCapacityEditForm({
                 <CapacityTable
                   data={watch('capacity')}
                   onChange={field.onChange}
+                  metadataKeys={metadataKeys}
                 />
               )}
             />
