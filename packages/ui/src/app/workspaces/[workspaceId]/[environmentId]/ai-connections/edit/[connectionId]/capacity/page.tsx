@@ -1,6 +1,9 @@
 import Alert from '@mui/material/Alert';
 import AIConnectionCapacityEditForm from '@/components/AIConnection/Form/Edit/Capacity';
-import { getAiConnectionById } from '@/clients/api';
+import {
+  getAiConnectionById,
+  getRequestAuditMetadataKeys,
+} from '@/clients/api';
 import { submitForm } from './actions';
 
 export type PageProps = {
@@ -13,13 +16,21 @@ export type PageProps = {
 
 export default async function Page({ params }: PageProps) {
   const { workspaceId, environmentId, connectionId } = await params;
-  const connection = await getAiConnectionById({
-    path: {
-      workspaceId,
-      environmentId,
-      connectionId,
-    },
-  });
+  const [connection, metadataKeys] = await Promise.all([
+    getAiConnectionById({
+      path: {
+        workspaceId,
+        environmentId,
+        connectionId,
+      },
+    }),
+    getRequestAuditMetadataKeys({
+      path: {
+        workspaceId,
+        environmentId,
+      },
+    }),
+  ]);
   if (connection.error) {
     return (
       <Alert variant="filled" severity="error">
@@ -34,6 +45,7 @@ export default async function Page({ params }: PageProps) {
       workspaceId={workspaceId}
       environmentId={environmentId}
       data={connection.data}
+      metadataKeys={metadataKeys.data ?? []}
     />
   );
 }

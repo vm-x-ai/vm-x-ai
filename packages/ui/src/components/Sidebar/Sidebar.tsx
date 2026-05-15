@@ -37,6 +37,7 @@ import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import ReplayIcon from '@mui/icons-material/Replay';
 import SpeedIcon from '@mui/icons-material/Speed';
 import DataObjectIcon from '@mui/icons-material/DataObject';
+import HubIcon from '@mui/icons-material/Hub';
 import WorkspaceSelector from '../Workspace/WorkspaceSelector';
 
 export const DRAWER_WIDTH = 260;
@@ -159,6 +160,33 @@ function buildWorkspaceSubItems(
   const eid = segments[2];
   const base = `/workspaces/${wid}/${eid}`;
 
+  // AI Connection edit pages also have a sub-tab strip
+  // (General Settings / Provider / Capacity). Same pattern as the
+  // AI Resources block below — only expose them while editing.
+  const aiConnectionEditMatch = pathname.match(
+    /\/ai-connections\/edit\/([^/]+)/
+  );
+  const editingConnectionId = aiConnectionEditMatch?.[1];
+  const aiConnectionSubItems = editingConnectionId
+    ? [
+        {
+          text: 'General Settings',
+          icon: <TuneIcon />,
+          href: `${base}/ai-connections/edit/${editingConnectionId}/general`,
+        },
+        {
+          text: 'Provider',
+          icon: <HubIcon />,
+          href: `${base}/ai-connections/edit/${editingConnectionId}/provider`,
+        },
+        {
+          text: 'Capacity',
+          icon: <SpeedIcon />,
+          href: `${base}/ai-connections/edit/${editingConnectionId}/capacity`,
+        },
+      ]
+    : undefined;
+
   // AI Resources edit pages have their own sub-tab strip
   // (General Settings / Dynamic Routing / Multi-Answer / Fallback /
   // Capacity). When the user is on an edit page, lift those tabs into
@@ -215,6 +243,7 @@ function buildWorkspaceSubItems(
       icon: <ElectricalServicesIcon />,
       href: `${base}/ai-connections/overview`,
       matchPrefix: `${base}/ai-connections`,
+      ...(aiConnectionSubItems ? { subItems: aiConnectionSubItems } : {}),
     },
     {
       text: 'AI Resources',

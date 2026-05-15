@@ -27,6 +27,26 @@ const stubMetrics = {
   getErrorRate: vi.fn().mockResolvedValue({ errorRate: 0 }),
 } as unknown as CompletionMetricsService;
 
+const stubCapacity = {
+  getCapacityUsage: vi.fn().mockResolvedValue({
+    totalRequests: 0,
+    totalTokens: 0,
+    remainingSeconds: 60,
+    requestsLimit: null,
+    tokensLimit: null,
+    requestsLimitSource: null,
+    tokensLimitSource: null,
+    remainingRequests: null,
+    remainingTokens: null,
+    requestsUsagePercent: null,
+    tokensUsagePercent: null,
+  }),
+} as never;
+
+const stubAiConnection = {
+  getById: vi.fn().mockResolvedValue(undefined),
+} as never;
+
 const makeResource = (
   expression: string,
   thenModel = 'routed-model'
@@ -63,7 +83,12 @@ const makeResource = (
   } as unknown as AIResourceEntity);
 
 describe('RoutingContext: format + nativeBody surface', () => {
-  const service = new ResourceRoutingService(stubLogger, stubMetrics);
+  const service = new ResourceRoutingService(
+    stubLogger,
+    stubMetrics,
+    stubCapacity,
+    stubAiConnection
+  );
 
   it('exposes `request.format` so templates can branch on input format', async () => {
     const result = await service.evaluateRoutingConditions(

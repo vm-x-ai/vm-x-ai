@@ -1,4 +1,4 @@
-import SubTabs from '@/components/Tabs/SubTabs';
+import AppContainer from '@/components/Layout/Container';
 
 export const metadata = {
   title: 'VM-X AI Console - Edit AI Connection',
@@ -7,29 +7,8 @@ export const metadata = {
 
 type LayoutProps = {
   children: React.ReactNode;
-  params: Promise<{
-    workspaceId: string;
-    environmentId: string;
-    connectionId: string;
-  }>;
 };
 
-export default async function Layout({ children, params }: LayoutProps) {
-  const { workspaceId, environmentId, connectionId } = await params;
-  const tabs = [
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/ai-connections/edit/${connectionId}/general`,
-      name: 'General Settings',
-    },
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/ai-connections/edit/${connectionId}/provider`,
-      name: 'Provider',
-    },
-    {
-      path: `/workspaces/${workspaceId}/${environmentId}/ai-connections/edit/${connectionId}/capacity`,
-      name: 'Capacity',
-    },
-  ];
-
-  return <SubTabs tabs={tabs}>{children}</SubTabs>;
+export default function Layout({ children }: LayoutProps) {
+  return <AppContainer>{children}</AppContainer>;
 }

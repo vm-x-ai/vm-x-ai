@@ -43,7 +43,8 @@ export class GateService {
     aiConnection: AIConnectionEntity,
     apiKey?: ApiKeyEntity,
     request?: FastifyRequest,
-    batch?: CompletionBatchEntity
+    batch?: CompletionBatchEntity,
+    metadata?: Record<string, string>
   ): Promise<EvaluatedCapacity[]> {
     this.logger.debug('Resource config', {
       resource,
@@ -57,7 +58,8 @@ export class GateService {
         aiConnection,
         resource,
         request,
-        apiKey
+        apiKey,
+        metadata
       );
 
     const startCheckCapacity = Date.now();
@@ -260,6 +262,13 @@ export class GateService {
       switch (capacity.dimension) {
         case CapacityDimension.SOURCE_IP:
           prefixMessage = `Source IP ${capacityDimensionValue}`;
+          break;
+        case CapacityDimension.METADATA:
+          // `capacityDimensionValue` already carries `${field}=${value}`
+          // (assembled in `resolveCapacityKeyPrefix`), so we surface it
+          // as-is — gives operators a clear "userId=u_42 has reached…"
+          // message without re-deriving the field name.
+          prefixMessage = `Metadata ${capacityDimensionValue}`;
           break;
       }
     }

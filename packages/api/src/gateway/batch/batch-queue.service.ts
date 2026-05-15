@@ -7,7 +7,10 @@ import { CompletionBatchStream } from './types/stream';
 import { RedisClient } from '../../cache/redis-client';
 import { AIResourceService } from '../../ai-resource/ai-resource.service';
 import { AIConnectionService } from '../../ai-connection/ai-connection.service';
-import { CapacityService } from '../../capacity/capacity.service';
+import {
+  CapacityService,
+  DISCOVERED_CAPACITY_FRESHNESS_DAYS,
+} from '../../capacity/capacity.service';
 import { sleep } from '../../utils/sleep';
 import { CompletionBatchItemEntity } from './entity/batch-item.entity';
 import { CompletionBatchEntity } from './entity/batch.entity';
@@ -646,7 +649,7 @@ export class CompletionBatchQueueService {
       connection.discoveredCapacity?.models?.[resource.model.model];
     if (discoveredCapacity && discoveredCapacity.capacity) {
       const updatedAt = new Date(discoveredCapacity.updatedAt);
-      const diff = subDays(now, 7);
+      const diff = subDays(now, DISCOVERED_CAPACITY_FRESHNESS_DAYS);
       if (isAfter(updatedAt, diff)) {
         capacity.push(
           ...discoveredCapacity.capacity.map((capacity) => ({

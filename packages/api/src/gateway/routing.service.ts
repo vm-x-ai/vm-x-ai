@@ -21,12 +21,22 @@ import { PinoLogger } from 'nestjs-pino';
 import { CompletionError } from './completion.types';
 import { CompletionMetricsService } from './metrics/metrics.service';
 import type { RoutingContext } from './routing.context';
+import {
+  CapacityService,
+  CapacityUsageResult,
+} from '../capacity/capacity.service';
+import { CapacityPeriod } from '../capacity/capacity.entity';
+import { AIConnectionService } from '../ai-connection/ai-connection.service';
+import { ApiKeyEntity } from '../api-key/entities/api-key.entity';
+import type { FastifyRequest } from 'fastify';
 
 @Injectable()
 export class ResourceRoutingService {
   constructor(
     private readonly logger: PinoLogger,
-    private readonly completionMetricsService: CompletionMetricsService
+    private readonly completionMetricsService: CompletionMetricsService,
+    private readonly capacityService: CapacityService,
+    private readonly aiConnectionService: AIConnectionService
   ) {}
 
   /**
@@ -43,7 +53,10 @@ export class ResourceRoutingService {
     environmentId: string,
     context: RoutingContext,
     requestTokens: number,
-    resourceConfig: AIResourceEntity
+    resourceConfig: AIResourceEntity,
+    apiKey?: ApiKeyEntity,
+    httpRequest?: FastifyRequest,
+    metadata?: Record<string, string>
   ): Promise<{
     model: AIResourceModelConfigEntity;
     matchedRoute: AIRoutingConditionGroup;
@@ -57,6 +70,18 @@ export class ResourceRoutingService {
       },
       `Evaluating routing conditions for resource`
     );
+
+    // Per-request cache for the `capacityUsage` helper. A routing block
+    // with several groups that all branch on capacity (e.g. one rule
+    // reading `tokensUsagePercent` and another `requestsUsagePercent`
+    // for the same connection) would otherwise re-fetch the connection
+    // + counters per call. Keyed by (period, connId, model) so distinct
+    // probes still hit Redis.
+    const capacityUsageCache = new Map<
+      string,
+      Promise<CapacityUsageResult | null>
+    >();
+
     for (const conditionGroup of resourceConfig.routing?.conditions ?? []) {
       if (conditionGroup.enabled === false) {
         continue;
@@ -83,10 +108,17 @@ export class ResourceRoutingService {
           // `cache_control`, Bedrock-Converse-only configs, etc.).
           format: context.format,
           nativeBody: context.native,
+          metadata,
         },
         tokens: {
           input: requestTokens,
         },
+        // Top-level alias for `request.metadata` so templates can
+        // read `metadata.<key>` without the `request.` prefix —
+        // matches the way `tokens.input` reads (envelope-style
+        // namespace, not request-shape data). Same object reference,
+        // so `request.metadata.foo` and `metadata.foo` always agree.
+        metadata,
         errorRate: async (
           window = 10,
           statusCode: 'any' | number = 'any',
@@ -106,6 +138,23 @@ export class ResourceRoutingService {
 
           return errorRate;
         },
+        capacityUsage: (
+          period: CapacityPeriod = CapacityPeriod.MINUTE,
+          aiConnectionId?: string,
+          model?: string
+        ) =>
+          this.resolveCapacityUsage(
+            capacityUsageCache,
+            workspaceId,
+            environmentId,
+            resourceConfig,
+            apiKey,
+            httpRequest,
+            metadata,
+            period,
+            aiConnectionId,
+            model
+          ),
       };
 
       const match =
@@ -161,6 +210,64 @@ export class ResourceRoutingService {
       `No routing condition matched`
     );
     return null;
+  }
+
+  /**
+   * Backing function for the `capacityUsage` template variable. Fetches
+   * the (possibly user-overridden) connection, defers to
+   * {@link CapacityService.getCapacityUsage}, and memoises per
+   * (period, connectionId, model) so a routing block with multiple
+   * groups branching on different axes only pays one Redis round-trip
+   * per unique probe.
+   *
+   * Returns `null` when the connection can't be resolved — a malformed
+   * template (`capacityUsage('minute', 'conn_does_not_exist')`)
+   * shouldn't blow up the whole request. EJS dereferencing a property
+   * on `null` is what we want — the rule evaluates to `false` / drops
+   * out, and the request falls through to the next group.
+   */
+  private resolveCapacityUsage(
+    cache: Map<string, Promise<CapacityUsageResult | null>>,
+    workspaceId: string,
+    environmentId: string,
+    resourceConfig: AIResourceEntity,
+    apiKey: ApiKeyEntity | undefined,
+    httpRequest: FastifyRequest | undefined,
+    metadata: Record<string, string> | undefined,
+    period: CapacityPeriod,
+    aiConnectionId?: string,
+    model?: string
+  ): Promise<CapacityUsageResult | null> {
+    const connId = aiConnectionId || resourceConfig.model.connectionId;
+    const modelName = model || resourceConfig.model.model;
+    const cacheKey = `${period}|${connId ?? '_'}|${modelName ?? '_'}`;
+
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const promise = (async () => {
+      if (!connId || !modelName) return null;
+      const aiConnection = await this.aiConnectionService.getById(
+        { workspaceId, environmentId, connectionId: connId },
+        false
+      );
+      if (!aiConnection) return null;
+      return this.capacityService.getCapacityUsage(
+        new Date(),
+        workspaceId,
+        environmentId,
+        resourceConfig,
+        aiConnection,
+        period,
+        modelName,
+        apiKey,
+        httpRequest,
+        metadata
+      );
+    })();
+
+    cache.set(cacheKey, promise);
+    return promise;
   }
 
   private async recursiveEvaluateRoutingConditions(
@@ -220,9 +327,18 @@ export class ResourceRoutingService {
     condition: AIResourceRoutingCondition,
     variables: Record<string, unknown>
   ): Promise<boolean> {
+    // `lodash.get` paths are dot/bracket only — it doesn't understand
+    // JS optional-chaining (`?.`). Strip `?.` to `.` so saved rules
+    // that use defensive optional chaining (e.g. `request.metadata?.['team']`)
+    // resolve correctly. The EJS-template branch (`<% ... %>`) is real
+    // JS and handles `?.` natively, so this normalisation is only
+    // needed for the plain-path branch.
     const expressionValue = condition.expression.includes('<%')
       ? await ejs.render(condition.expression, variables, { async: true })
-      : `${objectAccessor(variables, condition.expression)}`;
+      : `${objectAccessor(
+          variables,
+          condition.expression.replace(/\?\./g, '.')
+        )}`;
 
     const resolvedValue =
       condition.value.expression && condition.expression.includes('<%')

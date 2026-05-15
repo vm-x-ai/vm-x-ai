@@ -12,12 +12,19 @@ import Typography from '@mui/material/Typography';
 import type { Identifier } from 'dnd-core';
 import React, { useRef, useState } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
-import { DefaultRulesMap, DefaultRulesOptions } from './rules';
+import { useQuery } from '@tanstack/react-query';
+import {
+  buildMetadataExpression,
+  DefaultRulesMap,
+  DefaultRulesOptions,
+  parseMetadataField,
+} from './rules';
 import {
   AiResourceRoutingCondition,
   RoutingConditionType,
   RoutingOperator,
 } from '@/clients/api';
+import { getRequestAuditMetadataValuesOptions } from '@/clients/api/@tanstack/react-query.gen';
 
 export type OperatorTagProps = {
   operator: string;
@@ -55,6 +62,12 @@ export type ConditionCardProps = {
   onChange?: (condition: AiResourceRoutingCondition) => void;
   onDelete?: (condition: AiResourceRoutingCondition) => void;
   moveRow?: (dragIndex: number, hoverIndex: number) => void;
+  /** Workspace + environment scope for the metadata-values lookup. */
+  workspaceId?: string;
+  environmentId?: string;
+  /** Distinct metadata keys observed on recent audits — drives the
+   *  field-picker autocomplete for metadata-shaped rules. */
+  metadataKeys?: string[];
 };
 
 export default function ConditionCard({
@@ -65,6 +78,9 @@ export default function ConditionCard({
   onDelete,
   moveRow,
   switchOperator,
+  workspaceId,
+  environmentId,
+  metadataKeys = [],
 }: ConditionCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -118,6 +134,38 @@ export default function ConditionCard({
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
+  });
+
+  // Conditional hook below relies on `condition` being a leaf; the
+  // group-shape branch returns early, so the metadata-rule check must
+  // run first. Pull the active rule preset here so both the early
+  // return and the metadata branch can see it.
+  const activeRule =
+    'conditions' in condition ? undefined : DefaultRulesMap[condition.id];
+  const isMetadataRule = !!activeRule?.metadataField;
+  const metadataField = isMetadataRule
+    ? parseMetadataField(
+        ('expression' in condition && condition.expression) || ''
+      ) ?? ''
+    : '';
+
+  // Distinct values for the chosen metadata field — `enabled` keeps
+  // the fetch idle until both scope + field are known so we don't
+  // hammer the audit endpoint while the user is still typing the
+  // field name.
+  const { data: observedValues } = useQuery({
+    ...getRequestAuditMetadataValuesOptions({
+      path: {
+        workspaceId: workspaceId ?? '',
+        environmentId: environmentId ?? '',
+        key: metadataField,
+      },
+    }),
+    enabled:
+      isMetadataRule &&
+      !!workspaceId &&
+      !!environmentId &&
+      metadataField.length > 0,
   });
 
   if ('conditions' in condition) {
@@ -246,8 +294,73 @@ export default function ConditionCard({
               )}
             />
 
-            {/* RULE VALUE */}
-            {DefaultRulesMap[condition.id].value &&
+            {/* RULE VALUE
+                Metadata rules render two suggesting Autocompletes
+                (field + value); everything else renders the static
+                single-input fallback. */}
+            {isMetadataRule ? (
+              <>
+                <FormControl fullWidth sx={{ width: '90%', mb: 2 }}>
+                  <Autocomplete
+                    freeSolo
+                    options={metadataKeys}
+                    value={metadataField}
+                    onInputChange={(_, newValue) => {
+                      onChange?.({
+                        ...condition,
+                        // Encode the field into the LHS expression so
+                        // the routing engine evaluates against
+                        // `request.metadata?.[<field>]`. When the user
+                        // clears the field, the placeholder shape
+                        // (`['']`) is preserved so re-rendering still
+                        // recognises the rule as metadata-shaped.
+                        expression: buildMetadataExpression(newValue.trim()),
+                      });
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Metadata field"
+                        placeholder="e.g. userId"
+                      />
+                    )}
+                  />
+                </FormControl>
+                <FormControl fullWidth sx={{ width: '90%', mb: 2 }}>
+                  <Autocomplete
+                    freeSolo
+                    // Remount the input when the active field
+                    // changes so MUI's internal highlighted-option
+                    // refs don't outlive the option list.
+                    key={metadataField || '__no_field__'}
+                    disabled={!metadataField}
+                    options={observedValues ?? []}
+                    value={condition.value.expression ?? ''}
+                    onInputChange={(_, newValue) => {
+                      onChange?.({
+                        ...condition,
+                        value: {
+                          ...condition.value,
+                          expression: newValue,
+                        },
+                      });
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Value"
+                        helperText={
+                          metadataField
+                            ? `Values observed for metadata.${metadataField}`
+                            : 'Pick a metadata field first'
+                        }
+                      />
+                    )}
+                  />
+                </FormControl>
+              </>
+            ) : (
+              DefaultRulesMap[condition.id].value &&
               !DefaultRulesMap[condition.id].value.readOnly && (
                 <FormControl fullWidth sx={{ width: '90%', mb: 2 }}>
                   <TextField
@@ -264,7 +377,8 @@ export default function ConditionCard({
                     }
                   />
                 </FormControl>
-              )}
+              )
+            )}
           </Box>
         )}
       </Box>

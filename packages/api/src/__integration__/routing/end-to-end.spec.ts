@@ -44,9 +44,29 @@ function makeService(
     error: vi.fn(),
   } as unknown as PinoLogger;
   const metrics = { getErrorRate };
+  const capacity = {
+    getCapacityUsage: vi.fn().mockResolvedValue({
+      totalRequests: 0,
+      totalTokens: 0,
+      remainingSeconds: 60,
+      requestsLimit: null,
+      tokensLimit: null,
+      requestsLimitSource: null,
+      tokensLimitSource: null,
+      remainingRequests: null,
+      remainingTokens: null,
+      requestsUsagePercent: null,
+      tokensUsagePercent: null,
+    }),
+  };
+  const aiConnection = {
+    getById: vi.fn().mockResolvedValue(undefined),
+  };
   const service = new ResourceRoutingService(
     logger,
-    metrics as unknown as CompletionMetricsService
+    metrics as unknown as CompletionMetricsService,
+    capacity as never,
+    aiConnection as never
   );
   return { service, metrics: getErrorRate };
 }

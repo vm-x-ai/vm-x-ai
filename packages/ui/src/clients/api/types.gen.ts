@@ -826,6 +826,7 @@ export enum CapacityPeriod {
  */
 export enum CapacityDimension {
   SOURCE_IP = 'source-ip',
+  METADATA = 'metadata',
 }
 
 export type CapacityEntity = {
@@ -849,6 +850,10 @@ export type CapacityEntity = {
    * The dimension of the capacity
    */
   dimension?: CapacityDimension | null;
+  /**
+   * When dimension is METADATA, the metadata field name to bucket by (e.g. "userId", "tenantId"). Resolved from `payload.vmx.metadata`. Ignored for other dimension types.
+   */
+  dimensionField?: string | null;
 };
 
 export type DiscoveredCapacityEntity = {

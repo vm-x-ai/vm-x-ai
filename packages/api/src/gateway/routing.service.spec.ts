@@ -34,6 +34,8 @@ import type { RoutingContext } from './routing.context';
 function makeService(): {
   service: ResourceRoutingService;
   metrics: { getErrorRate: ReturnType<typeof vi.fn> };
+  capacity: { getCapacityUsage: ReturnType<typeof vi.fn> };
+  aiConnection: { getById: ReturnType<typeof vi.fn> };
 } {
   const logger = {
     info: vi.fn(),
@@ -44,11 +46,36 @@ function makeService(): {
   const metrics = {
     getErrorRate: vi.fn().mockResolvedValue({ errorRate: 0 }),
   };
+  const capacity = {
+    getCapacityUsage: vi.fn().mockResolvedValue({
+      totalRequests: 0,
+      totalTokens: 0,
+      remainingSeconds: 60,
+      requestsLimit: null,
+      tokensLimit: null,
+      requestsLimitSource: null,
+      tokensLimitSource: null,
+      remainingRequests: null,
+      remainingTokens: null,
+      requestsUsagePercent: null,
+      tokensUsagePercent: null,
+    }),
+  };
+  const aiConnection = {
+    getById: vi.fn().mockResolvedValue({
+      connectionId: 'conn-1',
+      provider: 'openai',
+      capacity: [],
+      discoveredCapacity: null,
+    }),
+  };
   const service = new ResourceRoutingService(
     logger,
-    metrics as unknown as CompletionMetricsService
+    metrics as unknown as CompletionMetricsService,
+    capacity as never,
+    aiConnection as never
   );
-  return { service, metrics };
+  return { service, metrics, capacity, aiConnection };
 }
 
 /**
@@ -662,6 +689,260 @@ describe('ResourceRoutingService.evaluateRoutingConditions', () => {
         baseRequest(),
         10,
         resource
+      );
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('capacityUsage template helper', () => {
+    const capacityResource = (expression: string, threshold: string) =>
+      buildResource([
+        {
+          operator: RoutingOperator.AND,
+          conditions: [
+            cond(expression, RoutingComparator.GREATER_THAN, {
+              type: RoutingConditionType.NUMBER,
+              expression: threshold,
+            }),
+          ],
+          then: { model: 'overflow', connectionId: 'conn-2' },
+        },
+      ]);
+
+    it('routes when tokensUsagePercent exceeds the threshold', async () => {
+      const { service, capacity } = makeService();
+      capacity.getCapacityUsage.mockResolvedValue({
+        totalRequests: 5,
+        totalTokens: 8500,
+        remainingSeconds: 30,
+        requestsLimit: 100,
+        tokensLimit: 10000,
+        requestsLimitSource: 'connection',
+        tokensLimitSource: 'connection',
+        remainingRequests: 95,
+        remainingTokens: 1500,
+        requestsUsagePercent: 5,
+        tokensUsagePercent: 85,
+      });
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        baseRequest(),
+        10,
+        capacityResource(
+          '<% return (await capacityUsage("minute"))?.tokensUsagePercent %>',
+          '80'
+        )
+      );
+      expect(result?.model.model).toBe('overflow');
+    });
+
+    it('does not route when usage is below threshold', async () => {
+      const { service, capacity } = makeService();
+      capacity.getCapacityUsage.mockResolvedValue({
+        totalRequests: 5,
+        totalTokens: 1000,
+        remainingSeconds: 30,
+        requestsLimit: 100,
+        tokensLimit: 10000,
+        requestsLimitSource: 'connection',
+        tokensLimitSource: 'connection',
+        remainingRequests: 95,
+        remainingTokens: 9000,
+        requestsUsagePercent: 5,
+        tokensUsagePercent: 10,
+      });
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        baseRequest(),
+        10,
+        capacityResource(
+          '<% return (await capacityUsage("minute"))?.tokensUsagePercent %>',
+          '80'
+        )
+      );
+      expect(result).toBeNull();
+    });
+
+    it('is inert when the axis has no configured limit (percent is null)', async () => {
+      const { service, capacity } = makeService();
+      capacity.getCapacityUsage.mockResolvedValue({
+        totalRequests: 5,
+        totalTokens: 5000,
+        remainingSeconds: 30,
+        requestsLimit: null,
+        tokensLimit: null,
+        requestsLimitSource: null,
+        tokensLimitSource: null,
+        remainingRequests: null,
+        remainingTokens: null,
+        requestsUsagePercent: null,
+        tokensUsagePercent: null,
+      });
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        baseRequest(),
+        10,
+        capacityResource(
+          '<% return (await capacityUsage("minute"))?.tokensUsagePercent %>',
+          '0'
+        )
+      );
+      expect(result).toBeNull();
+    });
+
+    it('memoises per (period, conn, model) — multiple groups touching the same axis hit one Redis read', async () => {
+      const { service, capacity } = makeService();
+      capacity.getCapacityUsage.mockResolvedValue({
+        totalRequests: 0,
+        totalTokens: 9500,
+        remainingSeconds: 30,
+        requestsLimit: 100,
+        tokensLimit: 10000,
+        requestsLimitSource: 'connection',
+        tokensLimitSource: 'connection',
+        remainingRequests: 100,
+        remainingTokens: 500,
+        requestsUsagePercent: 0,
+        tokensUsagePercent: 95,
+      });
+      const resource = buildResource([
+        {
+          operator: RoutingOperator.AND,
+          conditions: [
+            cond(
+              '<% return (await capacityUsage("minute"))?.tokensUsagePercent %>',
+              RoutingComparator.GREATER_THAN,
+              { type: RoutingConditionType.NUMBER, expression: '999' }
+            ),
+          ],
+          then: { model: 'unmatched', connectionId: 'conn-1' },
+        },
+        {
+          operator: RoutingOperator.AND,
+          conditions: [
+            cond(
+              '<% return (await capacityUsage("minute"))?.remainingTokens %>',
+              RoutingComparator.LESS_THAN,
+              { type: RoutingConditionType.NUMBER, expression: '1000' }
+            ),
+          ],
+          then: { model: 'matched', connectionId: 'conn-2' },
+        },
+      ]);
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        baseRequest(),
+        10,
+        resource
+      );
+      expect(result?.model.model).toBe('matched');
+      expect(capacity.getCapacityUsage).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops out gracefully when the connection cannot be resolved', async () => {
+      const { service, capacity, aiConnection } = makeService();
+      aiConnection.getById.mockResolvedValue(undefined);
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        baseRequest(),
+        10,
+        capacityResource(
+          '<% return (await capacityUsage("minute", "missing-conn"))?.tokensUsagePercent %>',
+          '0'
+        )
+      );
+      expect(result).toBeNull();
+      // No connection means no Redis call — fail fast.
+      expect(capacity.getCapacityUsage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('metadata-dimensioned routing', () => {
+    // The routing engine reads `metadata` from the explicit parameter
+    // on `evaluateRoutingConditions`, not from the request body. So
+    // each test just builds a vanilla context here and passes the
+    // metadata map separately below.
+    const requestContext = (): RoutingContext =>
+      baseRequest({ messages: [{ role: 'user', content: 'hi' }] });
+
+    const buildMetadataResource = (
+      expression: string,
+      threshold: string
+    ): AIResourceEntity =>
+      buildResource([
+        {
+          operator: RoutingOperator.AND,
+          conditions: [
+            cond(expression, RoutingComparator.EQUAL, {
+              type: RoutingConditionType.STRING,
+              expression: threshold,
+            }),
+          ],
+          then: { model: 'metadata-route', connectionId: 'conn-2' },
+        },
+      ]);
+
+    it("matches the new clean-path shape `metadata['team']`", async () => {
+      const { service } = makeService();
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        requestContext(),
+        10,
+        buildMetadataResource("metadata['team']", 'growth'),
+        undefined,
+        undefined,
+        { team: 'growth' }
+      );
+      expect(result?.model.model).toBe('metadata-route');
+    });
+
+    it("matches the legacy `request.metadata?.['team']` shape — `?.` stripped before `lodash.get`", async () => {
+      const { service } = makeService();
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        requestContext(),
+        10,
+        buildMetadataResource("request.metadata?.['team']", 'growth'),
+        undefined,
+        undefined,
+        { team: 'growth' }
+      );
+      expect(result?.model.model).toBe('metadata-route');
+    });
+
+    it('does not route when the metadata value mismatches', async () => {
+      const { service } = makeService();
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        requestContext(),
+        10,
+        buildMetadataResource("metadata['team']", 'growth'),
+        undefined,
+        undefined,
+        { team: 'platform' }
+      );
+      expect(result).toBeNull();
+    });
+
+    it('does not route when metadata is entirely absent (field missing)', async () => {
+      const { service } = makeService();
+      const result = await service.evaluateRoutingConditions(
+        'ws-1',
+        'env-1',
+        requestContext(),
+        10,
+        buildMetadataResource("metadata['team']", 'growth'),
+        undefined,
+        undefined,
+        undefined
       );
       expect(result).toBeNull();
     });

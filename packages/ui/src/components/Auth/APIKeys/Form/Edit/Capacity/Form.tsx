@@ -21,6 +21,7 @@ export type APIKeyCapacityEditFormProps = {
   data: ApiKeyEntity;
   workspaceId: string;
   environmentId: string;
+  metadataKeys?: string[];
   submitAction: (
     prevState: FormAction,
     data: FormSchema
@@ -32,6 +33,7 @@ export default function APIKeyCapacityEditForm({
   data,
   workspaceId,
   environmentId,
+  metadataKeys,
 }: APIKeyCapacityEditFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction] = useActionState(submitAction, {
@@ -115,6 +117,7 @@ export default function APIKeyCapacityEditForm({
                     <CapacityTable
                       data={watch('capacity') as CapacityEntity[]}
                       onChange={field.onChange}
+                      metadataKeys={metadataKeys}
                     />
                   )}
                 />
